@@ -51,8 +51,20 @@
    ```
 
 
-2. **애플리케이션 설정**
-   `src/main/resources/application.yml` 파일에서 데이터베이스 연결 정보를 확인하세요.
+2. **환경변수 설정**
+   프로젝트 루트에 `.env` 파일을 생성하고 다음 설정을 추가하세요:
+   
+   ```bash
+   # 데이터베이스 설정
+   DB_URL=
+   DB_USERNAME=
+   DB_PASSWORD=
+   
+   # JWT 설정
+   JWT_SECRET=
+   ```
+   
+   > ⚠️ **주의**: `.env` 파일은 `.gitignore`에 포함되어 Git에 커밋되지 않습니다.
 
 3. **애플리케이션 실행**
    ```bash

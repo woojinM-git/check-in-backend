@@ -5,9 +5,9 @@ spring:
   application:
     name: checkin-backend
   datasource:
-    url: jdbc:mysql://localhost:4444/checkin?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: admin
-    password: 1111
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -27,10 +27,13 @@ spring:
     baseline-version: 0
     validate-on-migrate: true
     clean-disabled: false
+
 server:
   port: 8888
+
 jwt:
-  secret: checkinSecretKeyForJWTTokenGenerationAndValidation2024
+  secret: ${JWT_SECRET}
+
 springdoc:
   api-docs:
     path: /api-docs
