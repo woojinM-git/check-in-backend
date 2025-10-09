@@ -22,7 +22,7 @@ public class DbConfig {
         
         // MyBatis 매퍼 XML 파일 위치 설정
         PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-        Resource[] resources = resolver.getResources("classpath:mapper/*.xml");
+        Resource[] resources = resolver.getResources("classpath*:mapper/*.xml");
         factoryBean.setMapperLocations(resources);
         
         // MyBatis 설정 (선택사항)
