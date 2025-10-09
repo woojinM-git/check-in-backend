@@ -12,6 +12,7 @@ public class testController {
     public String test() {
         System.out.println("test");
         System.out.println("test");
+        System.out.println("test2");
         return "test";
     }
 }
