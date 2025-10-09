@@ -1,11 +1,11 @@
 package com.sist.backend.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -19,4 +19,10 @@ public class Area {
 
     @Column(name = "areaName")
     private String areaName;
+    
+    // 양방향 관계
+    @OneToMany(mappedBy = "area", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<HotelInfo> hotelInfos = new ArrayList<>();
 }
