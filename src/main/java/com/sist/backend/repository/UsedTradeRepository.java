@@ -1,8 +1,13 @@
 package com.sist.backend.repository;
 
+import java.util.List;
+
+import org.springdoc.core.converters.models.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import com.sist.backend.entity.UsedInfo;
 import com.sist.backend.entity.UsedTrade;
 
 @Repository
@@ -31,6 +36,42 @@ public interface UsedTradeRepository extends JpaRepository<UsedTrade, Integer> {
      * guest(integer)
      * totalPrice(integer)
      *                           <-
-     * usedTrade에 들어갈건 reservIdx, customerId, 판매자가 원하는 금액(price)
+     * usedTrade에 들어갈건 reservIdx, customerId, 판매자가 원하는 금액(price), status(0: 판매중, 1: 판매완료, 2: 판매취소), created_at, updated_at
+     */
+
+    /*
+     * 양도거래 취소
+     * 받야아할 것
+     * usedTrade의 usedInfoIdx(integer)
+     * customerId(string)
+     */
+
+
+    /*
+     * 매물 확인(기본 updated_at 순서)
+     * 만약 지역, 호텔명, 가격 검색 조건이 있으면 해당 조건에 맞는 매물 확인
+     */
+    // @Query("SELECT u FROM UsedInfo u " +
+    //     "JOIN u.roomReservation r ON u.reservIdx = r.reservIdx " +
+    //     "JOIN r.roomPayment p ON r.reservIdx = p.reservIdx " +
+    //     "WHERE u.status = 0 " +
+    //     "AND (:areaCode IS NULL OR a.areaCode = :areaCode) " +
+    //     "AND (:hotelName IS NULL OR hi.title LIKE %:hotelName%) " +
+    //     "AND (:minPrice IS NULL OR u.price >= :minPrice) " +
+    //     "AND (:maxPrice IS NULL OR u.price <= :maxPrice) " +
+    //     "ORDER BY u.updatedAt DESC")
+    // List<UsedInfo> findAllByStatusOrderByUpdatedAtDesc(String areaCode, String hotelName, Integer minPrice, Integer maxPrice, Pageable pageable);
+
+    /*
+     * 결제 처리
+     * 받야아할 것
+     * usedTrade의 usedInfoIdx(integer)
+     * customerId(string)
+     * price(integer)
+     * status(0: 판매중, 1: 판매완료, 2: 판매취소)
+     * created_at(timestamp)
+     * updated_at(timestamp)
+     * 
+     * 토스페이 사용
      */
 }
