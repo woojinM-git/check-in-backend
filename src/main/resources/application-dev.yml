@@ -1,0 +1,23 @@
+# 개발 환경 설정
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    clean-disabled: false
+
+# 개발 환경에서만 활성화되는 설정
+logging:
+  level:
+    com.sist.backend: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# 개발용 서버 설정
+server:
+  error:
+    include-stacktrace: always
+    include-message: always

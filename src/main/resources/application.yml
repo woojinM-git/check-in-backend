@@ -1,7 +1,7 @@
-# Conversion to YAML from Properties formar report
-# Warnings:
-# - The yaml file had comments which are lost in the refactoring!
+# 공통 설정
 spring:
+  profiles:
+    active: dev
   application:
     name: checkin-backend
   datasource:
@@ -14,10 +14,8 @@ spring:
       ddl-auto: validate
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-    show-sql: true
     properties:
       hibernate:
-        format_sql: true
         jdbc:
           time_zone: Asia/Seoul
   flyway:
@@ -30,7 +28,6 @@ spring:
 
 server:
   port: 8888
-
 
 jwt:
   secret: ${JWT_SECRET}
