@@ -19,13 +19,13 @@ public class HotelBookMark {
     private Integer hotelBookIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customerId", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer customer;
     
-    @Column(name = "customerId", nullable = false, length = 20)
-    private String customerId;
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contentId", referencedColumnName = "contentId", insertable = false, updatable = false)

@@ -18,12 +18,12 @@ public class EmailLog {
     private Long emailLogIdx;  // BIGINT → Long으로 수정
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @ToString.Exclude
     private Customer customer;
 
-    @Column(name = "id", nullable = false, length = 20)
-    private String id;  // FK (customer.id)
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;  // FK (customer.id)
 
     @Column(name = "template", length = 100)
     private String template;  // 이메일 템플릿명
@@ -38,7 +38,7 @@ public class EmailLog {
     private String payloadJson;  // 이메일 본문 JSON 문자열
 
     @Column(name = "status")
-    private Integer status;  // 0=실패, 1=성공
+    private Boolean status;  // false=실패, true=성공
 
     @Column(name = "sentAt")
     private LocalDateTime sentAt;  // 발송 시각

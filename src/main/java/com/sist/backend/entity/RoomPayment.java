@@ -22,13 +22,13 @@ public class RoomPayment {
     private Integer orderIdx;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customerId", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer customer;
 
-    @Column(name = "customerId", nullable = false, length = 20)
-    private String customerId;
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;
 
     @Column(name = "couponIdx", nullable = false)
     private Integer couponIdx;

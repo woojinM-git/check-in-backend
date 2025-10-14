@@ -19,6 +19,10 @@ import java.util.List;
 public class Customer {
     
     @Id
+    @Column(name = "customerIdx")
+    private Integer customerIdx;
+
+
     @Column(name = "id", length = 20)
     private String id;
     

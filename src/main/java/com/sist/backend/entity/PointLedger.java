@@ -18,12 +18,12 @@ public class PointLedger {
     private Long pointIdx;  // Long으로 설정
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @ToString.Exclude
     private Customer customer;  // FK 관계
 
-    @Column(name = "id", nullable = false, length = 20)
-    private String id;  // 고객 ID
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;  // 고객 ID
 
     @Column(name = "memo", length = 255)
     private String memo;  // 비고 (예: "적립", "사용")
