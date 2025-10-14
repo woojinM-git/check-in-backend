@@ -51,13 +51,13 @@ public class Review {
     private Integer roomIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "number", referencedColumnName = "number", insertable = false, updatable = false)
+    @JoinColumn(name = "orderIdx", referencedColumnName = "orderIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private RoomPayment roomPayment;
     
-    @Column(name = "number", nullable = false)
-    private Integer number;
+    @Column(name = "orderIdx", nullable = false)
+    private Integer orderIdx;
     
     @Column(name = "content", length = 500)
     private String content;

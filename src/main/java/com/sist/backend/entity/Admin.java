@@ -18,6 +18,7 @@ import java.util.List;
 public class Admin {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "adminIdx")
     private Integer adminIdx;
     
