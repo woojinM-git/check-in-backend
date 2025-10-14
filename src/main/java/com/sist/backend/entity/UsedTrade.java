@@ -31,16 +31,22 @@ public class UsedTrade {
     private Integer reservIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "buyerId", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "buyerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer buyer;
     
-    @Column(name = "buyerId", nullable = false, length = 20)
-    private String buyerId;
+    @Column(name = "buyerIdx", nullable = false, length = 20)
+    private Integer buyerIdx;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sellerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private Customer seller;
     
-    @Column(name = "sellerId", length = 20)
-    private String sellerId;
+    @Column(name = "sellerIdx", length = 20)
+    private Integer sellerIdx;
     
     @Column(name = "price")
     private Integer price;

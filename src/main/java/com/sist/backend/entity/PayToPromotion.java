@@ -40,17 +40,17 @@ public class PayToPromotion {
     @Column(name = "couponCount")
     private Integer couponCount;
     
-    @Column(name = "Field3")
-    private LocalDateTime field3;
+    @Column(name = "createDate")
+    private LocalDateTime createDate;
     
-    @Column(name = "Field2")
-    private LocalDateTime field2;
+    @Column(name = "endDate")
+    private LocalDateTime endDate;
     
-    @Column(name = "Field")
-    private Integer field;
+    @Column(name = "price")
+    private Integer price;
     
-    @Column(name = "Field4")
-    private String field4;
+    @Column(name = "status")
+    private Boolean status;
     
     // 양방향 관계
     @OneToMany(mappedBy = "payToPromotion", fetch = FetchType.LAZY)

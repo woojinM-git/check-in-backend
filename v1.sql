@@ -576,10 +576,10 @@ CREATE TABLE `paytopromotion` (
   `promotionIdx` int NOT NULL,
   `promotionPayDate` datetime DEFAULT NULL,
   `couponCount` int DEFAULT NULL,
-  `Field3` datetime DEFAULT NULL,
-  `Field2` datetime DEFAULT NULL,
-  `Field` int DEFAULT NULL,
-  `Field4` varchar(255) DEFAULT NULL,
+  `createDate` datetime DEFAULT NULL,
+  `endDate` datetime DEFAULT NULL,
+  `price` int DEFAULT NULL,
+  `status` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`promotionPayIdx`),
   KEY `FK_hotelInfo_TO_paytopromotion_1` (`contentid`),
   CONSTRAINT `FK_hotelInfo_TO_paytopromotion_1` FOREIGN KEY (`contentid`) REFERENCES `hotelInfo` (`contentId`)
@@ -916,7 +916,7 @@ CREATE TABLE `usedItem` (
   `price` int NULL,
   `status` int NULL,
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updateAt` datetime DEFAULT NULL,
+  `updatedAt` datetime DEFAULT NULL,
   PRIMARY KEY (`usedItemIdx`),
   KEY `FK_roomReservation_TO_usedItem_1` (`reservIdx`),
   CONSTRAINT `FK_roomReservation_TO_usedItem_1` FOREIGN KEY (`reservIdx`) REFERENCES `roomReservation` (`reservIdx`)

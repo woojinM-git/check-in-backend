@@ -31,8 +31,14 @@ public class Coupon {
     @ToString.Exclude
     private CouponPolicy couponPolicy;
     
-    @Column(name = "customerId", nullable = false, length = 20)
-    private String customerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private Customer customer;
+
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;
     
     @Column(name = "createDate")
     private LocalDateTime createDate;

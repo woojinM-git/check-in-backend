@@ -15,8 +15,8 @@ import lombok.ToString;
 public class DiningReservation {
     
     @Id
-    @Column(name = "idx")
-    private String idx;
+    @Column(name = "diningResrIdx")
+    private Integer diningResrIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diningIdx", referencedColumnName = "diningIdx", insertable = false, updatable = false)
@@ -28,13 +28,13 @@ public class DiningReservation {
     private Integer diningIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customerId", referencedColumnName = "id", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer customer;
     
-    @Column(name = "customerId", nullable = false, length = 20)
-    private String customerId;
+    @Column(name = "customerIdx", nullable = false, length = 20)
+    private Integer customerIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diningpayIdx", referencedColumnName = "diningpayIdx", insertable = false, updatable = false)
