@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import com.sist.backend.entity.UsedInfo;
+import com.sist.backend.entity.UsedItem;
 import com.sist.backend.entity.UsedTrade;
 
 @Repository

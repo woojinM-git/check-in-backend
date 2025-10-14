@@ -10,16 +10,16 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "usedInfo")
+@Table(name = "usedItem")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UsedInfo {
+public class UsedItem {
     
     @Id
-    @Column(name = "usedInfoIdx")
+    @Column(name = "usedItemIdx")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer usedInfoIdx;
+    private Integer usedItemIdx;
     
     @Column(name = "reservIdx", nullable = false)
     private Integer reservIdx;
