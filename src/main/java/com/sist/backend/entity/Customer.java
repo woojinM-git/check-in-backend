@@ -66,6 +66,9 @@ public class Customer {
     
     @Column(name = "refToken")
     private String refToken;
+
+    @Column(name ="provider")
+    private Integer provider;
     
     // 양방향 관계
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
