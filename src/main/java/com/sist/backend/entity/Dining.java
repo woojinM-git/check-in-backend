@@ -33,8 +33,11 @@ public class Dining {
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
     
-    @Column(name = "amount")
-    private Integer amount;
+    @Column(name = "totalCount")
+    private Integer totalCount;
+    
+    @Column(name = "bookedCount")
+    private Integer bookedCount;
     
     // 양방향 관계
     @OneToMany(mappedBy = "dining", fetch = FetchType.LAZY)
