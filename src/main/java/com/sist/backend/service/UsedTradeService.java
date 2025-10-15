@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
+import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.entity.UsedItem;
 import com.sist.backend.repository.UsedItemRepository;
 
@@ -19,5 +20,13 @@ public class UsedTradeService {
 
     public Page<UsedItem> findAllByStatusOrderByUpdatedAtDesc(Pageable pageable) {
         return usedItemRepository.findAllByStatusOrderByUpdatedAtDesc(pageable);
+    }
+    
+    // DTO 변환 메서드 추가
+    public Page<UsedItemDto> findAllByStatusOrderByUpdatedAtDescAsDto(Pageable pageable) {
+        Page<UsedItem> usedItemPage = usedItemRepository.findAllByStatusOrderByUpdatedAtDesc(pageable);
+        
+        // Page<UsedItem>을 Page<UsedItemDto>로 변환
+        return usedItemPage.map(UsedItemDto::fromEntity);
     }
 }

@@ -6,8 +6,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.entity.UsedItem;
 
 @Repository
@@ -52,11 +54,15 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
      * 만약 지역, 호텔명, 가격 검색 조건이 있으면 해당 조건에 맞는 매물 확인
      */
     @Query("SELECT u FROM UsedItem u " +
-        "JOIN u.roomReservation r ON u.reservIdx = r.reservIdx " +
-        "JOIN r.roomPayment p ON r.orderIdx = p.orderIdx " +
+        "JOIN FETCH u.roomReservation r " +
+        "JOIN r.roomPayment p " +
         "WHERE u.status = 0 " +
         "ORDER BY u.updatedAt DESC")
     Page<UsedItem> findAllByStatusOrderByUpdatedAtDesc(Pageable pageable);
+    
+    // 방법 2: 특정 reservIdx로 RoomReservation 정보 조회
+    @Query("SELECT r FROM RoomReservation r WHERE r.reservIdx = :reservIdx")
+    RoomReservation findRoomReservationByReservIdx(@Param("reservIdx") Integer reservIdx);
 
     /*
      * 결제 처리
