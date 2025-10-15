@@ -42,6 +42,9 @@ public class Admin {
 
     @Column(name = "refToken")
     private String refToken;
+
+    @Column(name = "phone")
+    private String phone;
     
     // 양방향 관계
     @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
