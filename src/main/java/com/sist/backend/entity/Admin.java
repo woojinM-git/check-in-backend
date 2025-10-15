@@ -39,9 +39,6 @@ public class Admin {
     
     @Column(name = "name")
     private String name;
-    
-    @Column(name = "phone")
-    private String phone;
 
     @Column(name = "refToken")
     private String refToken;
