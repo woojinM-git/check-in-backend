@@ -29,5 +29,8 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.category " +
            "LEFT JOIN FETCH h.area")
     Page<HotelInfo> findAllWithCategoryAndArea(Pageable pageable);
+
+    /* 마스터 화면 (홈페이지에 등록되어 있는 호텔의 목록) */
+    List<HotelInfo> findAll();
 }
 

@@ -33,5 +33,10 @@ public class HotelInfoService {
         Pageable pageable = PageRequest.of(page, size);
         return hotelInfoRepository.findAllWithCategoryAndArea(pageable);
     }
+
+    /* 등록되어 있는 호텔의 목록 */
+    public List<HotelInfo> findAllHotel() {
+        return hotelInfoRepository.findAll();
+    }
 }
 
