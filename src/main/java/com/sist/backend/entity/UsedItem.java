@@ -30,10 +30,10 @@ public class UsedItem {
     @Column(name = "status")
     private Integer status;
     
-    @Column(name = "created_at")
+    @Column(name = "createdAt")
     private LocalDateTime createdAt;
     
-    @Column(name = "updated_at")
+    @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
     
     @ManyToOne(fetch = FetchType.LAZY)
