@@ -20,6 +20,18 @@ public class Rank {
     @Id
     @Column(name = "`rank`", length = 50)
     private String rank;
+
+    @Column(name = "pointRate")
+    private Integer pointRate;
+    
+    @Column(name = "yearCoupon")
+    private Integer yearCoupon;
+    
+    @Column(name = "maxDiscount")
+    private Integer maxDiscount;
+    
+    @Column(name = "conditions")
+    private Integer conditions;
     
     @OneToMany(mappedBy = "rankEntity", fetch = FetchType.LAZY)
     @JsonIgnore
