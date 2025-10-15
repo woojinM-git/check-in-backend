@@ -20,6 +20,7 @@ public class UsedItemDto {
     private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String comment;
     
     // 예약 정보 (RoomReservation)
     private ReservationInfo reservation;
@@ -63,7 +64,7 @@ public class UsedItemDto {
         dto.setStatus(usedItem.getStatus());
         dto.setCreatedAt(usedItem.getCreatedAt());
         dto.setUpdatedAt(usedItem.getUpdatedAt());
-
+        dto.setComment(usedItem.getComment());
         // 예약 정보 설정
         if (usedItem.getRoomReservation() != null) {
             ReservationInfo reservation = new ReservationInfo();

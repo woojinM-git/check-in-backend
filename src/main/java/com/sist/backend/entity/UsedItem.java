@@ -41,6 +41,9 @@ public class UsedItem {
     @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
     
+    @Column(name = "comment", length = 255)
+    private String comment;
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
