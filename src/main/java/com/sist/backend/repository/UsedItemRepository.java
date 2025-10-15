@@ -2,16 +2,16 @@ package com.sist.backend.repository;
 
 import java.util.List;
 
-import org.springdoc.core.converters.models.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.sist.backend.entity.UsedItem;
-import com.sist.backend.entity.UsedTrade;
 
 @Repository
-public interface UsedTradeRepository extends JpaRepository<UsedTrade, Integer> {
+public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
     
     /*
      * 마이페이지에서 예약내역 확인, 추가로 양도거래조건에 따라 양도거래 표시
@@ -51,16 +51,12 @@ public interface UsedTradeRepository extends JpaRepository<UsedTrade, Integer> {
      * 매물 확인(기본 updated_at 순서)
      * 만약 지역, 호텔명, 가격 검색 조건이 있으면 해당 조건에 맞는 매물 확인
      */
-    // @Query("SELECT u FROM UsedInfo u " +
-    //     "JOIN u.roomReservation r ON u.reservIdx = r.reservIdx " +
-    //     "JOIN r.roomPayment p ON r.reservIdx = p.reservIdx " +
-    //     "WHERE u.status = 0 " +
-    //     "AND (:areaCode IS NULL OR a.areaCode = :areaCode) " +
-    //     "AND (:hotelName IS NULL OR hi.title LIKE %:hotelName%) " +
-    //     "AND (:minPrice IS NULL OR u.price >= :minPrice) " +
-    //     "AND (:maxPrice IS NULL OR u.price <= :maxPrice) " +
-    //     "ORDER BY u.updatedAt DESC")
-    // List<UsedInfo> findAllByStatusOrderByUpdatedAtDesc(String areaCode, String hotelName, Integer minPrice, Integer maxPrice, Pageable pageable);
+    @Query("SELECT u FROM UsedItem u " +
+        "JOIN u.roomReservation r ON u.reservIdx = r.reservIdx " +
+        "JOIN r.roomPayment p ON r.orderIdx = p.orderIdx " +
+        "WHERE u.status = 0 " +
+        "ORDER BY u.updatedAt DESC")
+    Page<UsedItem> findAllByStatusOrderByUpdatedAtDesc(Pageable pageable);
 
     /*
      * 결제 처리
