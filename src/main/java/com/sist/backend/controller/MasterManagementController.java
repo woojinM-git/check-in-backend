@@ -54,14 +54,20 @@ public class MasterManagementController {
     @RequestMapping("/dashboard")
     public Map<String, Object> findAllHotel() {
         List<HotelInfo> HotelList = hotelInfoService.findAllHotel();
-        // List<Customer> customerList = customerService.findAll();
+        List<Customer> customerList = customerService.findAll();
+        Long paymentAmount = roomPaymentService.findByPrice();
         Map<String, Object> map = new HashMap<>();
 
         if(HotelList != null && !HotelList.isEmpty()) {
             map.put("hotelList", HotelList);
             map.put("hotelCount", HotelList.size());
-            // map.put("customerList", customerList);
-            // map.put("customerCount", customerList.size());
+        }
+        if(customerList != null && !customerList.isEmpty()) {
+            map.put("customerList", customerList);
+            map.put("customerCount", customerList.size());
+        }
+        if(paymentAmount != null) {
+            map.put("paymentAmount", paymentAmount);
         }
         
         return map;
