@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -74,6 +75,9 @@ public class Customer {
     @Column(name ="provider")
     private Integer provider;
     
+    @Column(name = "joinDate")
+    private LocalDateTime joinDate;
+
     // 양방향 관계
     @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
     @JsonIgnore
