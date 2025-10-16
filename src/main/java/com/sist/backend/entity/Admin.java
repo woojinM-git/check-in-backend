@@ -22,9 +22,6 @@ public class Admin {
     @Column(name = "adminIdx")
     private Integer adminIdx;
     
-    @Column(name = "contentid", nullable = false, length = 50)
-    private String contentid;
-    
     @Column(name = "type")
     private Boolean type;
     

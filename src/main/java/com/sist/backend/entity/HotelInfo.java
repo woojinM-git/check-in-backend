@@ -20,6 +20,10 @@ public class HotelInfo {
     @Id
     @Column(name = "contentId", length = 50)
     private String contentId;
+
+    /* 관리자 고유번호 */
+    @Column(name = "adminIdx")
+    private Integer adminIdx;
     
     @Column(name = "title")
     private String title;
