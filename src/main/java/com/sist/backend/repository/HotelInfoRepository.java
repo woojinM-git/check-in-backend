@@ -34,7 +34,9 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
     List<HotelInfo> findAll();
 
     /* 등록 요청을 하는 호텔의 목록 ,status가 0임 */
-    @Query("SELECT h FROM HotelInfo h WHERE h.status = 0")
+    @Query("SELECT h FROM HotelInfo h " +
+       "LEFT JOIN FETCH h.admin " +
+       "WHERE h.status = 0")
     List<HotelInfo> findByStatus();
 }
 
