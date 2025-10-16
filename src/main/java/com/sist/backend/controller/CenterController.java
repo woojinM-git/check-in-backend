@@ -1,5 +1,7 @@
 package com.sist.backend.controller;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -46,6 +48,11 @@ public class CenterController {
     public ResponseEntity<Center> createCenter(@RequestBody Center center) {
         try {
             Center createdCenter = centerService.createCenter(center);
+            //createdAt 현재시간으로 설정
+            createdCenter.setCreatedAt(LocalDateTime.now());
+            createdCenter.setUpdatedAt(LocalDateTime.now());
+            createdCenter.setStatus(0);
+            createdCenter.setHide(false);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdCenter);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
