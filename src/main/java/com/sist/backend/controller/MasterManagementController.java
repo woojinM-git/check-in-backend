@@ -76,7 +76,19 @@ public class MasterManagementController {
             map.put("paymentAmount", paymentAmount);
         }
         if(newCustomers != null && !newCustomers.isEmpty()) {
-            map.put("newCustomers", newCustomers);
+            // 오늘 가입한 고객 데이터를 필요한 필드만 Map으로 변환
+            List<Map<String, Object>> newCustomerMapList = new ArrayList<>();
+            for(Customer customer : newCustomers) {
+                Map<String, Object> customerMap = new HashMap<>();
+                customerMap.put("customerIdx", customer.getCustomerIdx());
+                customerMap.put("name", customer.getName());           // 회원명
+                customerMap.put("email", customer.getEmail());         // 이메일
+                customerMap.put("joinDate", customer.getJoinDate());   // 가입일
+                customerMap.put("totalPrice", customer.getTotalPrice()); // 누적금액
+                customerMap.put("status", customer.getStatus());       // 상태
+                newCustomerMapList.add(customerMap);
+            }
+            map.put("newCustomers", newCustomerMapList);
             map.put("newCustomersCount", newCustomers.size());
         }
 

@@ -13,6 +13,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     
     List<Customer> findAll();
 
-    @Query("SELECT c FROM Customer c WHERE c.joinDate = NOW()")
+    @Query(value = "SELECT * FROM customer WHERE joinDate >= CURDATE() AND joinDate < DATE_ADD(CURDATE(), INTERVAL 1 DAY)", nativeQuery = true)
     List<Customer> findByJoinDate();
 }
