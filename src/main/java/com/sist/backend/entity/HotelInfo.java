@@ -50,6 +50,9 @@ public class HotelInfo {
     
     @Column(name = "imageUrl", length = 500)
     private String imageUrl;
+
+    @Column(name = "status")
+    private Integer status;
     
     // 양방향 관계
     @OneToOne(mappedBy = "hotelInfo", fetch = FetchType.LAZY)
