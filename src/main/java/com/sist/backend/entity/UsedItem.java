@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "usedItem")
@@ -43,6 +45,12 @@ public class UsedItem {
     
     @Column(name = "comment", length = 255)
     private String comment;
+    
+    // 양방향 관계
+    @OneToMany(mappedBy = "usedItem", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<UsedTrade> usedTrades = new ArrayList<>();
     
     @PrePersist
     protected void onCreate() {
