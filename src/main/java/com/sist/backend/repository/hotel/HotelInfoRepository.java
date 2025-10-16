@@ -1,4 +1,4 @@
-package com.sist.backend.repository;
+package com.sist.backend.repository.hotel;
 
 import com.sist.backend.entity.HotelInfo;
 import org.springframework.data.domain.Page;
