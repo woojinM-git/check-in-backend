@@ -17,6 +17,9 @@ import com.sist.backend.service.HotelInfoService;
 import com.sist.backend.service.MasterManagementService;
 import com.sist.backend.service.RoomPaymentService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 
 @RestController
 @RequestMapping("/api/master")
@@ -50,10 +53,12 @@ public class MasterManagementController {
     }
     
 
-    /* 등록되어 있는 호텔의 목록 */
+    @Operation(summary = "마스터 대시보드 호출")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
     @RequestMapping("/dashboard")
     public Map<String, Object> findAllHotel() {
         List<HotelInfo> HotelList = hotelInfoService.findAllHotel();
+        List<HotelInfo> HotelRequestList = hotelInfoService.findByStatus();
         List<Customer> customerList = customerService.findAll();
         Long paymentAmount = roomPaymentService.findByPrice();
         Map<String, Object> map = new HashMap<>();
@@ -68,6 +73,11 @@ public class MasterManagementController {
         }
         if(paymentAmount != null) {
             map.put("paymentAmount", paymentAmount);
+        }
+
+        if(HotelRequestList != null && !HotelRequestList.isEmpty()) {
+            map.put("hotelRequestList", HotelRequestList);
+            map.put("hotelRequestCount", HotelRequestList.size());
         }
         
         return map;

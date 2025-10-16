@@ -38,5 +38,10 @@ public class HotelInfoService {
     public List<HotelInfo> findAllHotel() {
         return hotelInfoRepository.findAll();
     }
+
+    /* 등록 요청을 하는 호텔 목록 */
+    public List<HotelInfo> findByStatus() {
+        return hotelInfoRepository.findByStatus();
+    }
 }
 
