@@ -21,9 +21,15 @@ public class HotelInfo {
     @Column(name = "contentId", length = 50)
     private String contentId;
 
-    /* 관리자 고유번호 */
-    @Column(name = "adminIdx")
+    @ManyToOne
+    @JoinColumn(name = "adminIdx")
+    @JsonIgnore
+    @ToString.Exclude
+    private Admin admin;
+
+    @Column(name = "adminIdx", insertable = false, updatable = false)
     private Integer adminIdx;
+    
     
     @Column(name = "title")
     private String title;
@@ -55,7 +61,7 @@ public class HotelInfo {
     @Column(name = "imageUrl", length = 500)
     private String imageUrl;
 
-    @Column(name = "status")
+    @Column(name = "status", columnDefinition = "INT")
     private Integer status;
     
     // 양방향 관계

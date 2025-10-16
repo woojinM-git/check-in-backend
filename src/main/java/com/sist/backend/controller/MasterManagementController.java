@@ -79,6 +79,8 @@ public class MasterManagementController {
             map.put("hotelRequestList", HotelRequestList);
             map.put("hotelRequestCount", HotelRequestList.size());
         }
+
+        
         
         return map;
     }
