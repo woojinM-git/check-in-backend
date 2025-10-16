@@ -22,6 +22,15 @@ public class UsedTrade {
     private Integer usedTradeIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "userItemIdx", referencedColumnName = "usedItemIdx", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private UsedItem usedItem;
+    
+    @Column(name = "userItemIdx", nullable = false)
+    private Integer userItemIdx;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservIdx", referencedColumnName = "reservIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
