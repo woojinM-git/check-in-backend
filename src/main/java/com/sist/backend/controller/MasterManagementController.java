@@ -60,6 +60,7 @@ public class MasterManagementController {
         List<HotelInfo> HotelList = hotelInfoService.findAllHotel();
         List<RegistrationRequest> pendingRequests = registrationRequestService.findByStatus();
         List<Customer> customerList = customerService.findAll();
+        List<Customer> newCustomers = customerService.findByJoinDate();
         Long paymentAmount = roomPaymentService.findByPrice();
         Map<String, Object> map = new HashMap<>();
 
@@ -73,6 +74,10 @@ public class MasterManagementController {
         }
         if(paymentAmount != null) {
             map.put("paymentAmount", paymentAmount);
+        }
+        if(newCustomers != null && !newCustomers.isEmpty()) {
+            map.put("newCustomers", newCustomers);
+            map.put("newCustomersCount", newCustomers.size());
         }
 
         if(pendingRequests != null && !pendingRequests.isEmpty()) {
