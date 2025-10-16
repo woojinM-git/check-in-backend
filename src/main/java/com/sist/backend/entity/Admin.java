@@ -53,4 +53,9 @@ public class Admin {
     @JsonIgnore
     @ToString.Exclude
     private List<HotelInfo> hotelInfos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private List<RegistrationRequest> registrationRequests = new ArrayList<>();
 }

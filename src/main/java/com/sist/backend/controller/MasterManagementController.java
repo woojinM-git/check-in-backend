@@ -1,11 +1,13 @@
 package com.sist.backend.controller;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.entity.RegistrationRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,27 +17,25 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.HotelInfoService;
 import com.sist.backend.service.MasterManagementService;
+import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import lombok.RequiredArgsConstructor;
 
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/master")
 public class MasterManagementController {
     
-    @Autowired
-    MasterManagementService mmService;
-
-    @Autowired
-    HotelInfoService hotelInfoService;
-
-    @Autowired
-    RoomPaymentService roomPaymentService;
-
-    @Autowired
-    CustomerService customerService;
+    /* 서비스 호출 */
+    private final MasterManagementService mmService;
+    private final HotelInfoService hotelInfoService;
+    private final RoomPaymentService roomPaymentService;
+    private final RegistrationRequestService registrationRequestService;
+    private final CustomerService customerService;
 
     /* 마스터 화면에서 확인할 수 있는 관리자 목록 */
     @RequestMapping("/adminList")
@@ -58,7 +58,7 @@ public class MasterManagementController {
     @RequestMapping("/dashboard")
     public Map<String, Object> findAllHotel() {
         List<HotelInfo> HotelList = hotelInfoService.findAllHotel();
-        List<HotelInfo> HotelRequestList = hotelInfoService.findByStatus();
+        List<RegistrationRequest> pendingRequests = registrationRequestService.findByStatus();
         List<Customer> customerList = customerService.findAll();
         Long paymentAmount = roomPaymentService.findByPrice();
         Map<String, Object> map = new HashMap<>();
@@ -75,22 +75,39 @@ public class MasterManagementController {
             map.put("paymentAmount", paymentAmount);
         }
 
-        if(HotelRequestList != null && !HotelRequestList.isEmpty()) {
-            map.put("hotelRequestList", HotelRequestList);
-            map.put("hotelRequestCount", HotelRequestList.size());
-        }
+        if(pendingRequests != null && !pendingRequests.isEmpty()) {
+            List<Map<String, Object>> requestList = new ArrayList<>();
+            for(RegistrationRequest request : pendingRequests) {
+                Map<String, Object> requestMap = new HashMap<>();
 
-        
-        
+                // 호텔 정보
+                if (request.getHotelInfo() != null) {
+                    requestMap.put("contentId", request.getHotelInfo().getContentId());
+                    requestMap.put("title", request.getHotelInfo().getTitle());
+                    requestMap.put("adress", request.getHotelInfo().getAdress());
+                    requestMap.put("rooms", request.getHotelInfo().getRooms().size());
+                    requestMap.put("requestDate", request.getRegiDate());
+                    requestMap.put("status", request.getStatus());
+                }
+
+                // 사업자 정보
+                if(request.getAdmin() != null) {
+                    requestMap.put("ownerName", request.getAdmin().getName());
+                    requestMap.put("ownerPhone", request.getAdmin().getPhone());
+                    requestMap.put("ownerEmail", request.getAdmin().getId());
+                }
+
+                
+                requestMap.put("registrationIdx", request.getRegistrationIdx());
+                requestMap.put("regiDate", request.getRegiDate());
+                requestMap.put("status", request.getStatus());
+
+                requestList.add(requestMap);
+            }
+            map.put("hotelRequestList", requestList);
+            map.put("hotelRequestCount", requestList.size());
+        }
         return map;
     }
-
-    /* 결제내역의 쌓인 금액 */
-    @RequestMapping("/paymentAmount")
-    public Object findByPrice() {
-        return roomPaymentService.findByPrice();
-    }
-
-
 
 }
