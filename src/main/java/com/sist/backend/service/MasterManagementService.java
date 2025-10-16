@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.sist.backend.entity.Admin;
-import com.sist.backend.entity.HotelInfo;
-import com.sist.backend.repository.HotelInfoRepository;
 import com.sist.backend.repository.MasterManagementRepository;
 
 @Service
