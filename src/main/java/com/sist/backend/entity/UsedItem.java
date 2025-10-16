@@ -21,6 +21,11 @@ public class UsedItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer usedItemIdx;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reservIdx", referencedColumnName = "reservIdx", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private RoomReservation roomReservation;
     @Column(name = "reservIdx", nullable = false)
     private Integer reservIdx;
     
@@ -36,11 +41,8 @@ public class UsedItem {
     @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reservIdx", referencedColumnName = "reservIdx", insertable = false, updatable = false)
-    @JsonIgnore
-    @ToString.Exclude
-    private RoomReservation roomReservation;
+    @Column(name = "comment", length = 255)
+    private String comment;
     
     @PrePersist
     protected void onCreate() {
