@@ -143,6 +143,7 @@ public class CenterController {
             searchRequest.getPriority(), 
             searchRequest.getCustomerIdx(), 
             searchRequest.getAdminIdx(), 
+            searchRequest.getTitle(),
             pageable
         );
         return ResponseEntity.ok(centerPage);

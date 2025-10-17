@@ -45,7 +45,8 @@ public interface CenterRepository extends JpaRepository<Center, Integer> {
            "(:status IS NULL OR c.status = :status) AND " +
            "(:priority IS NULL OR c.priority = :priority) AND " +
            "(:customerIdx IS NULL OR c.customerIdx = :customerIdx) AND " +
-           "(:adminIdx IS NULL OR c.adminIdx = :adminIdx)")
+           "(:adminIdx IS NULL OR c.adminIdx = :adminIdx) AND " +
+           "(:title IS NULL OR c.title LIKE %:title% OR c.content LIKE %:title%)")
     Page<Center> findByMultipleConditions(
         @Param("mainCategory") String mainCategory,
         @Param("subCategory") String subCategory,
@@ -53,6 +54,7 @@ public interface CenterRepository extends JpaRepository<Center, Integer> {
         @Param("priority") Integer priority,
         @Param("customerIdx") Integer customerIdx,
         @Param("adminIdx") Integer adminIdx,
+        @Param("title") String title,
         Pageable pageable
     );
 }

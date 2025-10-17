@@ -76,10 +76,11 @@ public class CenterService {
         Integer priority,
         Integer customerIdx,
         Integer adminIdx,
+        String title,
         Pageable pageable
     ) {
         return centerRepository.findByMultipleConditions(
-            mainCategory, subCategory, status, priority, customerIdx, adminIdx, pageable
+            mainCategory, subCategory, status, priority, customerIdx, adminIdx, title, pageable
         );
     }
 }
