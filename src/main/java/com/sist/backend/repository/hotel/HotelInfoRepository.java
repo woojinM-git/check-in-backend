@@ -39,5 +39,11 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.admin " +
            "ORDER BY h.contentId")
     List<HotelInfo> findAllHotelWithDetails();
+
+    @Query("SELECT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.hotelDetail " +
+           "LEFT JOIN FETCH h.admin " +
+           "ORDER BY h.contentId")
+    Page<HotelInfo> findAllHotelWithDetailsAsDto(Pageable pageable);
 }
 

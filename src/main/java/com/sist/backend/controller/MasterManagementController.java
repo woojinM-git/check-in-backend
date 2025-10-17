@@ -5,10 +5,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.RegistrationRequest;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +24,7 @@ import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 
@@ -58,7 +63,19 @@ public class MasterManagementController {
 
         return map;
     }
-    
+
+    @RequestMapping("/hotelList")
+    @Operation(summary = "마스터 호텔 관리", description = "등록되어 있는 호텔의 목록을 보여줍니다.")
+    @ApiResponse(responseCode = "200", description = "호텔관리 성공")
+    public ResponseEntity<Page<HotelInfoDto>>  findAllHotelWithDetailsAsDto(
+        @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+        @RequestParam(defaultValue = "0") int page, 
+        @Parameter(description = "페이지당 데이터 개수", example = "5") 
+        @RequestParam(defaultValue = "5") int size) {
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(pageable));
+    }
+
     /* 등록되어 있는 호텔의 목록 */
     @Operation(summary = "마스터 호텔 관리 호출")
     @ApiResponse(responseCode = "200", description = "호텔관리 성공")
