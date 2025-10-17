@@ -18,8 +18,7 @@ public class HotelDetail {
     @Column(name = "contentid", length = 50)
     private String contentid;
     
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contentid", referencedColumnName = "contentId", insertable = false, updatable = false)
+    @OneToOne(mappedBy = "hotelDetail", fetch = FetchType.LAZY)
     @JsonIgnore
     @ToString.Exclude
     private HotelInfo hotelInfo;
