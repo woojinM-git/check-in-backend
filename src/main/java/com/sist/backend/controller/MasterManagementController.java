@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.service.CustomerService;
-import com.sist.backend.service.HotelInfoService;
+import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.service.MasterManagementService;
 import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;

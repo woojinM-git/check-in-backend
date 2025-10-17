@@ -1,7 +1,7 @@
-package com.sist.backend.service;
+package com.sist.backend.service.hotel;
 
 import com.sist.backend.entity.HotelInfo;
-import com.sist.backend.repository.HotelInfoRepository;
+import com.sist.backend.repository.hotel.HotelInfoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
