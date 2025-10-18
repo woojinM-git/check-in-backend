@@ -35,15 +35,15 @@
 
 ## 🧠 기능 동작 흐름
 
-1. 사용자가 호텔 상세 페이지 진입  
-   → **POST** `/api/hotels/{contentId}/view` 호출  
+1. 사용자가 호텔 상세 페이지 진입
+   → **POST** `/api/hotels/{contentId}/view` 호출
    → Redis에 세션 등록 (`hotel:view:{contentId}:{sessionId}`)
 
-2. 프론트가 10초마다  
-   → **GET** `/api/hotels/{contentId}/views` 호출  
+2. 프론트가 10초마다
+   → **GET** `/api/hotels/{contentId}/views` 호출
    → Redis에서 현재 세션 key 개수 조회 후 반환
 
-3. TTL 5분이 지나면 Redis에서 자동 삭제  
+3. TTL 5분이 지나면 Redis에서 자동 삭제
    → 세션이 만료되면 실시간 조회자 수 감소
 
 ---
@@ -58,7 +58,7 @@
 
 ## 🧾 API 명세
 
-### ✅ POST `/api/hotels/{contentId}/view`
+### POST `/api/hotels/{contentId}/view`
 호텔 상세 진입 시 호출
 
 | 항목 | 내용 |
@@ -69,7 +69,7 @@
 
 ---
 
-### ✅ GET `/api/hotels/{contentId}/views`
+### GET `/api/hotels/{contentId}/views`
 현재 이 호텔을 보고 있는 사람 수 조회
 
 | 항목 | 내용 |
@@ -121,7 +121,7 @@ Redis 내부:
 
 contentId는 DB에서 VARCHAR(50)이므로 컨트롤러에서도 String으로 처리
 
-TTL(5분) 만료 시 Redis가 자동 정리
+TTL(1분) 만료 시 Redis가 자동 정리
 
 프론트에서는 10초마다 갱신
 
