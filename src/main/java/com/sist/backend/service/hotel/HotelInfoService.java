@@ -39,5 +39,10 @@ public class HotelInfoService {
         return hotelInfoRepository.findAll();
     }
 
+    /* 등록되어 있는 호텔의 목록 (객실 수 포함)*/
+    public List<HotelInfo> findAllHotelWithDetails() {
+        return hotelInfoRepository.findAllHotelWithDetails();
+    }
+
 }
 

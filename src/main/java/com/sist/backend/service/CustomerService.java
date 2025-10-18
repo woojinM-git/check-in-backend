@@ -1,6 +1,7 @@
 package com.sist.backend.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,11 @@ public class CustomerService {
     public List<Customer> findAll(){
         return customerRepository.findAll();
     }
+
+    public Optional<Customer> findById(String id){
+        return customerRepository.findById(id);
+    }
+        
 
     public List<Customer> findByJoinDate(){
         return customerRepository.findByJoinDate();
