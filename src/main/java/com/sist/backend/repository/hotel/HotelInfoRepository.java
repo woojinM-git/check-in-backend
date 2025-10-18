@@ -11,7 +11,7 @@ import java.util.List;
 
 @Repository
 public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
-    
+
     /**
      * 상위 10개 HotelInfo 조회 (Category와 Area를 Fetch Join으로 함께 조회)
      * N+1 문제 방지를 위해 fetch join 사용
