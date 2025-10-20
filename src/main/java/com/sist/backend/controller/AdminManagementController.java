@@ -22,6 +22,5 @@ public class AdminManagementController {
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃, 예약 대기, 이번달 매출 */
     /* 최근 예약 현황 */
-    @RequestMapping("dashboard")
-    @Operation(summary = "대시보드 관리", description = "관리자 화면의 대시보드")
+
 }
