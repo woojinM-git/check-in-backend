@@ -4,11 +4,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.UsedItemDto;
+import com.sist.backend.dto.UsedSearchRequestDto;
 import com.sist.backend.service.UsedTradeService;
 
 import lombok.RequiredArgsConstructor;
@@ -42,5 +45,29 @@ public class UsedTradeController {
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(usedTradeService.findAllByStatusOrderByUpdatedAtDescAsDto(pageable));
+    }
+
+    @PostMapping("/search")
+    @Operation(summary = "양도거래 검색", description = "다양한 조건으로 양도거래를 검색합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Page<UsedItemDto>> searchUsedItems(@RequestBody UsedSearchRequestDto searchRequest) {
+        Pageable pageable = Pageable.ofSize(searchRequest.getSize()).withPage(searchRequest.getPage());
+        Page<UsedItemDto> result = usedTradeService.searchByMultipleConditions(
+            searchRequest.getDestination(),
+            searchRequest.getCheckIn(),
+            searchRequest.getCheckOut(),
+            searchRequest.getAdults(),
+            searchRequest.getPriceMin(),
+            searchRequest.getPriceMax(),
+            searchRequest.getSortBy(),
+            searchRequest.getSortDirection(),
+            searchRequest.getStatus(),
+            pageable
+        );
+        return ResponseEntity.ok(result);
     }
 }

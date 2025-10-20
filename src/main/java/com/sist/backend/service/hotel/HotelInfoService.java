@@ -24,7 +24,7 @@ public class HotelInfoService {
      */
     public List<HotelInfo> getTop10Hotels() {
         Pageable pageable = PageRequest.of(0, 10);
-        return hotelInfoRepository.findTop10WithCategoryAndArea(pageable);
+        return hotelInfoRepository.findTop9WithCategoryAndArea(pageable);
     }
     
     /**
