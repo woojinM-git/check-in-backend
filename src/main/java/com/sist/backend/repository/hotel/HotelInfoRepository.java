@@ -32,7 +32,7 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
     Page<HotelInfo> findAllWithCategoryAndArea(Pageable pageable);
 
     /* 홈페이지에 등록되어 있는 호텔의 갯수 */
-    @Query("SELECT COUNT(h) FROM HotelInfo h " + 
+    @Query("SELECT COUNT(h) FROM HotelInfo h " +
            "WHERE h.status = 0")
     int findRegistrationHotelCount();
 
