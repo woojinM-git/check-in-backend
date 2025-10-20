@@ -26,18 +26,14 @@ public class HotelViewRedisResponse {
     @Schema(description = "데이터 본문")
     private Map<String, Object> data;
 
-    /**
-     * 조회자 수 반환 시 사용
-     */
+     //조회자 수 반환 시 사용
     public static HotelViewRedisResponse of(int count){
         return HotelViewRedisResponse.builder()
                 .message("success")
                 .data(Map.of("views",count))
                 .build();
     }
-    /**
-     * 단순 성공 메시지용
-     */
+     //단순 성공 메시지용
     public static HotelViewRedisResponse success(){
         return HotelViewRedisResponse.builder()
                 .message("success")
