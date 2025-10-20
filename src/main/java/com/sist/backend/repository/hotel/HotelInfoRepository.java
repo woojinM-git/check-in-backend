@@ -20,7 +20,8 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.category " +
            "LEFT JOIN FETCH h.area " +
            "ORDER BY h.contentId")
-    List<HotelInfo> findTop10WithCategoryAndArea(Pageable pageable);
+       //     나중에 데이터넣고 정렬조건 변경해야함
+    List<HotelInfo> findTop9WithCategoryAndArea(Pageable pageable);
     
     /**
      * 페이징 처리가 필요한 경우
@@ -30,14 +31,35 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.area")
     Page<HotelInfo> findAllWithCategoryAndArea(Pageable pageable);
 
-    /* 홈페이지에 등록되어 있는 호텔의 목록*/
-    List<HotelInfo> findAll();
+    /* 홈페이지에 등록되어 있는 호텔의 갯수 */
+    @Query("SELECT COUNT(h) FROM HotelInfo h " +
+           "WHERE h.status = 0")
+    int findRegistrationHotelCount();
 
     /* 마스터 화면용 호텔 목록 (객실 수 포함) */
     @Query("SELECT h FROM HotelInfo h " +
            "LEFT JOIN FETCH h.hotelDetail " +
            "LEFT JOIN FETCH h.admin " +
            "ORDER BY h.contentId")
+
     List<HotelInfo> findAllHotelWithDetails();
+
+    /**
+     * areaCode로 호텔 목록 조회 (Category와 Area를 Fetch Join으로 함께 조회)
+     */
+    @Query("SELECT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.category " +
+           "LEFT JOIN FETCH h.area " +
+           "WHERE h.areaCode = :areaCode " +
+           "ORDER BY h.contentId")
+    List<HotelInfo> findByAreaCodeWithCategoryAndArea(String areaCode, Pageable pageable);
+
+    /* 마스터 화면용 호텔 목록 (페이징 처리) */
+    @Query("SELECT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.hotelDetail " +
+           "LEFT JOIN FETCH h.admin " +
+           "ORDER BY h.contentId")
+    Page<HotelInfo> findAllHotelWithDetailsAsDto(Pageable pageable);
+
 }
 

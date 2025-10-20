@@ -1,6 +1,5 @@
 package com.sist.backend.repository;
 
-import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,4 +12,6 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
 
     @Query("SELECT SUM(price) FROM RoomPayment WHERE status = 1")
     Long findByPrice();
+
+    /* 해당 달의 총 매출을 구하는 JPA */
 }

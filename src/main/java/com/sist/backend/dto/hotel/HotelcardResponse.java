@@ -5,19 +5,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomResponse {
-
-    private Integer roomIdx;
+public class HotelcardResponse {
     private String contentId;
-    private String name;
-    private Integer capacity;
-    private Integer basePrice;
-    private Boolean refundable;
-    private Boolean breakfastIncluded;
-    private Boolean smoking;
+    private String title;
+    private String adress;
     private String imageUrl;
+    private String areaCode;
+    private BigDecimal minPrice;
+    private BigDecimal maxPrice;
 }

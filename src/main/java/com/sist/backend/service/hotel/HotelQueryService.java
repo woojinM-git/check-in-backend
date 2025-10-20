@@ -1,20 +1,25 @@
 package com.sist.backend.service.hotel;
 
-import com.sist.backend.dto.hotel.HotelResponse;
-import com.sist.backend.dto.hotel.RoomResponse;
-import com.sist.backend.entity.HotelDetail;
-import com.sist.backend.entity.HotelInfo;
-import com.sist.backend.entity.Room;
-import com.sist.backend.repository.hotel.HotelInfoRepository;
-import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
-import com.sist.backend.repository.hotel.RoomRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.sist.backend.dto.hotel.HotelImageResponse;
+import com.sist.backend.dto.hotel.HotelResponse;
+import com.sist.backend.dto.hotel.RoomResponse;
+import com.sist.backend.entity.HotelDetail;
+import com.sist.backend.entity.HotelImage;
+import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.entity.Room;
+import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
+import com.sist.backend.repository.hotel.HotelImageRepository;
+import com.sist.backend.repository.hotel.HotelInfoRepository;
+import com.sist.backend.repository.hotel.RoomRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +29,7 @@ public class HotelQueryService {
     private final HotelInfoRepository hotelInfoRepository;
     private final RoomRepository roomRepository;
     private final RoomAdvancedMapper roomAdvancedMapper;
+    private final HotelImageRepository hotelImageRepository;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -46,6 +52,13 @@ public class HotelQueryService {
     public List<RoomResponse> searchRoomsAdvanced(String contentId, String name, Integer minCapacity, Integer maxCapacity) {
         List<Room> rooms = roomAdvancedMapper.searchRooms(contentId, name, minCapacity, maxCapacity);
         return rooms.stream().map(this::mapRoom).collect(Collectors.toList());
+    }
+
+    // 호텔 이미지 목록 조회 (최대 10장)
+    @Transactional(readOnly = true)
+    public List<HotelImageResponse> getHotelImages(String contentId) {
+        List<HotelImage> images = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
+        return images.stream().map(this::mapHotelImage).collect(Collectors.toList());
     }
 
     // 엔티티(HotelInfo, HotelDetail) -> 응답 DTO 매핑
@@ -84,6 +97,7 @@ public class HotelQueryService {
         Boolean smoking = (room.getSmoking() != null) ? room.getSmoking() : null;
 
         return RoomResponse.builder()
+                .roomIdx(room.getRoomIdx())
                 .contentId(room.getContentId())
                 .name(room.getName())
                 .capacity(room.getCapacity())
@@ -92,6 +106,16 @@ public class HotelQueryService {
                 .breakfastIncluded(breakfast)
                 .smoking(smoking)
                 .imageUrl(room.getImageUrl())
+                .build();
+    }
+
+    // 엔티티(HotelImage) -> 응답 DTO 매핑
+    private HotelImageResponse mapHotelImage(HotelImage image) {
+        return HotelImageResponse.builder()
+                .id(image.getId())
+                .contentId(image.getContentId())
+                .originUrl(image.getOriginUrl())
+                .smallUrl(image.getSmallUrl())
                 .build();
     }
 }

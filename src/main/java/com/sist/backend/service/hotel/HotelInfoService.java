@@ -1,5 +1,6 @@
 package com.sist.backend.service.hotel;
 
+import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class HotelInfoService {
      */
     public List<HotelInfo> getTop10Hotels() {
         Pageable pageable = PageRequest.of(0, 10);
-        return hotelInfoRepository.findTop10WithCategoryAndArea(pageable);
+        return hotelInfoRepository.findTop9WithCategoryAndArea(pageable);
     }
     
     /**
@@ -34,14 +35,14 @@ public class HotelInfoService {
         return hotelInfoRepository.findAllWithCategoryAndArea(pageable);
     }
 
-    /* 등록되어 있는 호텔의 목록 */
-    public List<HotelInfo> findAllHotel() {
-        return hotelInfoRepository.findAll();
+    /* 대시보드 - 등록되어 있는 호텔 갯수 */
+    public Integer findRegistrationHotelCount() {
+        return hotelInfoRepository.findRegistrationHotelCount();
     }
 
-    /* 등록되어 있는 호텔의 목록 (객실 수 포함)*/
-    public List<HotelInfo> findAllHotelWithDetails() {
-        return hotelInfoRepository.findAllHotelWithDetails();
+    public Page<HotelInfoDto> findAllHotelWithDetailsAsDto(Pageable pageable) {
+        Page<HotelInfo> hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDto(pageable);
+        return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
 
 }
