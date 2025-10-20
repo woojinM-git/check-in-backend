@@ -43,3 +43,8 @@ out/
 .env.local
 .env.*.local
 /etc
+
+# Node modules
+node_modules/
+# Dependency files
+package-lock.json
