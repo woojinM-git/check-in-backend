@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.dto.hotel.PopularHotelResponse;
 import com.sist.backend.service.hotel.HotelSearchService;
 
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
@@ -29,8 +30,8 @@ public class HotelSearchController {
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<HotelInfo>> getPopularHotels(){
-        List<HotelInfo>hotels = hotelSearchService.findAllPopularHotels();
+    public ResponseEntity<List<PopularHotelResponse>> getPopularHotels(){
+        List<PopularHotelResponse> hotels = hotelSearchService.findAllPopularHotels();
         return ResponseEntity.ok(hotels);
     }
 
