@@ -5,6 +5,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.service.AdminManagementService;
+
+import io.swagger.v3.oas.annotations.Operation;
+
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -16,13 +19,9 @@ public class AdminManagementController {
     @Autowired
     AdminManagementService amService;
 
-    @RequestMapping("/all")
-    public Object findAll() {
-        return amService.findAll();
-    }
-
-    @RequestMapping("daminIdx")
-    public Object findByadminIdx(@RequestParam Integer adminIdx) {
-        return amService.findByadminIdx(adminIdx);
-    }
+    /* 호텔 관리자 대시보드 화면 */
+    /* 오늘 체크인, 오늘 체크아웃, 예약 대기, 이번달 매출 */
+    /* 최근 예약 현황 */
+    @RequestMapping("dashboard")
+    @Operation(summary = "대시보드 관리", description = "관리자 화면의 대시보드")
 }
