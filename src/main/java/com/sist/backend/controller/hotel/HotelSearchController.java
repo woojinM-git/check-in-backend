@@ -9,6 +9,10 @@ import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.dto.hotel.PopularHotelResponse;
 import com.sist.backend.service.hotel.HotelSearchService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 
 import java.util.List;
@@ -28,7 +32,12 @@ public class HotelSearchController {
         List<HotelInfo> hotels = hotelSearchService.findAll();
         return ResponseEntity.ok(hotels);
     }
-
+    @Operation(summary = "인기 호텔 조회", description = "인기 호텔 목록을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "404", description = "해당 호텔 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/popular")
     public ResponseEntity<List<PopularHotelResponse>> getPopularHotels(){
         List<PopularHotelResponse> hotels = hotelSearchService.findAllPopularHotels();
