@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.sist.backend.repository.hotel.HotelInfoRepository;
+import com.sist.backend.repository.hotel.hotelSearchRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,9 +14,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class HotelSearchService {
     
-    private final HotelInfoRepository hotelInfoRepository;
+    private final hotelSearchRepository hotelSearchRepository;
+
+    public List<HotelInfo> findByTitle(String title){
+        return hotelSearchRepository.findByTitle(title);
+    }
 
     public List<HotelInfo> findAll(){
-        return hotelInfoRepository.findAll();
+        return hotelSearchRepository.findAll();
     }
 }

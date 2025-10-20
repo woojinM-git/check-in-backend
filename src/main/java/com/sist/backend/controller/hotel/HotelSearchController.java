@@ -1,5 +1,6 @@
 package com.sist.backend.controller.hotel;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -7,7 +8,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.service.hotel.HotelSearchService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.web.bind.annotation.RequestBody;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
@@ -16,15 +19,26 @@ import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/hotel")
+@Tag(name="호텔 검색", description="호텔 검색 관련 API")
 public class HotelSearchController {
 
     @Autowired
     private HotelSearchService hotelSearchService;
     
     @PostMapping("/search")
+    @Operation(summary="호텔 전체 검색", description="호텔 무작정 가져오기")
     public ResponseEntity<List<HotelInfo>> searchHotels(@RequestBody HotelInfo request){
-        List<HotelInfo> hotels = hotelSearchService.findAll();
+        System.out.println("==================================="+request+"========================================");
+        List<HotelInfo> hotels = hotelSearchService.findByTitle(request.getTitle());
+        System.out.println("==================================="+hotels.size()+"========================================");
         return ResponseEntity.ok(hotels);
+    }
+
+    @PostMapping("/search/page")
+    @Operation(summary="호텔 조건 검색", description="이름, 날짜와 페이지 번호로 호텔 가져오기")
+    public ResponseEntity<List<HotelInfo>> searchHotelsByCondition(@RequestBody HotelInfo request){
+        List<HotelInfo> hotels = hotelSearchService.findAll();
+        return ResponseEntity.ok(hotels); 
     }
 
 }
