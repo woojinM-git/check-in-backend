@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class RoomResponse {
 
+    private Integer roomIdx;
     private String contentId;
     private String name;
     private Integer capacity;
