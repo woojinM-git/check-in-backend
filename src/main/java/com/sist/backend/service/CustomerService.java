@@ -29,9 +29,6 @@ public class CustomerService {
     }
         
     /* 대시보드의 최근 가입한 고객 목록 (상위 5개) */
-    @Query("SELECT c FROM Customer c " +
-        "WHERE c.joinDate >= CURDATE() AND c.joinDate < DATE_ADD(CURDATE(), INTERVAL 1 DAY) " +
-        "ORDER BY c.joinDate DESC")
     public List<Customer> findByJoinDate(){
         return customerRepository.findByJoinDate();
     }

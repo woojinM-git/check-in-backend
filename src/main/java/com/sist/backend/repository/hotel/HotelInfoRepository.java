@@ -54,6 +54,11 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "ORDER BY h.contentId")
     List<HotelInfo> findByAreaCodeWithCategoryAndArea(String areaCode, Pageable pageable);
 
+    /* 마스터 화면용 호텔 목록 (페이징 처리) */
+    @Query("SELECT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.hotelDetail " +
+           "LEFT JOIN FETCH h.admin " +
+           "ORDER BY h.contentId")
     Page<HotelInfo> findAllHotelWithDetailsAsDto(Pageable pageable);
 
 }
