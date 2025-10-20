@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.service.AdminManagementService;
+import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ public class AdminManagementController {
     
     private final AdminManagementService amService;
     private final RoomReservationService roomReservationService;
+    private final RoomPaymentService roomPaymentService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -45,6 +47,8 @@ public class AdminManagementController {
         Integer reservationCount = roomReservationService.findByStatus();
         map.put("reservationCount", reservationCount != null ? reservationCount : 0);
         // 이번달 매출
+        Long thisMonthSales = roomPaymentService.findByPrice();
+        map.put("thisMonthSales", thisMonthSales != null ? thisMonthSales : 0);
         return map;
     }
 }
