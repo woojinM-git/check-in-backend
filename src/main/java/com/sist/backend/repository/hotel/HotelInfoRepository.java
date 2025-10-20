@@ -40,5 +40,15 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.admin " +
            "ORDER BY h.contentId")
     List<HotelInfo> findAllHotelWithDetails();
+
+    /**
+     * areaCode로 호텔 목록 조회 (Category와 Area를 Fetch Join으로 함께 조회)
+     */
+    @Query("SELECT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.category " +
+           "LEFT JOIN FETCH h.area " +
+           "WHERE h.areaCode = :areaCode " +
+           "ORDER BY h.contentId")
+    List<HotelInfo> findByAreaCodeWithCategoryAndArea(String areaCode, Pageable pageable);
 }
 
