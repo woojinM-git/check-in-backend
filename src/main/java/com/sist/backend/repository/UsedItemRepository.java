@@ -1,13 +1,13 @@
 package com.sist.backend.repository;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.entity.UsedItem;
@@ -63,6 +63,42 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
     // 방법 2: 특정 reservIdx로 RoomReservation 정보 조회
     @Query("SELECT r FROM RoomReservation r WHERE r.reservIdx = :reservIdx")
     RoomReservation findRoomReservationByReservIdx(@Param("reservIdx") Integer reservIdx);
+
+    /*
+     * 복합 조건 검색
+     */
+    @Query("SELECT u FROM UsedItem u " +
+        "JOIN FETCH u.roomReservation r " +
+        "JOIN FETCH r.room ro " +
+        "JOIN FETCH ro.hotelInfo h " +
+        "WHERE " +
+        "(:destination IS NULL OR h.adress LIKE %:destination%) AND " +
+        "(:checkIn IS NULL OR r.checkinDate >= :checkIn) AND " +
+        "(:checkOut IS NULL OR r.checkoutDate <= :checkOut) AND " +
+        "(:adults IS NULL OR r.guest >= :adults) AND " +
+        "(:priceMin IS NULL OR u.price >= :priceMin) AND " +
+        "(:priceMax IS NULL OR u.price <= :priceMax) AND " +
+        "(:status IS NULL OR u.status = :status) " +
+        "ORDER BY " +
+        "CASE WHEN :sortBy = 'date' AND :sortDirection = 'asc' THEN r.checkinDate END ASC, " +
+        "CASE WHEN :sortBy = 'date' AND :sortDirection = 'desc' THEN r.checkinDate END DESC, " +
+        "CASE WHEN :sortBy = 'price' AND :sortDirection = 'asc' THEN u.price END ASC, " +
+        "CASE WHEN :sortBy = 'price' AND :sortDirection = 'desc' THEN u.price END DESC, " +
+        "CASE WHEN :sortBy = 'discount' AND :sortDirection = 'asc' AND r.totalPrice > 0 THEN ((r.totalPrice - u.price) / r.totalPrice * 100) END ASC, " +
+        "CASE WHEN :sortBy = 'discount' AND :sortDirection = 'desc' AND r.totalPrice > 0 THEN ((r.totalPrice - u.price) / r.totalPrice * 100) END DESC, " +
+        "u.updatedAt DESC")
+    Page<UsedItem> findByMultipleConditions(
+        @Param("destination") String destination,
+        @Param("checkIn") LocalDate checkIn,
+        @Param("checkOut") LocalDate checkOut,
+        @Param("adults") Integer adults,
+        @Param("priceMin") Integer priceMin,
+        @Param("priceMax") Integer priceMax,
+        @Param("sortBy") String sortBy,
+        @Param("sortDirection") String sortDirection,
+        @Param("status") Integer status,
+        Pageable pageable
+    );
 
     /*
      * 결제 처리

@@ -97,6 +97,7 @@ public class HotelQueryService {
         Boolean smoking = (room.getSmoking() != null) ? room.getSmoking() : null;
 
         return RoomResponse.builder()
+                .roomIdx(room.getRoomIdx())
                 .contentId(room.getContentId())
                 .name(room.getName())
                 .capacity(room.getCapacity())

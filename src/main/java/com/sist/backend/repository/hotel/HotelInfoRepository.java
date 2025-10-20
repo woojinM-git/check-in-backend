@@ -20,7 +20,8 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.category " +
            "LEFT JOIN FETCH h.area " +
            "ORDER BY h.contentId")
-    List<HotelInfo> findTop10WithCategoryAndArea(Pageable pageable);
+       //     나중에 데이터넣고 정렬조건 변경해야함
+    List<HotelInfo> findTop9WithCategoryAndArea(Pageable pageable);
     
     /**
      * 페이징 처리가 필요한 경우
