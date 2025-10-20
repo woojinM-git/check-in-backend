@@ -31,7 +31,7 @@ public class HotelViewRedisController {
 
     /**
      * 호텔 상세 진입 시 호출
-     * 세션 기준으로 Redis에 등록 (TTL 5분)
+     * 세션 기준으로 Redis에 등록 (TTL 1분)
      * contentId는 DB에서는 VARCHAR(50)이지만, URI에서는 숫자처럼 들어올 수도 있음
      */
     @Operation(summary = "호텔 상세 진입",description = "호텔 상세 페이지 진입시 활성 사용자로 등록")
@@ -50,6 +50,7 @@ public class HotelViewRedisController {
         log.info("호텔{} 상세 페이지 진입 -세션: {}",contentId,sessionId);
         return ResponseEntity.ok(HotelViewRedisResponse.success());
     }
+
     // 현재 실시간 조회자 수 조회
     @Operation(summary = "현재 조회자 수 조회", description = "현재 호텔 상세 페이지를 보고 있는 인원 수를 반환합니다.")
     @ApiResponses({
@@ -61,6 +62,18 @@ public class HotelViewRedisController {
     public ResponseEntity<?> getActiveViewCount(@PathVariable String contentId) {
         int count = hotelViewRedisService.getActiveViewerCount(contentId);
         return ResponseEntity.ok(HotelViewRedisResponse.of(count));
+    }
+
+    //호탤 이탈시 세션 제거
+    @Operation(summary = "호텔 상세 이탈", description = "페이지를 벗어날 때 Redis에서 세션을 제거합니다.")
+    @PostMapping("/{contentId}/leave")
+    public ResponseEntity<?> leaveHotelDetail(
+            @PathVariable String contentId,
+            HttpServletRequest request
+    ) {
+        String sessionId = request.getSession().getId();
+        hotelViewRedisService.removeViewer(contentId, sessionId);
+        return ResponseEntity.ok(HotelViewRedisResponse.success());
     }
 
 }

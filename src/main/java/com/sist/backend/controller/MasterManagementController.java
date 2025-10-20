@@ -9,7 +9,6 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.RegistrationRequest;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,16 +46,112 @@ public class MasterManagementController {
     }
 
     /* 등록되어 있는 회원의 목록 */
-    @RequestMapping("customerList")
-    public Object findAllCustomer() {
-        return customerService.findAll();
+    @RequestMapping("/customerList")
+    public Map<String, Object> findAllCustomer() {
+        Map<String, Object> map = new HashMap<>();
+        List<Customer> customerList = customerService.findAll();
+
+        if(customerList != null && !customerList.isEmpty()) {
+            map.put("customerList", customerList);
+            map.put("customerCount", customerList.size());
+        }
+
+        return map;
     }
     
+    /* 등록되어 있는 호텔의 목록 */
+    @Operation(summary = "마스터 호텔 관리 호출")
+    @ApiResponse(responseCode = "200", description = "호텔관리 성공")
+    @RequestMapping("/hotels")
+    public Map<String, Object> findAllHotelWithDetails() {
+        Map<String, Object> map = new HashMap<>();
+        List<HotelInfo> hotelList = hotelInfoService.findAllHotelWithDetails();
+
+        if(hotelList != null && !hotelList.isEmpty()) {
+            // HotelInfo를 Map으로 변환하여 필요한 데이터만 전송
+            List<Map<String, Object>> hotelMapList = new ArrayList<>();
+            for(HotelInfo hotel : hotelList) {
+                Map<String, Object> hotelMap = new HashMap<>();
+                hotelMap.put("contentId", hotel.getContentId());
+                hotelMap.put("title", hotel.getTitle());
+                hotelMap.put("adress", hotel.getAdress());
+                hotelMap.put("tel", hotel.getTel());
+                hotelMap.put("status", hotel.getStatus());
+                hotelMap.put("imageUrl", hotel.getImageUrl());
+                
+                // HotelDetail에서 객실 수 가져오기
+                if (hotel.getHotelDetail() != null) {
+                    hotelMap.put("rooms", hotel.getHotelDetail().getRoomcount());
+                } else {
+                    hotelMap.put("rooms", "0");
+                }
+                
+                // Admin 정보
+                if (hotel.getAdmin() != null) {
+                    hotelMap.put("adminName", hotel.getAdmin().getName());
+                    hotelMap.put("adminEmail", hotel.getAdmin().getId());
+                    hotelMap.put("adminPhone", hotel.getAdmin().getPhone());
+                }
+                
+                hotelMapList.add(hotelMap);
+            }
+            
+            map.put("hotelList", hotelMapList);
+            map.put("hotelCount", hotelMapList.size());
+        }
+
+        return map;
+    }
+
+    /* 승인요청을 한 호텔들 */
+    @Operation(summary = "호텔승인 화면 호출")
+    @ApiResponse(responseCode = "200", description = "호텔승인화면 성공")
+    @RequestMapping("/hotelApproval")
+    public Map<String, Object> hotelApproval() {
+        Map<String, Object> map = new HashMap<>();
+        List<RegistrationRequest> hotelApproval = registrationRequestService.findByStatus();
+
+        if(hotelApproval != null && !hotelApproval.isEmpty()) {
+            List<Map<String, Object>> requestList = new ArrayList<>();
+            for(RegistrationRequest request : hotelApproval) {
+                Map<String, Object> requestMap = new HashMap<>();
+
+                // 호텔 정보
+                if (request.getHotelInfo() != null) {
+                    requestMap.put("contentId", request.getHotelInfo().getContentId());
+                    requestMap.put("title", request.getHotelInfo().getTitle());
+                    requestMap.put("adress", request.getHotelInfo().getAdress());
+                    requestMap.put("rooms", request.getHotelInfo().getRooms().size());
+                    requestMap.put("requestDate", request.getRegiDate());
+                    requestMap.put("status", request.getStatus());
+                }
+
+                // 사업자 정보
+                if(request.getAdmin() != null) {
+                    requestMap.put("ownerName", request.getAdmin().getName());
+                    requestMap.put("businessNumber", "사업자번호 예시 더미");
+                    requestMap.put("ownerPhone", request.getAdmin().getPhone());
+                    requestMap.put("ownerEmail", request.getAdmin().getId());
+                }
+
+
+                requestMap.put("registrationIdx", request.getRegistrationIdx());
+                requestMap.put("regiDate", request.getRegiDate());
+                requestMap.put("status", request.getStatus());
+
+                requestList.add(requestMap);
+            }
+            map.put("hotelRequestList", requestList);
+            map.put("hotelRequestCount", requestList.size());
+        }
+
+        return map;
+    }
 
     @Operation(summary = "마스터 대시보드 호출")
-    @ApiResponse(responseCode = "200", description = "조회 성공")
+    @ApiResponse(responseCode = "200", description = "대시보드 성공")
     @RequestMapping("/dashboard")
-    public Map<String, Object> findAllHotel() {
+    public Map<String, Object> dashboard() {
         List<HotelInfo> HotelList = hotelInfoService.findAllHotel();
         List<RegistrationRequest> pendingRequests = registrationRequestService.findByStatus();
         List<Customer> customerList = customerService.findAll();

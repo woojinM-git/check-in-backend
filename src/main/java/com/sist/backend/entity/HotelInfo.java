@@ -65,7 +65,8 @@ public class HotelInfo {
     private Integer status;
     
     // 양방향 관계
-    @OneToOne(mappedBy = "hotelInfo", fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contentId", referencedColumnName = "contentid")
     @JsonIgnore
     @ToString.Exclude
     private HotelDetail hotelDetail;
