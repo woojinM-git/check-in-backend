@@ -17,7 +17,7 @@ public class RoomResponse {
     private String contentId;
     private String name;
     private Integer capacity;
-    private BigDecimal basePrice;
+    private Integer basePrice;
     private Boolean refundable;
     private Boolean breakfastIncluded;
     private Boolean smoking;
