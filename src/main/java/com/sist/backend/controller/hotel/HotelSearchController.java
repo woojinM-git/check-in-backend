@@ -22,7 +22,6 @@ import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/hotel")
-@Tag(name = "Hotel search", description = "호텔 검색 API")
 public class HotelSearchController {
 
     @Autowired
