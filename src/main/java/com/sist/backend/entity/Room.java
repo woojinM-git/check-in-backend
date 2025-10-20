@@ -39,8 +39,8 @@ public class Room {
     @Column(name = "capacity")
     private Integer capacity;
     
-    @Column(name = "basePrice", precision = 10, scale = 1)
-    private BigDecimal basePrice;
+    @Column(name = "basePrice")
+    private Integer basePrice;
     
     @Column(name = "refundable")
     private Boolean refundable;
