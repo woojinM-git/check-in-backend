@@ -96,7 +96,7 @@ public class MasterManagementController {
 
     /* 대시보드 */
     @RequestMapping("/dashboard")
-    @Operation(summary = "대시보드 관리", description = "대시보드를 보여줍니다.")
+    @Operation(summary = "대시보드 마스터", description = "마스터 대시보드 화면")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
