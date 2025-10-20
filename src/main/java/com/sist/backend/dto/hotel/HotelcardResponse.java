@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PopularHotelResponse {
+public class HotelcardResponse {
     private String contentId;
     private String title;
     private String adress;
