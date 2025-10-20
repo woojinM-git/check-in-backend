@@ -35,20 +35,13 @@ public class HotelInfoService {
         return hotelInfoRepository.findAllWithCategoryAndArea(pageable);
     }
 
-    /* 등록되어 있는 호텔의 목록 */
-    public List<HotelInfo> findAllHotel() {
-        return hotelInfoRepository.findAll();
-    }
-
-    /* 등록되어 있는 호텔의 목록 (객실 수 포함)*/
-    public List<HotelInfo> findAllHotelWithDetails() {
-        return hotelInfoRepository.findAllHotelWithDetails();
+    /* 대시보드 - 등록되어 있는 호텔 갯수 */
+    public Integer findRegistrationHotelCount() {
+        return hotelInfoRepository.findRegistrationHotelCount();
     }
 
     public Page<HotelInfoDto> findAllHotelWithDetailsAsDto(Pageable pageable) {
         Page<HotelInfo> hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDto(pageable);
-
-        // Page<HotelInfo>을 Page<HotelInfoDto>로 변환
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
 
