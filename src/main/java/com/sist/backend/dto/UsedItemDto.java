@@ -3,6 +3,7 @@ package com.sist.backend.dto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.entity.UsedItem;
 
 import lombok.AllArgsConstructor;
