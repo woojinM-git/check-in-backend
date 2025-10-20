@@ -1,5 +1,6 @@
 package com.sist.backend.controller.hotel;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +25,12 @@ public class HotelSearchController {
     @PostMapping("/search")
     public ResponseEntity<List<HotelInfo>> searchHotels(@RequestBody HotelInfo request){
         List<HotelInfo> hotels = hotelSearchService.findAll();
+        return ResponseEntity.ok(hotels);
+    }
+
+    @GetMapping("/popular")
+    public ResponseEntity<List<HotelInfo>> getPopularHotels(){
+        List<HotelInfo>hotels = hotelSearchService.findAllPopularHotels();
         return ResponseEntity.ok(hotels);
     }
 
