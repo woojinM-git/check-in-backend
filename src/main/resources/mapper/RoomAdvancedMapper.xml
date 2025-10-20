@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sist.backend.mapper.hotel.RoomAdvancedMapper">
+
+    <!-- 고급 객실 검색: contentId 필수, name/용량 조건은 동적 적용 -->
+    <select id="searchRooms" resultType="com.sist.backend.entity.Room">
+        SELECT r.*
+        FROM room r
+        WHERE r.contentId = #{contentId}
+        <if test="name != null and name != ''">
+            AND LOWER(r.name) LIKE CONCAT('%', LOWER(#{name}), '%')
+        </if>
+        <if test="minCapacity != null">
+            AND r.capacity &gt;= #{minCapacity}
+        </if>
+        <if test="maxCapacity != null">
+            AND r.capacity &lt;= #{maxCapacity}
+        </if>
+        ORDER BY r.name ASC
+    </select>
+
+</mapper>
+

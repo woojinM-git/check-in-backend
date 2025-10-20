@@ -16,6 +16,8 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+# QueryDSL Q-class generated files
+/src/main/generated/
 
 ### IntelliJ IDEA ###
 .idea
