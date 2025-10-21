@@ -21,4 +21,9 @@ public interface RoomRepository extends JpaRepository<Room, RoomId> {
     // 특정 호텔의 모든 객실 가격 조회
     @Query("SELECT r.basePrice FROM Room r WHERE r.contentId = :contentId AND r.basePrice IS NOT NULL")
     List<BigDecimal> findBasePricesByContentId(@Param("contentId") String contentId);
+
+    /* room 목록(admin) */
+    @Query("SELECT r FROM Room r " +
+        "WHERE r.contentId = :contentId")
+    List<Room> findByContentIdAdmin(@Param("contentId") String contentId);
 }
