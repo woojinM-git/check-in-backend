@@ -21,6 +21,7 @@ public class Customer {
     
     @Id
     @Column(name = "customerIdx")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer customerIdx;
 
 
@@ -33,8 +34,8 @@ public class Customer {
     @ToString.Exclude
     private Rank rankEntity;
     
-    @Column(name = "rank", nullable = false, length = 50)
-    private String rank;
+    @Column(name = "customrank", nullable = false, length = 50)
+    private String customrank;
     
     @Column(name = "birthday")
     private LocalDate birthday;
