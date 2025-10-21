@@ -53,7 +53,9 @@ public class Room {
     
     @Column(name = "imageUrl", length = 500)
     private String imageUrl;
-    
+
+    @Column(name = "roomCount")
+    private Integer roomCount;
     // 양방향 관계
     @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
     @JsonIgnore
