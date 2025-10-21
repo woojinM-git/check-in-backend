@@ -1,5 +1,6 @@
 package com.sist.backend.controller.hotel;
 
+import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.service.hotel.HotelQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +21,7 @@ import java.util.List;
 @RequestMapping("/api/hotels")
 @RequiredArgsConstructor
 // Swagger 태그: 본 컨트롤러 API 그룹과 설명 정의
-@Tag(name = "Hotel view", description = "호텔 실시간 조회수 API")
+@Tag(name = "Hotel Detail", description = "호텔 상세 정보 조회 API")
 public class HotelQueryController {
 
     private final HotelQueryService hotelQueryService;
@@ -67,5 +68,16 @@ public class HotelQueryController {
             @RequestParam(value = "maxCapacity", required = false) Integer maxCapacity
     ) {
         return ResponseEntity.ok(hotelQueryService.searchRoomsAdvanced(contentId, name, minCapacity, maxCapacity));
+    }
+
+    // Swagger: 호텔 이미지 목록 조회 API 문서
+    @Operation(summary = "호텔 이미지 목록 조회", description = "contentId로 호텔 이미지 목록을 조회합니다. 최대 10장까지 반환됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{contentId}/images")
+    public ResponseEntity<List<HotelImageResponse>> getHotelImages(@PathVariable String contentId) {
+        return ResponseEntity.ok(hotelQueryService.getHotelImages(contentId));
     }
 }
