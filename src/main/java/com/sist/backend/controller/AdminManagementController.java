@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.admin.RoomReservationDto;
-import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.service.AdminManagementService;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
@@ -60,8 +59,8 @@ public class AdminManagementController {
         Long thisMonthSales = roomPaymentService.findByPrice();
         map.put("thisMonthSales", thisMonthSales != null ? thisMonthSales : 0);
 
-        /* 최근 예약 현황 조회 (5개만) */
-        List<RoomReservation> roomReservationList = roomReservationService.findByStatus(contentid);
+        /* 최근 예약 현황 조회 (5개만) - Room과 Customer 정보 포함 */
+        List<RoomReservationDto> roomReservationList = roomReservationService.findByStatusWithDetails(contentid);
         map.put("roomReservationList", roomReservationList);
         return map;
     }
@@ -78,9 +77,45 @@ public class AdminManagementController {
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1234567890")
+        @Parameter(description = "업체 ID", example = "1003654")
         @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findByStatusDto(contentid, pageable));
+    }
+
+    @RequestMapping("/checkinPendingList")
+    @Operation(summary = "체크인 현황", description = "체크인 현황을 보여줍니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Page<RoomReservationDto>> findCheckinPendingWithDetails(
+        @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+        @RequestParam(value = "page", defaultValue = "0") int page, 
+        @Parameter(description = "페이지당 데이터 개수", example = "5") 
+        @RequestParam(value = "size", defaultValue = "5") int size,
+        @Parameter(description = "업체 ID", example = "1003654")
+        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        return ResponseEntity.ok(roomReservationService.findCheckinPendingWithDetails(contentid, pageable));
+    }
+
+    @RequestMapping("/checkoutPendingList")
+    @Operation(summary = "체크아웃 현황 현황", description = "체크아웃 현황을 보여줍니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Page<RoomReservationDto>> findCheckoutPendingWithDetails(
+        @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+        @RequestParam(value = "page", defaultValue = "0") int page, 
+        @Parameter(description = "페이지당 데이터 개수", example = "5") 
+        @RequestParam(value = "size", defaultValue = "5") int size,
+        @Parameter(description = "업체 ID", example = "1003654")
+        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
     }
 }
