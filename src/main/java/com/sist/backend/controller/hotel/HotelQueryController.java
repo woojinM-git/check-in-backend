@@ -34,7 +34,7 @@ public class HotelQueryController {
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     @GetMapping("/{contentId}")
-    public ResponseEntity<?> getHotel(@PathVariable String contentId) {
+    public ResponseEntity<?> getHotel(@PathVariable(name = "contentId") String contentId) {
         return hotelQueryService.getHotel(contentId)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -48,7 +48,7 @@ public class HotelQueryController {
     })
     @GetMapping("/{contentId}/rooms")
     public ResponseEntity<List<RoomResponse>> getRooms(
-            @PathVariable String contentId,
+            @PathVariable(name = "contentId") String contentId,
             @RequestParam(value = "name", required = false) String name
     ) {
         return ResponseEntity.ok(hotelQueryService.getRooms(contentId, name));
@@ -77,7 +77,7 @@ public class HotelQueryController {
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     @GetMapping("/{contentId}/images")
-    public ResponseEntity<List<HotelImageResponse>> getHotelImages(@PathVariable String contentId) {
+    public ResponseEntity<List<HotelImageResponse>> getHotelImages(@PathVariable(name = "contentId") String contentId) {
         return ResponseEntity.ok(hotelQueryService.getHotelImages(contentId));
     }
 }
