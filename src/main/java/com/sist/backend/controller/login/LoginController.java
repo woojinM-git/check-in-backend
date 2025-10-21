@@ -50,14 +50,21 @@ public class LoginController {
             if(passwordEncoder.matches(customer.getPassword(), customer_exist.get().getPassword())){
                 System.out.println("==================로그인 성공!==================");
                 String uuid = UUID.randomUUID().toString();
+
                 int accessTokenExpireTime = 3600;
                 int refreshTokenExpireTime = 604800;
+
                 Map<String, Object> payload = new HashMap<>();
+
                 payload.put("id", customer_exist_entity.getId());
+
                 String accessToken = jwtProvider.getToken(payload, accessTokenExpireTime);
+
                 payload.put("tokenID",uuid);
                 payload.put("accessToken",accessToken);
+
                 String refreshToken = jwtProvider.getToken(payload, refreshTokenExpireTime);
+
                 Cookie accesscookie = new Cookie("accessToken", accessToken);
                 Cookie refreshcookie = new Cookie("refreshToken", refreshToken);
 
@@ -75,6 +82,7 @@ public class LoginController {
 
 
                 response.addCookie(accesscookie);
+                response.addCookie(refreshcookie);
 
                 result.put("message","로그인 성공1");
             }
