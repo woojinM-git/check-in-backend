@@ -29,13 +29,13 @@ public class Customer {
     private String id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "rank", referencedColumnName = "rank", insertable = false, updatable = false)
+    @JoinColumn(name = "`rank`", referencedColumnName = "`rank`", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Rank rankEntity;
     
-    @Column(name = "customrank", nullable = false, length = 50)
-    private String customrank;
+    @Column(name = "`rank`", nullable = false, length = 50)
+    private String rank;
     
     @Column(name = "birthday")
     private LocalDate birthday;

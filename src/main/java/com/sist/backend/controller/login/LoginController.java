@@ -59,7 +59,7 @@ public class LoginController {
         customer.setPoint(0);
         customer.setRefToken(null);
         customer.setProvider(null);
-        customer.setCustomrank("Traveler");
+        customer.setRank("Traveler");
         System.out.println("====================================="+customer+"========================================");
         if(customerService.save(customer) != null) {
             result.put("message","회원가입 성공");
