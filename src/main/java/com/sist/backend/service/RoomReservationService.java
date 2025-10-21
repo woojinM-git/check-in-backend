@@ -65,4 +65,6 @@ public class RoomReservationService {
         Page<RoomReservation> roomReservationPage = roomReservationRepository.findCheckoutPendingWithDetails(contentid, pageable);
         return roomReservationPage.map(RoomReservationDto::fromEntity);
     }
+
+    /* 방목록 */
 }

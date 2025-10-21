@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.admin.RoomReservationDto;
+import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
+import com.sist.backend.service.RoomService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,9 +28,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
 public class AdminManagementController {
-    
+
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
+    private final RoomService roomService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -115,5 +118,18 @@ public class AdminManagementController {
         @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
+    }
+
+    @RequestMapping("/roomList")
+    @Operation(summary = "방 목록", description = "방 목록을 보여줍니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<List<Room>> findByContentIdAdmin(
+        @Parameter(description = "업체 ID", example = "1003654")
+        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        return ResponseEntity.ok(roomService.findByContentIdAdmin(contentid));
     }
 }

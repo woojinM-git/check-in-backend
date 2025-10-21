@@ -158,7 +158,6 @@ public class MasterManagementController {
                     requestMap.put("ownerEmail", request.getAdmin().getId());
                 }
 
-                
                 requestMap.put("registrationIdx", request.getRegistrationIdx());
                 requestMap.put("regiDate", request.getRegiDate());
                 requestMap.put("status", request.getStatus());
