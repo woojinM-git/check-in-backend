@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.admin.RoomReservationDto;
-import com.sist.backend.service.AdminManagementService;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
 
@@ -28,7 +27,6 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/admin")
 public class AdminManagementController {
     
-    private final AdminManagementService amService;
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
 
