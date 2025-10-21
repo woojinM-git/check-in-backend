@@ -13,6 +13,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.sist.backend.repository.hotel.hotelSearchRepository;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -20,10 +22,15 @@ import lombok.RequiredArgsConstructor;
 public class HotelSearchService {
     
     private final HotelInfoRepository hotelInfoRepository;
+    private final hotelSearchRepository hotelSearchRepository;
     private final RoomRepository roomRepository;
 
+    public List<HotelInfo> findByTitle(String title){
+        return hotelSearchRepository.findByTitle(title);
+    }
+
     public List<HotelInfo> findAll(){
-        return hotelInfoRepository.findAll();
+        return hotelSearchRepository.findAll();
     }
     
     public List<HotelcardResponse> findAllPopularHotels() {
@@ -86,4 +93,5 @@ public class HotelSearchService {
                     .build();
         }).collect(Collectors.toList());
     }
+
 }
