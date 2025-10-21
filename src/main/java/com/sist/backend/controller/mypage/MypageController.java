@@ -43,5 +43,22 @@ public class MypageController {
         // 프론트엔드 mypage/page.js에서 예상하는 JSON 형식 ({"reservations": [...]})에 맞춰 응답
         return ResponseEntity.ok(Map.of("reservations", reservations));
     }
+    /* 프로필 정보 조회 */
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile() {
+        // 1. 임시 customerIdx = 1 획득
+        Integer customerIdx = 1;
+        // 2. 임시 프로필 정보 객체 생성 (실제 DB 구조에 맞게 변경 필요)
+        // 실제로는 myPageService.getProfile(customerIdx)를 호출해야 합니다.
+        Map<String, Object> mockProfile = Map.of(
+            "customerIdx", customerIdx,
+            "nickname", "임시닉네임",
+            "email", "test@checkin.com",
+            "phone", "010-0000-0000"
+        );
+        // 3. 프로필 정보 반환
+        return ResponseEntity.ok(mockProfile);
+        
+    }
 }
 

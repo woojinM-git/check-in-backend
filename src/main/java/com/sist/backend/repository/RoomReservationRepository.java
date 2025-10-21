@@ -70,6 +70,9 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "ORDER BY r.checkoutDate ASC")
     Page<RoomReservation> findCheckoutPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
+    /* room 목록 */
+    List<RoomReservation> findByContentid(@Param("contentid") String contentid);
+
     /* 마이페이지 예약 목록 조회 */
     @Query("SELECT r FROM RoomReservation r " +
             "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
