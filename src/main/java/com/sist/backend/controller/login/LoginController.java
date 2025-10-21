@@ -13,8 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/login")
+@Tag(name="로그인/회원가입", description="로그인/회원가입 관련 API")
 public class LoginController {
     
 
@@ -23,6 +27,7 @@ public class LoginController {
 
     
     @PostMapping("/checkId")
+    @Operation(summary="아이디 중복 체크", description="아이디만 가져와서 중복 검사하기")
     public Map<String, Object> checkId(@RequestBody Customer customer) {
         System.out.println(customer.getId());
         Map<String, Object> result = new HashMap<>();
