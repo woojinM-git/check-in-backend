@@ -2,19 +2,14 @@ package com.sist.backend.repository;
 
 import java.util.List;
 
-<<<<<<< HEAD
-=======
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
->>>>>>> d3766e5f1b10d5e2cb2fa98a46e47cae369221b6
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sist.backend.entity.RoomReservation;
-
-import io.lettuce.core.dynamic.annotation.Param;
 
 @Repository
 public interface RoomReservationRepository extends JpaRepository<RoomReservation, Integer>{
@@ -34,16 +29,6 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "WHERE r.status = 1")
     Integer findByStatus();
 
-<<<<<<< HEAD
-    /* 마이페이지 예약 목록 조회 */
-    @Query("SELECT r FROM RoomReservation r " +
-            "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
-            "ORDER BY r.checkinDate DESC")
-    List<RoomReservation> findByReservationsByCustomerAndStatus(
-        @Param("customerIdx") Integer customerIdx,
-        @Param("statusList") List<Integer> statusList);
-} 
-=======
     @Query("SELECT r FROM RoomReservation r " +
         "WHERE r.contentid = :contentid " +
         "AND r.status = 1")
@@ -84,5 +69,12 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "AND r.checkoutDate IS NULL " +
         "ORDER BY r.checkoutDate ASC")
     Page<RoomReservation> findCheckoutPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
+
+    /* 마이페이지 예약 목록 조회 */
+    @Query("SELECT r FROM RoomReservation r " +
+            "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
+            "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findByReservationsByCustomerAndStatus(
+        @Param("customerIdx") Integer customerIdx,
+        @Param("statusList") List<Integer> statusList);
 }
->>>>>>> d3766e5f1b10d5e2cb2fa98a46e47cae369221b6
