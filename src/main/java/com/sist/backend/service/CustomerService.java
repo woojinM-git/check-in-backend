@@ -27,6 +27,10 @@ public class CustomerService {
     public Optional<Customer> findById(String id){
         return customerRepository.findById(id);
     }
+
+    public Optional<Customer> findByCustomerIdx(Integer customerIdx){
+        return customerRepository.findByCustomerIdx(customerIdx);
+    }
         
     /* 대시보드의 최근 가입한 고객 목록 (상위 5개) */
     public List<Customer> findByJoinDate(){
