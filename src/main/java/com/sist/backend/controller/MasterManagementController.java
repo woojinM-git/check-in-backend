@@ -8,6 +8,7 @@ import java.util.Map;
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
+import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.RegistrationRequest;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.service.RegistrationRequestService;
@@ -42,6 +44,7 @@ public class MasterManagementController {
     private final RoomPaymentService roomPaymentService;
     private final RegistrationRequestService registrationRequestService;
     private final CustomerService customerService;
+    private final CouponTemplateService couponTemplateService;
 
    
     /* 등록되어 있는 회원의 목록 */
@@ -168,5 +171,17 @@ public class MasterManagementController {
             map.put("hotelRequestCount", requestList.size());
         }
         return map;
+    }
+
+    /* 쿠폰 템플릿 관리 */
+    @RequestMapping("/couponTemplates")
+    @Operation(summary = "쿠폰 템플릿 관리", description = "쿠폰 템플릿 목록을 보여줍니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<List<CouponTemplate>> findAll() {
+        return ResponseEntity.ok(couponTemplateService.findAll());
     }
 }

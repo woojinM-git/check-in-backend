@@ -71,4 +71,15 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     /* room 목록 */
     List<RoomReservation> findByContentid(@Param("contentid") String contentid);
+
+    /* 마이페이지 예약 목록 조회 (Hotel, Room 정보 포함) */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.hotelInfo hotel " +
+            "LEFT JOIN FETCH hotel.area area " +
+            "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
+            "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findByReservationsByCustomerAndStatus(
+        @Param("customerIdx") Integer customerIdx,
+        @Param("statusList") List<Integer> statusList);
 }
