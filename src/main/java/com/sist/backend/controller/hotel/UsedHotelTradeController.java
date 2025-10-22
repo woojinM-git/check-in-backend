@@ -98,6 +98,32 @@ public class UsedHotelTradeController {
     }
 
     /**
+     * 거래 삭제 (페이지 이탈 시)
+     */
+    @DeleteMapping("/trade/{usedTradeIdx}/delete")
+    public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody Map<String, Object> request) {
+        try {
+            String reason = (String) request.getOrDefault("reason", "사용자 페이지 이탈");
+            String timestamp = (String) request.getOrDefault("timestamp", "");
+            
+            log.info("거래 삭제 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
+            
+            tradeService.deleteTrade(usedTradeIdx, reason);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "거래가 삭제되었습니다.",
+                "usedTradeIdx", usedTradeIdx,
+                "deletedAt", java.time.LocalDateTime.now().toString()
+            ));
+            
+        } catch (Exception e) {
+            log.error("거래 삭제 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "거래 삭제 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
      * 거래 취소
      */
     @PostMapping("/trade/{usedTradeIdx}/cancel")

@@ -1,7 +1,6 @@
 package com.sist.backend.repository;
 
-import java.util.List;
-
+import com.sist.backend.entity.RoomReservation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,16 +8,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.sist.backend.entity.RoomReservation;
+import java.time.LocalDate;
+import java.util.List;
 
 @Repository
-public interface RoomReservationRepository extends JpaRepository<RoomReservation, Integer>{
+public interface RoomReservationRepository extends JpaRepository<RoomReservation, Integer> {
 
     /* 오늘 체크인한 사람의 수 */
     @Query("SELECT COUNT(r) FROM RoomReservation r " +
         "WHERE r.checkinDate = CURRENT_DATE")
     Integer findTodayCheckinCount();
-
     /* 오늘 체크아웃한 사람의 수 */
     @Query("SELECT COUNT(r) FROM RoomReservation r " +
         "WHERE r.checkoutDate = CURRENT_DATE")
@@ -72,4 +71,15 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     /* room 목록 */
     List<RoomReservation> findByContentid(@Param("contentid") String contentid);
+
+    /* 마이페이지 예약 목록 조회 (Hotel, Room 정보 포함) */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.hotelInfo hotel " +
+            "LEFT JOIN FETCH hotel.area area " +
+            "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
+            "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findByReservationsByCustomerAndStatus(
+        @Param("customerIdx") Integer customerIdx,
+        @Param("statusList") List<Integer> statusList);
 }
