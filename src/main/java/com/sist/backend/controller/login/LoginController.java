@@ -110,7 +110,7 @@ public class LoginController {
         System.out.println("====================================="+customer+"========================================");
         customer.setPassword(passwordEncoder.encode(customer.getPassword()));
         customer.setJoinDate(LocalDateTime.now());
-        customer.setCash(null);
+        customer.setCash(0);
         customer.setStatus(0);
         customer.setTotalPrice(0);
         customer.setPoint(0);
