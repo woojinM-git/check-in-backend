@@ -26,6 +26,10 @@ public class QRCodeGenerator {
      */
     public String generateQRCodeUrl(String orderId) {
         try {
+            // TODO: QR 코드에 더 많은 정보 포함 (호텔명, 체크인/아웃 날짜 등)
+            // TODO: QR 코드 만료 시간 설정 로직 추가
+            // TODO: QR 코드 보안 강화 (암호화, 서명 등)
+
             String encodedOrderId = URLEncoder.encode(orderId, StandardCharsets.UTF_8);
             String qrUrl = String.format("%s?chs=%dx%d&cht=qr&chl=%s",
                     GOOGLE_CHART_API_URL, DEFAULT_SIZE, DEFAULT_SIZE, encodedOrderId);

@@ -40,6 +40,10 @@ public class MailService {
      */
     public boolean sendHotelReservationEmail(PaymentRequestDto request, String qrUrl) {
         try {
+            // TODO: 이메일 발송 전 사용자 이메일 유효성 검증 추가
+            // TODO: 이메일 발송 실패 시 재시도 로직 추가
+            // TODO: 이메일 발송 상태 추적 및 로깅 시스템 구축
+
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 

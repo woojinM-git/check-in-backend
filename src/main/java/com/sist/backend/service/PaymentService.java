@@ -33,6 +33,8 @@ public class PaymentService {
         try {
             log.info("결제 검증 시작: orderId={}, amount={}", request.getOrderId(), request.getAmount());
 
+            // TODO: 결제 금액 검증 로직 추가 (최소/최대 금액 체크)
+            // TODO: 중복 결제 방지 로직 추가 (같은 orderId로 이미 결제된 경우 체크)
             // 1. TossPayments API로 결제 검증
             Map<String, Object> tossResponse = tossPaymentsService.confirmPayment(
                     request.getPaymentKey(),
@@ -49,10 +51,10 @@ public class PaymentService {
             // 3. 결제 정보 저장
             RoomPayment roomPayment = RoomPayment.builder()
                     .customerIdx(request.getCustomerIdx())
-                    .couponIdx(0) // 기본값
+                    .couponIdx(0) // TODO: 실제 쿠폰 시스템 연동 필요
                     .price(request.getAmount())
                     .status(1) // 결제 완료
-                    .promotionPayIdx(0) // 기본값
+                    .promotionPayIdx(0) // TODO: 프로모션 시스템 연동 필요
                     .paymentKey(request.getPaymentKey())
                     .pointsUsed(request.getPointsUsed() != null ? request.getPointsUsed() : 0)
                     .method(request.getMethod() != null ? request.getMethod() : "card")
@@ -79,6 +81,8 @@ public class PaymentService {
                 } else if ("used_hotel".equals(request.getType())) {
                     emailSent = mailService.sendUsedHotelPurchaseEmail(request, qrUrl);
                 }
+                // TODO: 이메일 발송 실패 시 재시도 로직 추가
+                // TODO: 이메일 발송 상태 추적 시스템 구축
             } catch (Exception e) {
                 log.error("이메일 발송 실패: orderId={}", request.getOrderId(), e);
                 emailSent = false;
@@ -112,8 +116,12 @@ public class PaymentService {
 
     private void saveRoomReservation(PaymentRequestDto request, Integer orderIdx) {
         try {
+            // TODO: 예약 가능 여부 사전 체크 로직 추가
+            // TODO: 객실 재고 확인 및 차감 로직 추가
+            // TODO: 체크인/체크아웃 날짜 유효성 검증 강화
+
             RoomReservation reservation = RoomReservation.builder()
-                    .customerIdx(request.getCustomerIdx())
+                    .customerIdx(request.getCustomerIdx()) // TODO: 실제 로그인된 사용자 ID 사용
                     .roomIdx(request.getRoomId())
                     .contentid(request.getContentId()) // contentId는 String 타입
                     .orderIdx(orderIdx)
