@@ -24,7 +24,6 @@ public class Customer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer customerIdx;
 
-
     @Column(name = "id", length = 20)
     private String id;
     

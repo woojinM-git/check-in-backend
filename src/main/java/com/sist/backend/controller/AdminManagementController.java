@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sist.backend.entity.CouponTemplate;
+import com.sist.backend.service.CouponTemplateService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +34,7 @@ public class AdminManagementController {
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
     private final RoomService roomService;
+    private final CouponTemplateService couponTemplateService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -131,5 +134,16 @@ public class AdminManagementController {
         @Parameter(description = "업체 ID", example = "1003654")
         @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
         return ResponseEntity.ok(roomService.findByContentIdAdmin(contentid));
+    }
+
+    @RequestMapping("/couponIssue")
+    @Operation(summary = "방 목록", description = "방 목록을 보여줍니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<List<CouponTemplate>> findByContentIdAdmin(){
+        return ResponseEntity.ok(couponTemplateService.findByStatus());
     }
 }

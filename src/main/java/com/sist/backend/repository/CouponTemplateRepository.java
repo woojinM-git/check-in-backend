@@ -1,0 +1,20 @@
+package com.sist.backend.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.sist.backend.entity.CouponTemplate;
+
+@Repository
+public interface CouponTemplateRepository extends JpaRepository<CouponTemplate, Integer> {
+
+    /* 모든 템플릿 조회 */
+    List<CouponTemplate> findAll();
+
+    /* 활성화 되어 있는 템플릿 조회 */
+    @Query("SELECT ct FROM CouponTemplate ct WHERE ct.status = true")
+    List<CouponTemplate> findByStatus();
+}
