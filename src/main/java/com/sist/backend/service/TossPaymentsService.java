@@ -50,6 +50,9 @@ public class TossPaymentsService {
             requestBody.put("orderId", orderId);
             requestBody.put("amount", amount);
 
+            log.info("TossPayments API 요청 데이터: orderId={}, amount={}", orderId, amount);
+            log.info("TossPayments API URL: {}", TOSS_PAYMENTS_CONFIRM_URL);
+
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             // TossPayments API 호출
@@ -60,14 +63,19 @@ public class TossPaymentsService {
                     Map.class
             );
 
+            log.info("TossPayments API 응답 상태: {}", response.getStatusCode());
+            log.info("TossPayments API 응답 본문 (민감정보 제외): status={}",
+                    response.getBody() != null ? response.getBody().get("status") : "null");
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> responseBody = response.getBody();
-                log.info("TossPayments 결제 검증 성공: {}", responseBody);
+                log.info("TossPayments 결제 검증 성공: orderId={}, status={}",
+                        orderId, responseBody.get("status"));
                 return responseBody;
             } else {
                 log.error("TossPayments 결제 검증 실패: status={}, body={}",
                         response.getStatusCode(), response.getBody());
-                throw new RuntimeException("TossPayments 결제 검증 실패");
+                throw new RuntimeException("TossPayments 결제 검증 실패: " + response.getBody());
             }
 
         } catch (Exception e) {
