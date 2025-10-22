@@ -128,6 +128,47 @@ public class UsedHotelTradeService {
     }
 
     /**
+     * 거래 삭제 (페이지 이탈 시) - 최적화된 버전
+     * @param usedTradeIdx 거래 ID
+     * @param deleteReason 삭제 사유
+     */
+    @Transactional
+    public void deleteTrade(Integer usedTradeIdx, String deleteReason) {
+        try {
+            // 거래 존재 여부 확인
+            Optional<UsedTrade> tradeOpt = usedTradeRepository.findById(usedTradeIdx);
+            if (!tradeOpt.isPresent()) {
+                log.warn("삭제할 거래가 존재하지 않습니다: {}", usedTradeIdx);
+                return; // 이미 삭제된 경우 조용히 리턴
+            }
+            
+            UsedTrade trade = tradeOpt.get();
+            
+            // 거래 상태가 대기 중(0)인 경우에만 삭제
+            if (trade.getStstus() != 0) {
+                log.warn("이미 처리된 거래는 삭제할 수 없습니다: {} (상태: {})", usedTradeIdx, trade.getStstus());
+                return;
+            }
+            
+            // UsedItem 상태 복원
+            Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
+            if (usedItem.isPresent()) {
+                usedItem.get().setStatus(0); // 판매중 상태로 복원
+                usedItemRepository.save(usedItem.get());
+                log.info("UsedItem 상태 복원: {} -> 판매중", trade.getUserItemIdx());
+            }
+            
+            // 거래 삭제
+            usedTradeRepository.delete(trade);
+            log.info("중고 호텔 거래 삭제: {} (사유: {})", usedTradeIdx, deleteReason);
+            
+        } catch (Exception e) {
+            log.error("거래 삭제 중 오류 발생: {} - {}", usedTradeIdx, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
      * 거래 취소
      * @param usedTradeIdx 거래 ID
      * @param cancelReason 취소 사유
@@ -152,16 +193,16 @@ public class UsedHotelTradeService {
 
     /**
      * 오래된 대기 거래 정리 (스케줄러에서 호출)
-     * 15분 이상 대기 상태인 거래를 자동 취소
+     * 1분 이상 대기 상태인 거래를 자동 취소 (테스트용)
      */
     @Transactional
     public void cleanupExpiredTrades() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(15);
+        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(1); // 테스트용: 1분
         
         List<UsedTrade> expiredTrades = usedTradeRepository.findExpiredPendingTrades(cutoffTime);
         
         for (UsedTrade trade : expiredTrades) {
-            cancelTrade(trade.getUsedTradeIdx(), "자동 취소 (15분 초과)");
+            cancelTrade(trade.getUsedTradeIdx(), "자동 취소 (1분 초과)");
         }
         
         if (!expiredTrades.isEmpty()) {
