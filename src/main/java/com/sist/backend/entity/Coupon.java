@@ -30,11 +30,11 @@ public class Coupon {
     @ToString.Exclude
     private CouponTemplate couponTemplate;
     
-    @Column(name = "id", nullable = false)
-    private Integer id;
+    @Column(name = "customerIdx", nullable = false)
+    private Integer customerIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id", referencedColumnName = "customerIdx", insertable = false, updatable = false)
+    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer customer;
