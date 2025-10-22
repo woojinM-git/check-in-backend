@@ -74,4 +74,22 @@ public class JwtProvider {
     public Map<String, Object> getClaims(String token){
         return Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(token).getPayload();
     }
+
+    public boolean inspertiontoken(String id ,String accessToken , String refreshToken){
+        if(!verify(accessToken)){
+            // accessToken 만료되었을 때
+
+            if(!verify(refreshToken)){
+                // 두 토큰 다 만료되었을 때
+                // 로그인 페이지로 이동
+                return false;
+            }else{
+                // accessToken 만료되었을 때
+                // accessToken 재발급
+            }
+            
+        }
+
+        return true;
+    }
 }
