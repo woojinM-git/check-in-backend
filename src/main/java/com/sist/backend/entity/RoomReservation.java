@@ -18,6 +18,7 @@ import java.util.List;
 public class RoomReservation {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "reservIdx")
     private Integer reservIdx;
 
@@ -29,8 +30,8 @@ public class RoomReservation {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
-            @JoinColumn(name = "roomIdx", referencedColumnName = "roomIdx", insertable = false, updatable = false),
-            @JoinColumn(name = "contentid", referencedColumnName = "contentId", insertable = false, updatable = false)
+        @JoinColumn(name = "roomIdx", referencedColumnName = "roomIdx", insertable = false, updatable = false),
+        @JoinColumn(name = "contentid", referencedColumnName = "contentId", insertable = false, updatable = false)
     })
     @JsonIgnore
     @ToString.Exclude
