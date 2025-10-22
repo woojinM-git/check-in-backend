@@ -14,41 +14,40 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@IdClass(CouponId.class)
 public class Coupon {
     
     @Id
     @Column(name = "couponIdx")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer couponIdx;
     
-    @Id
-    @Column(name = "idx")
-    private Integer idx;
+    @Column(name = "templateIdx", nullable = false)
+    private Integer templateIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "idx", referencedColumnName = "idx", insertable = false, updatable = false)
+    @JoinColumn(name = "templateIdx", referencedColumnName = "templateIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
-    private CouponPolicy couponPolicy;
+    private CouponTemplate couponTemplate;
+    
+    @Column(name = "id", nullable = false)
+    private Integer id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
+    @JoinColumn(name = "id", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Customer customer;
-
-    @Column(name = "customerIdx", nullable = false, length = 20)
-    private Integer customerIdx;
     
-    @Column(name = "createDate")
+    @Column(name = "adminIdx", nullable = false)
+    private Integer adminIdx;
+    
+    @Column(name = "createDate", nullable = false)
     private LocalDateTime createDate;
     
-    @Column(name = "endDate")
+    @Column(name = "endDate", nullable = false)
     private LocalDateTime endDate;
     
     @Column(name = "status")
-    private Integer status;
-    
-    @Column(name = "count")
-    private Integer count;
+    private Boolean status;
 }
