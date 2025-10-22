@@ -37,4 +37,8 @@ public class CustomerService {
         Page<Customer> customerPage = customerRepository.findCustomerAndRank(pageable);
         return customerPage.map(CustomerDto::fromEntity);
     }
+
+    public Customer save(Customer customer){
+        return customerRepository.save(customer);
+    }
 }
