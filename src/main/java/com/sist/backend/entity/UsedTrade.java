@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class UsedTrade {
     
     @Id
     @Column(name = "usedTradeIdx")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer usedTradeIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
@@ -63,9 +65,26 @@ public class UsedTrade {
     @Column(name = "ststus")
     private Integer ststus;
     
+    @Column(name = "createdAt")
+    private LocalDateTime createdAt;
+    
+    @Column(name = "updatedAt")
+    private LocalDateTime updatedAt;
+    
     // 양방향 관계
     @OneToMany(mappedBy = "usedTrade", fetch = FetchType.LAZY)
     @JsonIgnore
     @ToString.Exclude
     private List<UsedPay> usedPays = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
