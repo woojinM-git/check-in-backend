@@ -19,8 +19,9 @@ import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
@@ -41,11 +42,16 @@ public class LoginController {
 
     @PostMapping("")
     @Operation(summary="로그인", description="로그인 창에서 입력한 값 가져오기")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Customer customer, HttpServletResponse response) {
-        Map<String, Object> result = new HashMap<>();
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Customer> login(@RequestBody Customer customer, HttpServletResponse response) {
         Optional<Customer> customer_exist = customerService.findById(customer.getId());
+        Customer customer_exist_entity = new Customer();
         if(customer_exist.isPresent()){
-            Customer customer_exist_entity = customer_exist.get();
+            customer_exist_entity = customer_exist.get();
             System.out.println("==================아이디 존재!==================");
             if(passwordEncoder.matches(customer.getPassword(), customer_exist.get().getPassword())){
                 System.out.println("==================로그인 성공!==================");
@@ -65,32 +71,20 @@ public class LoginController {
 
                 String refreshToken = jwtProvider.getToken(payload, refreshTokenExpireTime);
 
-                Cookie accesscookie = new Cookie("accessToken", accessToken);
-                Cookie refreshcookie = new Cookie("refreshToken", refreshToken);
+                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
-                // *** HttpOnly 쿠키 설정을 위한 핵심 4가지 ***
-                
-                // 3-1. 토큰 만료 시간 설정 (초 단위). AuthService에서 3600초(1시간)로 설정했으므로 동일하게 설정
-                accesscookie.setMaxAge(accessTokenExpireTime); 
-                refreshcookie.setMaxAge(refreshTokenExpireTime);
-                // 3-2. JavaScript 접근 방지 (HttpOnly 설정 - 보안 강화)
-                accesscookie.setHttpOnly(true); 
-                refreshcookie.setHttpOnly(true);
-                // 3-3. 쿠키 경로 설정 (최상위 경로 '/'). 모든 요청에서 쿠키가 전송되도록 합니다.
-                accesscookie.setPath("/");
-                refreshcookie.setPath("/");
+                response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
 
-                response.addCookie(accesscookie);
-                response.addCookie(refreshcookie);
-
-                result.put("message","로그인 성공1");
+                customer_exist_entity.setRefToken(uuid);
+                customerService.save(customer_exist_entity);
             }
         }else{
-            result.put("message","아이디 또는 비밀번호가 일치하지 않습니다");
         }
 
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(customer_exist_entity);
     }
     
     @PostMapping("/checkId")
