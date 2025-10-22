@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
 public class AdminManagementController {
+
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
     private final RoomService roomService;
