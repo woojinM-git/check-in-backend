@@ -67,4 +67,9 @@ public class RoomReservationService {
     }
 
     /* 방목록 */
+
+    /* 특정 예약의 customerIdx 값을 변경하는 메서드 */
+    public int updateCustomerIdxByReservIdx(Integer reservIdx, Integer customerIdx) {
+        return roomReservationRepository.updateCustomerIdxByReservIdx(reservIdx, customerIdx);
+    }
 }

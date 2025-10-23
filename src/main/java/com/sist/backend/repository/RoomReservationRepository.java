@@ -82,4 +82,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     List<RoomReservation> findByReservationsByCustomerAndStatus(
         @Param("customerIdx") Integer customerIdx,
         @Param("statusList") List<Integer> statusList);
+
+    @Query("UPDATE RoomReservation r SET r.customerIdx = :customerIdx WHERE r.reservIdx = :reservIdx")
+    int updateCustomerIdxByReservIdx(@Param("reservIdx") Integer reservIdx, @Param("customerIdx") Integer customerIdx);
 }

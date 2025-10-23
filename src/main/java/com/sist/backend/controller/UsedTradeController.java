@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.dto.UsedSearchRequestDto;
+import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.UsedTradeService;
 import com.sist.backend.service.hotel.UsedHotelTradeService;
 import com.sist.backend.entity.UsedPay;
@@ -33,6 +34,7 @@ public class UsedTradeController {
 
     private final UsedTradeService usedTradeService;
     private final UsedHotelTradeService tradeService;
+    private final RoomReservationService roomReservationService;
 
     @GetMapping("/list")
     @Operation(summary = "양도거래 목록 조회", description = "페이징 처리된 양도거래 목록을 조회합니다.")
@@ -141,7 +143,8 @@ public class UsedTradeController {
     public ResponseEntity<?> confirmTrade(@PathVariable Integer usedTradeIdx) {
         try {
             UsedTrade confirmedTrade = tradeService.confirmTrade(usedTradeIdx);
-            
+            //roomReservation의 customerIdx 값을 변경
+            roomReservationService.updateCustomerIdxByReservIdx(confirmedTrade.getReservIdx(), confirmedTrade.getBuyerIdx());
             return ResponseEntity.ok(Map.of(
                 "message", "거래가 확정되었습니다.",
                 "usedTradeIdx", confirmedTrade.getUsedTradeIdx(),
