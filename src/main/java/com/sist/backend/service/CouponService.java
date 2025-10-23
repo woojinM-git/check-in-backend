@@ -33,7 +33,7 @@ public class CouponService {
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 쿠폰 템플릿입니다: " + templateIdx));
         
         // 템플릿이 활성화 상태인지 확인
-        if (template.getStatus() == null || !template.getStatus()) {
+        if (template.getStatus() == null || template.getStatus() == 0) {
             throw new IllegalArgumentException("비활성화된 쿠폰 템플릿입니다: " + templateIdx);
         }
 
