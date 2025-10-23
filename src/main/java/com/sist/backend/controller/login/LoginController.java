@@ -61,7 +61,7 @@ public class LoginController {
 
                 int accessTokenExpireTime = 3600;
                 int refreshTokenExpireTime = 604800;
-
+                
                 Map<String, Object> accesspayload = new HashMap<>();
                 Map<String, Object> refreshpayload = new HashMap<>();
 
@@ -69,13 +69,15 @@ public class LoginController {
                 accesspayload.put("nickname", customer_exist_entity.getNickname());
                 accesspayload.put("cash", customer_exist_entity.getCash());
                 accesspayload.put("point", customer_exist_entity.getPoint());
-
+                System.out.println("==================access start==================");
                 accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
-
+                System.out.println("=============access end==============");
+                
                 refreshpayload.put("id",customer_exist_entity.getId());
                 refreshpayload.put("tokenID",uuid);
-
+                
                 String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
+                System.out.println("=============refresh end==============");
 
                 String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 

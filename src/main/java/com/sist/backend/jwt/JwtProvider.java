@@ -88,7 +88,7 @@ public class JwtProvider {
                 // accessToken 재발급
                 Object tokenID = getClaims(refreshToken).get("tokenID");
                 String tokenIDString = null;
-                if(tokenID!=null){
+                if(tokenID != null){
                     tokenIDString = tokenID.toString();
                 }
             }
