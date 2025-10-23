@@ -202,7 +202,7 @@ public class MasterManagementController {
             String templateName = (String) request.get("templateName");
             Integer discount = (Integer) request.get("discount");
             Integer validDays = (Integer) request.get("validDays");
-            Boolean status = (Boolean) request.get("status");
+            Integer status = (Integer) request.get("status");
             Integer adminIdx = (Integer) request.get("adminIdx");
 
             CouponTemplate couponTemplate = new CouponTemplate();
@@ -218,18 +218,5 @@ public class MasterManagementController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
-    }
-
-    @PostMapping("/updateTemplate")
-    @Operation(summary = "쿠폰 템플릿 수정", description = "쿠폰 템플릿을 수정합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 수정됨"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-        @ApiResponse(responseCode = "500", description = "서버 오류")
-    })
-    public ResponseEntity<CouponTemplate> updateTemplate(
-        @Parameter(description = "템플릿 고유번호", example = "1")
-        @RequestParam(value = "templateIdx") Integer templateIdx) {
-        return ResponseEntity.ok(couponTemplateService.updateTemplate(templateIdx));
     }
 }

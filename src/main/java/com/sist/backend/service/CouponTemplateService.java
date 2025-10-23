@@ -38,12 +38,4 @@ public class CouponTemplateService {
         return couponTemplateRepository.save(newCouponTemplate);
     }
 
-    /* 쿠폰 템플릿 수정 */
-    public CouponTemplate updateTemplate(Integer templateIdx) {
-        CouponTemplate couponTemplate = couponTemplateRepository.findById(templateIdx)
-            .orElseThrow(() -> new RuntimeException("쿠폰 템플릿을 찾을 수 없습니다."));
-        couponTemplate.setStatus(!false);
-        couponTemplate.setUpdatedAt(LocalDateTime.now());
-        return couponTemplateRepository.save(couponTemplate);
-    }
 }

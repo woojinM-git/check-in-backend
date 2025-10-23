@@ -33,7 +33,7 @@ public class CouponTemplate {
     private Integer validDays;
     
     @Column(name = "status")
-    private Boolean status;
+    private Integer status;
     
     @Column(name = "adminIdx", nullable = false)
     private Integer adminIdx;
