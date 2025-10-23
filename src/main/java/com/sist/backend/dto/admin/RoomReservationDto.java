@@ -3,8 +3,6 @@ package com.sist.backend.dto.admin;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import com.sist.backend.entity.Customer;
-import com.sist.backend.entity.Room;
 import com.sist.backend.entity.RoomReservation;
 
 import lombok.AllArgsConstructor;
@@ -44,6 +42,7 @@ public class RoomReservationDto {
         private Integer roomIdx;
         private String name;
         private Integer basePrice;
+        private Integer status; // 0: 사용불가, 1: 사용가능
     }
 
     @Data
@@ -77,6 +76,7 @@ public class RoomReservationDto {
             room.setRoomIdx(roomReservation.getRoom().getRoomIdx());
             room.setName(roomReservation.getRoom().getName());
             room.setBasePrice(roomReservation.getRoom().getBasePrice());
+            room.setStatus(roomReservation.getRoom().getStatus());
             dto.setRoom(room);
         }
         /* Customer 정보 */

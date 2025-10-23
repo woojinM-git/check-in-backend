@@ -106,6 +106,7 @@ public class HotelQueryService {
                 .breakfastIncluded(breakfast)
                 .smoking(smoking)
                 .imageUrl(room.getImageUrl())
+                .status(room.getStatus())
                 .build();
     }
 
