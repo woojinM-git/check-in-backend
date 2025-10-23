@@ -187,7 +187,7 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<List<CouponTemplate>> findAll() {
-        return ResponseEntity.ok(couponTemplateService.findAll());
+        return ResponseEntity.ok(couponTemplateService.findByStatus());
     }
 
     @PostMapping("/createTemplate")
@@ -217,6 +217,43 @@ public class MasterManagementController {
             return ResponseEntity.ok(couponTemplateService.createTemplate(couponTemplate));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/updateTemplate")
+    @Operation(summary = "쿠폰 템플릿 상태 변경", description = "쿠폰 템플릿의 상태를 변경합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 변경됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateTemplateStatus(@RequestBody Map<String, Object> request) {
+        try {
+            Integer templateIdx = (Integer) request.get("templateIdx");
+            
+            CouponTemplate template = couponTemplateService.findById(templateIdx);
+            template.setStatus(2); // 삭제 상태로 변경
+            template.setUpdatedAt(LocalDateTime.now());
+            
+            CouponTemplate updatedTemplate = couponTemplateService.updateTemplate(templateIdx, template);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "템플릿이 삭제되었습니다.");
+            response.put("template", updatedTemplate);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "템플릿 삭제 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }
