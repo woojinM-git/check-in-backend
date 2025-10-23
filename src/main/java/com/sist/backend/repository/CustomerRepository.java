@@ -28,4 +28,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     @Query("SELECT c FROM Customer c " +
         "LEFT JOIN FETCH c.rankEntity")
     Page<Customer> findCustomerAndRank(Pageable pageable);
+
+    Optional<Customer> findByRefTokenAndId(String tokenID, String id);
 }

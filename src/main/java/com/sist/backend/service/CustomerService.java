@@ -28,6 +28,10 @@ public class CustomerService {
         return customerRepository.findById(id);
     }
 
+    public Optional<Customer> findByRefTokenAndId(String tokenID, String id){
+        return customerRepository.findByRefTokenAndId(tokenID, id);
+    }
+
     public Optional<Customer> findByCustomerIdx(Integer customerIdx){
         return customerRepository.findByCustomerIdx(customerIdx);
     }
