@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sist.backend.entity.Customer;
@@ -29,5 +30,15 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
         "LEFT JOIN FETCH c.rankEntity")
     Page<Customer> findCustomerAndRank(Pageable pageable);
 
+    List<Customer> findAll();
+    
+    // 닉네임으로 고객 검색
+    @Query("SELECT c FROM Customer c " +
+           "WHERE c.nickname LIKE %:nickname% " +
+           "AND c.status = 0 " +
+           "ORDER BY c.customerIdx ASC")
+    List<Customer> findByNicknameContaining(@Param("nickname") String nickname);
+
     Optional<Customer> findByRefTokenAndId(String tokenID, String id);
+
 }

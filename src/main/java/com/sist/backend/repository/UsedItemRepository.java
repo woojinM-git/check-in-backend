@@ -72,13 +72,13 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
         "JOIN FETCH r.room ro " +
         "JOIN FETCH ro.hotelInfo h " +
         "WHERE " +
-        "(:destination IS NULL OR h.adress LIKE %:destination%) AND " +
+        "(:destination IS NULL OR h.adress LIKE CONCAT('%', :destination, '%') OR h.title LIKE CONCAT('%', :destination, '%')) AND " +
         "(:checkIn IS NULL OR r.checkinDate >= :checkIn) AND " +
         "(:checkOut IS NULL OR r.checkoutDate <= :checkOut) AND " +
         "(:adults IS NULL OR r.guest >= :adults) AND " +
         "(:priceMin IS NULL OR u.price >= :priceMin) AND " +
         "(:priceMax IS NULL OR u.price <= :priceMax) AND " +
-        "(:status IS NULL OR u.status = :status) " +
+        "(:status IS NULL OR u.status = 0) " +
         "ORDER BY " +
         "CASE WHEN :sortBy = 'date' AND :sortDirection = 'asc' THEN r.checkinDate END ASC, " +
         "CASE WHEN :sortBy = 'date' AND :sortDirection = 'desc' THEN r.checkinDate END DESC, " +

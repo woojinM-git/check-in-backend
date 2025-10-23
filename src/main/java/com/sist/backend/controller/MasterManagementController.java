@@ -1,5 +1,6 @@
 package com.sist.backend.controller;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,8 +18,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.service.CouponTemplateService;
@@ -183,5 +188,35 @@ public class MasterManagementController {
     })
     public ResponseEntity<List<CouponTemplate>> findAll() {
         return ResponseEntity.ok(couponTemplateService.findAll());
+    }
+
+    @PostMapping("/createTemplate")
+    @Operation(summary = "쿠폰 템플릿 생성", description = "쿠폰 템플릿을 생성합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 생성됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<CouponTemplate> createTemplate(@RequestBody Map<String, Object> request) {
+        try {
+            String templateName = (String) request.get("templateName");
+            Integer discount = (Integer) request.get("discount");
+            Integer validDays = (Integer) request.get("validDays");
+            Integer status = (Integer) request.get("status");
+            Integer adminIdx = (Integer) request.get("adminIdx");
+
+            CouponTemplate couponTemplate = new CouponTemplate();
+            couponTemplate.setTemplateName(templateName);
+            couponTemplate.setDiscount(discount);
+            couponTemplate.setValidDays(validDays);
+            couponTemplate.setStatus(status);
+            couponTemplate.setAdminIdx(adminIdx);
+            couponTemplate.setCreatedAt(LocalDateTime.now());
+            couponTemplate.setUpdatedAt(LocalDateTime.now());
+
+            return ResponseEntity.ok(couponTemplateService.createTemplate(couponTemplate));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

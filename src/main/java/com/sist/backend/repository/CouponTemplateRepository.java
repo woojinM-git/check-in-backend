@@ -15,6 +15,6 @@ public interface CouponTemplateRepository extends JpaRepository<CouponTemplate, 
     List<CouponTemplate> findAll();
 
     /* 활성화 되어 있는 템플릿 조회 */
-    @Query("SELECT ct FROM CouponTemplate ct WHERE ct.status = true")
+    @Query("SELECT ct FROM CouponTemplate ct WHERE ct.status = 1")
     List<CouponTemplate> findByStatus();
 }

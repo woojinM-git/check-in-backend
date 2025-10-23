@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,6 +55,10 @@ public class Room {
 
     @Column(name = "roomCount")
     private Integer roomCount;
+    
+    @Column(name = "status")
+    private Integer status; // 0: 사용불가, 1: 사용가능
+    
     // 양방향 관계
     @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
     @JsonIgnore

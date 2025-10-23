@@ -4,11 +4,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.sist.backend.entity.Coupon;
 import com.sist.backend.entity.CouponTemplate;
+import com.sist.backend.entity.Customer;
+import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
+import com.sist.backend.service.CustomerService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +41,8 @@ public class AdminManagementController {
     private final RoomPaymentService roomPaymentService;
     private final RoomService roomService;
     private final CouponTemplateService couponTemplateService;
+    private final CustomerService customerService;
+    private final CouponService couponService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -137,7 +145,7 @@ public class AdminManagementController {
     }
 
     @RequestMapping("/couponIssue")
-    @Operation(summary = "방 목록", description = "방 목록을 보여줍니다.")
+    @Operation(summary = "쿠폰 발급 템플릿 목록", description = "쿠폰 발급 가능한 템플릿 목록을 보여줍니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -145,5 +153,62 @@ public class AdminManagementController {
     })
     public ResponseEntity<List<CouponTemplate>> findByContentIdAdmin(){
         return ResponseEntity.ok(couponTemplateService.findByStatus());
+    }
+    
+    @RequestMapping("/customerSearch")
+    @Operation(summary = "고객 검색", description = "이름, 이메일, 닉네임으로 고객을 검색합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<List<Customer>> searchCustomers(
+        @Parameter(description = "검색어 (닉네임)", example = "jiwo")
+        @RequestParam(value = "searchTerm", defaultValue = "") String searchTerm){
+        
+        List<Customer> customers;
+        if (searchTerm.trim().isEmpty()) {
+            // 검색어가 없으면 빈 리스트 반환
+            customers = List.of();
+        } else {
+            // 검색어가 있으면 통합 검색
+            customers = customerService.findByNicknameContaining(searchTerm);
+        }
+        
+        return ResponseEntity.ok(customers);
+    }
+
+    @PostMapping("/couponCreate")
+    @Operation(summary = "쿠폰 생성", description = "관리자가 고객에게 쿠폰을 발급합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "쿠폰이 성공적으로 생성됨"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> createCoupon(@RequestBody Map<String, Object> request) {
+        try {
+            Integer templateIdx = (Integer) request.get("templateIdx");
+            Integer customerIdx = (Integer) request.get("customerIdx");
+            Integer adminIdx = 1; // 임시로 관리자 ID 1로 설정 (실제로는 세션에서 가져와야 함)
+            
+            Coupon createdCoupon = couponService.createCoupon(templateIdx, customerIdx, adminIdx);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "쿠폰이 성공적으로 발급되었습니다.");
+            response.put("coupon", createdCoupon);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "쿠폰 발급 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 }
