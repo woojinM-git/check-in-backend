@@ -20,4 +20,5 @@ public class RoomResponse {
     private Boolean breakfastIncluded;
     private Boolean smoking;
     private String imageUrl;
+    private Integer status; // 0: 사용불가, 1: 사용가능
 }

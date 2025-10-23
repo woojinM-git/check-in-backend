@@ -1,6 +1,7 @@
 package com.sist.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.sist.backend.enums.ReservationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -79,6 +80,12 @@ public class RoomReservation {
 
     @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
+
+    //예약 상태 컬럼 추가 enums 패키지에서 관리
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reservationStatus", nullable = false, length = 20)
+    private ReservationStatus reservationStatus = ReservationStatus.예약대기;
+
 
     // 양방향 관계
     @OneToMany(mappedBy = "roomReservation", fetch = FetchType.LAZY)
