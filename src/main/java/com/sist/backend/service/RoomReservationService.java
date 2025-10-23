@@ -2,7 +2,6 @@ package com.sist.backend.service;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -69,6 +68,7 @@ public class RoomReservationService {
     /* 방목록 */
 
     /* 특정 예약의 customerIdx 값을 변경하는 메서드 */
+    @Transactional
     public int updateCustomerIdxByReservIdx(Integer reservIdx, Integer customerIdx) {
         return roomReservationRepository.updateCustomerIdxByReservIdx(reservIdx, customerIdx);
     }

@@ -71,7 +71,7 @@ public class UsedTradeController {
             searchRequest.getPriceMax(),
             searchRequest.getSortBy(),
             searchRequest.getSortDirection(),
-            searchRequest.getStatus(),
+            0,
             pageable
         );
         return ResponseEntity.ok(result);
@@ -145,6 +145,7 @@ public class UsedTradeController {
             UsedTrade confirmedTrade = tradeService.confirmTrade(usedTradeIdx);
             //roomReservation의 customerIdx 값을 변경
             roomReservationService.updateCustomerIdxByReservIdx(confirmedTrade.getReservIdx(), confirmedTrade.getBuyerIdx());
+
             return ResponseEntity.ok(Map.of(
                 "message", "거래가 확정되었습니다.",
                 "usedTradeIdx", confirmedTrade.getUsedTradeIdx(),
