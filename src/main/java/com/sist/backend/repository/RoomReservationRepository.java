@@ -4,11 +4,11 @@ import com.sist.backend.entity.RoomReservation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -82,4 +82,8 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     List<RoomReservation> findByReservationsByCustomerAndStatus(
         @Param("customerIdx") Integer customerIdx,
         @Param("statusList") List<Integer> statusList);
+
+    @Modifying
+    @Query("UPDATE RoomReservation r SET r.customerIdx = :customerIdx WHERE r.reservIdx = :reservIdx")
+    int updateCustomerIdxByReservIdx(@Param("reservIdx") Integer reservIdx, @Param("customerIdx") Integer customerIdx);
 }
