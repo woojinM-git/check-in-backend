@@ -86,6 +86,11 @@ public class JwtProvider {
             }else{
                 // accessToken 만료되었을 때
                 // accessToken 재발급
+                Object tokenID = getClaims(refreshToken).get("tokenID");
+                String tokenIDString = null;
+                if(tokenID!=null){
+                    tokenIDString = tokenID.toString();
+                }
             }
             
         }

@@ -47,9 +47,11 @@ public class LoginController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Customer> login(@RequestBody Customer customer, HttpServletResponse response) {
+    public ResponseEntity<String> login(@RequestBody Customer customer, HttpServletResponse response) {
         Optional<Customer> customer_exist = customerService.findById(customer.getId());
         Customer customer_exist_entity = new Customer();
+        String accessToken =null;
+
         if(customer_exist.isPresent()){
             customer_exist_entity = customer_exist.get();
             System.out.println("==================아이디 존재!==================");
@@ -60,23 +62,24 @@ public class LoginController {
                 int accessTokenExpireTime = 3600;
                 int refreshTokenExpireTime = 604800;
 
-                Map<String, Object> payload = new HashMap<>();
+                Map<String, Object> accesspayload = new HashMap<>();
+                Map<String, Object> refreshpayload = new HashMap<>();
 
-                payload.put("id", customer_exist_entity.getId());
+                accesspayload.put("id", customer_exist_entity.getId());
+                accesspayload.put("nickname", customer_exist_entity.getNickname());
+                accesspayload.put("cash", customer_exist_entity.getCash());
+                accesspayload.put("point", customer_exist_entity.getPoint());
 
-                String accessToken = jwtProvider.getToken(payload, accessTokenExpireTime);
+                accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
 
-                payload.put("tokenID",uuid);
-                payload.put("accessToken",accessToken);
+                refreshpayload.put("id",customer_exist_entity.getId());
+                refreshpayload.put("tokenID",uuid);
 
-                String refreshToken = jwtProvider.getToken(payload, refreshTokenExpireTime);
+                String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
 
-                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
                 String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
-                response.setHeader("Set-Cookie", accessTokenCookieHeader);
                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
-
 
                 customer_exist_entity.setRefToken(uuid);
                 customerService.save(customer_exist_entity);
@@ -84,7 +87,7 @@ public class LoginController {
         }else{
         }
 
-        return ResponseEntity.ok(customer_exist_entity);
+        return ResponseEntity.ok(accessToken);
     }
     
     @PostMapping("/checkId")
