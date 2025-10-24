@@ -19,4 +19,5 @@ public class HotelcardResponse {
     private String areaCode;
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
+    private Double distance; // 다트게임에서 사용할 거리 정보 (킬로미터)
 }
