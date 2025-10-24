@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
@@ -170,9 +171,10 @@ public class LoginController {
 
     @PostMapping("/signup")
     @Operation(summary="회원가입" , description="회원가입 창에서 사용자가 입력한 값을 가져오기")
-    public ResponseEntity<Map<String, Object>> signup(@RequestBody Customer customer,@RequestParam("role") String role) {
+    public ResponseEntity<Map<String, Object>> signup(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         Map<String, Object> result = new HashMap<>();
-        if(role.equals("customer")){
+        if(customerAdminSignupDTO.getRole().equals("customer")){
+            Customer customer = new Customer();
             customer.setPassword(passwordEncoder.encode(customer.getPassword()));
             customer.setJoinDate(LocalDateTime.now());
             customer.setCash(0);
@@ -187,13 +189,13 @@ public class LoginController {
             }else{
                 result.put("message","회원가입 실패");
             }
-        }else if(role.equals("admin")){
+        }else if(customerAdminSignupDTO.getRole().equals("admin")){
             Admin admin = new Admin();
-            admin.setId(customer.getId());
-            admin.setPw(passwordEncoder.encode(customer.getPassword()));
+            admin.setId(customerAdminSignupDTO.getId());
+            admin.setPw(passwordEncoder.encode(customerAdminSignupDTO.getPassword()));
             admin.setStatus(false);
-            admin.setName(customer.getName());
-            admin.setPhone(customer.getPhone());
+            admin.setName(customerAdminSignupDTO.getName());
+            admin.setPhone(customerAdminSignupDTO.getPhone());
             admin.setRefToken(null);
             admin.setType(true);
             if(adminService.save(admin) != null) {
