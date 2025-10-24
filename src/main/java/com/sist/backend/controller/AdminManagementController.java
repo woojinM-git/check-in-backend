@@ -12,6 +12,7 @@ import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -145,14 +146,24 @@ public class AdminManagementController {
     }
 
     @RequestMapping("/couponIssue")
-    @Operation(summary = "쿠폰 발급 템플릿 목록", description = "쿠폰 발급 가능한 템플릿 목록을 보여줍니다.")
+    @Operation(summary = "쿠폰 발급 화면", description = "쿠폰 발급 화면을 보여줍니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
             @ApiResponse(responseCode = "400", description = "잘못된 요청"),
             @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<List<CouponTemplate>> findByContentIdAdmin(){
-        return ResponseEntity.ok(couponTemplateService.findByStatus());
+    public ResponseEntity<Map<String, Object>> findByContentIdAdmin(
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+            @RequestParam(value = "page", defaultValue = "0") int page, 
+            @Parameter(description = "페이지당 데이터 개수", example = "5") 
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "현재 로그인한 관리자 ID", example = "1")
+            @RequestParam(value = "adminIdx", defaultValue = "1") Integer adminIdx){
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        Map<String, Object> map = new HashMap<>();
+        map.put("couponTemplates", couponTemplateService.findByStatus());
+        map.put("coupons", couponService.findByAdminIdx(adminIdx, pageable));
+        return ResponseEntity.ok(map);
     }
     
     @RequestMapping("/customerSearch")
@@ -211,4 +222,6 @@ public class AdminManagementController {
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
+
+
 }

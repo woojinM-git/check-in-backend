@@ -1,6 +1,9 @@
 package com.sist.backend.service.hotel;
 
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -9,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.HotelResponse;
+import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.entity.HotelDetail;
 import com.sist.backend.entity.HotelImage;
@@ -59,6 +63,16 @@ public class HotelQueryService {
     public List<HotelImageResponse> getHotelImages(String contentId) {
         List<HotelImage> images = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
         return images.stream().map(this::mapHotelImage).collect(Collectors.toList());
+    }
+
+    // 객실 예약 가능성 조회 (MyBatis) - 날짜 기반 예약 가능 여부 포함
+    public List<RoomAvailabilityResponse> getRoomAvailability(String contentId, LocalDate checkinDate, LocalDate checkoutDate) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("contentId", contentId);
+        params.put("checkinDate", checkinDate);
+        params.put("checkoutDate", checkoutDate);
+
+        return roomAdvancedMapper.findAvailableRooms(params);
     }
 
     // 엔티티(HotelInfo, HotelDetail) -> 응답 DTO 매핑
