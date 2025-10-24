@@ -1,10 +1,12 @@
 package com.sist.backend.mapper.hotel;
 
+import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.entity.Room;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface RoomAdvancedMapper {
@@ -15,4 +17,6 @@ public interface RoomAdvancedMapper {
             @Param("minCapacity") Integer minCapacity,
             @Param("maxCapacity") Integer maxCapacity
     );
+
+    List<RoomAvailabilityResponse> findAvailableRooms(Map<String, Object> params);
 }
