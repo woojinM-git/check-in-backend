@@ -106,48 +106,93 @@ public class LoginController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<String> login(@RequestBody Customer customer, HttpServletResponse response) {
-        Optional<Customer> customer_exist = customerService.findById(customer.getId());
-        Customer customer_exist_entity = new Customer();
+    public ResponseEntity<String> login(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO, HttpServletResponse response) {
         String accessToken =null;
+       if(customerAdminSignupDTO.getRole().equals("customer")){
+            Optional<Customer> customer_exist= customerService.findById(customerAdminSignupDTO.getId());
+       
+            Customer customer_exist_entity = new Customer();
+            
 
-        if(customer_exist.isPresent()){
-            customer_exist_entity = customer_exist.get();
-        
-            if(passwordEncoder.matches(customer.getPassword(), customer_exist.get().getPassword())){
-                
-                String uuid = UUID.randomUUID().toString();
+            if(customer_exist.isPresent()&& customer_exist.get().getStatus()==0){
+                customer_exist_entity = customer_exist.get();
+            
+                if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), customer_exist.get().getPassword())){
+                    
+                    String uuid = UUID.randomUUID().toString();
 
-                
-                
-                Map<String, Object> accesspayload = new HashMap<>();
-                Map<String, Object> refreshpayload = new HashMap<>();
+                    
+                    
+                    Map<String, Object> accesspayload = new HashMap<>();
+                    Map<String, Object> refreshpayload = new HashMap<>();
 
-                accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
-                accesspayload.put("nickname", customer_exist_entity.getNickname());
-                accesspayload.put("cash", customer_exist_entity.getCash());
-                accesspayload.put("point", customer_exist_entity.getPoint());
-                accesspayload.put("role", "customer");
-                
-                accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
-                
-                
-                refreshpayload.put("id",customer_exist_entity.getId());
-                refreshpayload.put("tokenID",uuid);
-                
-                String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
-                
+                    accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
+                    accesspayload.put("nickname", customer_exist_entity.getNickname());
+                    accesspayload.put("cash", customer_exist_entity.getCash());
+                    accesspayload.put("point", customer_exist_entity.getPoint());
+                    accesspayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
+                    
+                    
+                    refreshpayload.put("id",customer_exist_entity.getId());
+                    refreshpayload.put("tokenID",uuid);
+                    
+                    String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
+                    
 
-                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
-                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
-                response.setHeader("Set-Cookie", accessTokenCookieHeader);
-                response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+                    response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                    response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
-                customer_exist_entity.setRefToken(uuid);
-                customerService.save(customer_exist_entity);
+                    customer_exist_entity.setRefToken(uuid);
+                    customerService.save(customer_exist_entity);
+                }
+            }else{
             }
-        }else{
+        }else if(customerAdminSignupDTO.getRole().equals("admin")){
+            Optional<Admin> admin_exist= adminService.findById(customerAdminSignupDTO.getId());
+       
+            Admin admin_exist_entity = new Admin();
+            
+
+            if(admin_exist.isPresent()&& admin_exist.get().getStatus()==false){
+                admin_exist_entity = admin_exist.get();
+            
+                if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), admin_exist.get().getPw())){
+                    
+                    String uuid = UUID.randomUUID().toString();
+
+                    
+                    
+                    Map<String, Object> accesspayload = new HashMap<>();
+                    Map<String, Object> refreshpayload = new HashMap<>();
+
+                    accesspayload.put("adminIdx", admin_exist_entity.getAdminIdx());
+                    accesspayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
+                    
+                    
+                    refreshpayload.put("id",admin_exist_entity.getId());
+                    refreshpayload.put("tokenID",uuid);
+                    
+                    String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
+                    
+
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+
+                    response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                    response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+
+                    admin_exist_entity.setRefToken(uuid);
+                    adminService.save(admin_exist_entity);
+                }
+            }else{
+            }
         }
 
         return ResponseEntity.ok(accessToken);

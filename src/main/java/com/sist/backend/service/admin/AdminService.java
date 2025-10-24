@@ -17,4 +17,8 @@ public class AdminService {
     public Admin save(Admin admin){
         return adminRepository.save(admin);
     }
+
+    public Optional<Admin> findById(String id){
+        return adminRepository.findById(id);
+    }
 }
