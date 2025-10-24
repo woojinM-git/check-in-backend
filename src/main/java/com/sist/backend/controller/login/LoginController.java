@@ -200,16 +200,25 @@ public class LoginController {
     }
     
     @PostMapping("/checkId")
-    @Operation(summary="아이디 중복 체크", description="아이디만 가져와서 중복 검사하기")
-    public ResponseEntity<Map<String, Object>> checkId(@RequestBody Customer customer) {
-        System.out.println(customer.getId());
-        Map<String, Object> result = new HashMap<>();
-        Optional<Customer> customer_exist = customerService.findById(customer.getId());
+    @Operation(summary="아이디 중복 체크", description="아이디와 역할을 가져와서 중복 검사하기")
+    public ResponseEntity<Map<String, Object>> checkId(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         
-        if(customer_exist.isPresent()){
-            result.put("message","중복된 아이디입니다" );
-        }else{
-            result.put("message","사용 가능한 아이디입니다");
+        Map<String, Object> result = new HashMap<>();
+        if(customerAdminSignupDTO.getRole().equals("customer")){
+            Optional<Customer> customer_exist = customerService.findById(customerAdminSignupDTO.getId());
+            
+            if(customer_exist.isPresent()){
+                result.put("message","중복된 아이디입니다" );
+            }else{
+                result.put("message","사용 가능한 아이디입니다");
+            }
+        }else if(customerAdminSignupDTO.getRole().equals("admin")){
+            Optional<Admin> admin_exist = adminService.findById(customerAdminSignupDTO.getId());
+            if(admin_exist.isPresent()){
+                result.put("message","중복된 아이디입니다" );
+            }else{
+                result.put("message","사용 가능한 아이디입니다");
+            }
         }
 
         return ResponseEntity.ok(result);
