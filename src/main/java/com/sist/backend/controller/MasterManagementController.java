@@ -9,6 +9,7 @@ import java.util.Map;
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
+import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelInfo;
@@ -31,6 +32,7 @@ import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;
+import com.sist.backend.service.RoomReservationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,6 +52,7 @@ public class MasterManagementController {
     private final RegistrationRequestService registrationRequestService;
     private final CustomerService customerService;
     private final CouponTemplateService couponTemplateService;
+    private final RoomReservationService roomReservationService;
 
    
     /* 등록되어 있는 회원의 목록 */
@@ -93,13 +96,28 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Page<RegistrationRequestDto>> findAllHotelWithDetailsDto(
+    public ResponseEntity<Map<String, Object>> findAllHotelWithDetailsDto(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
             @RequestParam(value = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "5") 
             @RequestParam(value = "size", defaultValue = "5") int size) {
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(registrationRequestService.findByStatusDto(pageable));
+        Page<RegistrationRequestPlusDto> requests = registrationRequestService.findByStatusDto(pageable);
+        
+        // 통계 정보 추가
+        Integer todayApprovedCount = registrationRequestService.findTodayApprovedCount();
+        Integer todayRejectedCount = registrationRequestService.findTodayRejectedCount();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", requests.getContent());
+        response.put("totalElements", requests.getTotalElements());
+        response.put("totalPages", requests.getTotalPages());
+        response.put("number", requests.getNumber());
+        response.put("size", requests.getSize());
+        response.put("todayApprovedCount", todayApprovedCount);
+        response.put("todayRejectedCount", todayRejectedCount);
+        
+        return ResponseEntity.ok(response);
     }
 
     /* 대시보드 */
@@ -110,72 +128,28 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public Map<String, Object> dashboard() {
+    public ResponseEntity<Map<String, Object>> dashboard() {
+        /* 대시보드 상단 */
         int HotelCount = hotelInfoService.findRegistrationHotelCount();
-        List<RegistrationRequest> pendingRequests = registrationRequestService.findByStatusInDashboard();
+        int pendingCount = roomReservationService.findByTodayCount();
         int CustomerCount = customerService.findRegistrationCustomerCount();
-        List<Customer> newCustomers = customerService.findByJoinDate();
         Long paymentAmount = roomPaymentService.findByPrice();
+        /* 승인요청 호텔, 고객 목록 */
+        List<RegistrationRequestDto> pendingRequests = registrationRequestService.findTop5ByStatusInDashboard();
+        int pendingRequestCount = registrationRequestService.findByStatusCount();
+        List<Customer> newCustomers = customerService.findByJoinDate();
+        
         Map<String, Object> map = new HashMap<>();
 
-        if(HotelCount >= 0) {
-            map.put("hotelCount", HotelCount);
-        }
-        if(CustomerCount >= 0) {
-            map.put("customerCount", CustomerCount);
-        }
-        if(paymentAmount != null) {
-            map.put("paymentAmount", paymentAmount);
-        }
-        if(newCustomers != null && !newCustomers.isEmpty()) {
-            // 오늘 가입한 고객 데이터를 필요한 필드만 Map으로 변환
-            List<Map<String, Object>> newCustomerMapList = new ArrayList<>();
-            for(Customer customer : newCustomers) {
-                Map<String, Object> customerMap = new HashMap<>();
-                customerMap.put("customerIdx", customer.getCustomerIdx());
-                customerMap.put("name", customer.getName());           // 회원명
-                customerMap.put("email", customer.getEmail());         // 이메일
-                customerMap.put("joinDate", customer.getJoinDate());   // 가입일
-                customerMap.put("totalPrice", customer.getTotalPrice()); // 누적금액
-                customerMap.put("status", customer.getStatus());       // 상태
-                newCustomerMapList.add(customerMap);
-            }
-            map.put("newCustomers", newCustomerMapList);
-            map.put("newCustomersCount", newCustomers.size());
-        }
+        map.put("hotelCount", HotelCount);
+        map.put("pendingCount", pendingCount);
+        map.put("customerCount", CustomerCount);
+        map.put("paymentAmount", paymentAmount);
+        map.put("pendingRequests", pendingRequests);
+        map.put("pendingRequestCount", pendingRequestCount);
+        map.put("newCustomers", newCustomers);
 
-        if(pendingRequests != null && !pendingRequests.isEmpty()) {
-            List<Map<String, Object>> requestList = new ArrayList<>();
-            for(RegistrationRequest request : pendingRequests) {
-                Map<String, Object> requestMap = new HashMap<>();
-
-                // 호텔 정보
-                if (request.getHotelInfo() != null) {
-                    requestMap.put("contentId", request.getHotelInfo().getContentId());
-                    requestMap.put("title", request.getHotelInfo().getTitle());
-                    requestMap.put("adress", request.getHotelInfo().getAdress());
-                    requestMap.put("rooms", request.getHotelInfo().getRooms().size());
-                    requestMap.put("requestDate", request.getRegiDate());
-                    requestMap.put("status", request.getStatus());
-                }
-
-                // 사업자 정보
-                if(request.getAdmin() != null) {
-                    requestMap.put("ownerName", request.getAdmin().getName());
-                    requestMap.put("ownerPhone", request.getAdmin().getPhone());
-                    requestMap.put("ownerEmail", request.getAdmin().getId());
-                }
-
-                requestMap.put("registrationIdx", request.getRegistrationIdx());
-                requestMap.put("regiDate", request.getRegiDate());
-                requestMap.put("status", request.getStatus());
-
-                requestList.add(requestMap);
-            }
-            map.put("hotelRequestList", requestList);
-            map.put("hotelRequestCount", requestList.size());
-        }
-        return map;
+        return ResponseEntity.ok(map);
     }
 
     /* 쿠폰 템플릿 관리 */
@@ -187,7 +161,7 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<List<CouponTemplate>> findAll() {
-        return ResponseEntity.ok(couponTemplateService.findAll());
+        return ResponseEntity.ok(couponTemplateService.findByStatus());
     }
 
     @PostMapping("/createTemplate")
@@ -217,6 +191,117 @@ public class MasterManagementController {
             return ResponseEntity.ok(couponTemplateService.createTemplate(couponTemplate));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/approveHotel")
+    @Operation(summary = "호텔 승인", description = "호텔 등록 요청을 승인합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 승인됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> approveHotel(@RequestBody Map<String, Object> request) {
+        try {
+            Integer registrationIdx = (Integer) request.get("registrationIdx");
+            
+            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
+            registrationRequest.setStatus(1); // 승인 상태로 변경
+            registrationRequest.setRegiDate(LocalDateTime.now()); // 승인일 업데이트
+            
+            RegistrationRequest updatedRequest = registrationRequestService.updateRequest(registrationRequest);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "호텔이 승인되었습니다.");
+            response.put("request", updatedRequest);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔 승인 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/rejectHotel")
+    @Operation(summary = "호텔 거부", description = "호텔 등록 요청을 거부합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 거부됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> rejectHotel(@RequestBody Map<String, Object> request) {
+        try {
+            Integer registrationIdx = (Integer) request.get("registrationIdx");
+            
+            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
+            registrationRequest.setStatus(2); // 거부 상태로 변경
+            registrationRequest.setRegiDate(LocalDateTime.now()); // 거부일 업데이트
+            
+            RegistrationRequest updatedRequest = registrationRequestService.updateRequest(registrationRequest);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "호텔이 거부되었습니다.");
+            response.put("request", updatedRequest);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/updateTemplate")
+    @Operation(summary = "쿠폰 템플릿 상태 변경", description = "쿠폰 템플릿의 상태를 변경합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 변경됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateTemplateStatus(@RequestBody Map<String, Object> request) {
+        try {
+            Integer templateIdx = (Integer) request.get("templateIdx");
+            
+            CouponTemplate template = couponTemplateService.findById(templateIdx);
+            template.setStatus(2); // 삭제 상태로 변경
+            template.setUpdatedAt(LocalDateTime.now());
+            
+            CouponTemplate updatedTemplate = couponTemplateService.updateTemplate(templateIdx, template);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "템플릿이 삭제되었습니다.");
+            response.put("template", updatedTemplate);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "템플릿 삭제 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }

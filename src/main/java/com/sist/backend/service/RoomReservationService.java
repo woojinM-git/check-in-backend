@@ -32,7 +32,7 @@ public class RoomReservationService {
 
     /* 예약 확정인 사람의 수 조회 */
     public Integer findByStatus() {
-        return roomReservationRepository.findByStatus();
+        return roomReservationRepository.findByTodayCount();
     }
 
     /* 가장 최근 예약한 사람의 목록 (5개만) */
@@ -65,7 +65,10 @@ public class RoomReservationService {
         return roomReservationPage.map(RoomReservationDto::fromEntity);
     }
 
-    /* 방목록 */
+    /* 오늘 예약한 사람의 수 조회 */
+    public Integer findByTodayCount() {
+        return roomReservationRepository.findByTodayCount();
+    }
 
     /* 특정 예약의 customerIdx 값을 변경하는 메서드 */
     @Transactional
