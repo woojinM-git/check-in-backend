@@ -19,7 +19,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
         "WHERE c.status = 0")
     int findRegistrationCustomerCount();
 
-    @Query(value = "SELECT * FROM customer WHERE joinDate >= CURDATE() AND joinDate < DATE_ADD(CURDATE(), INTERVAL 1 DAY)", nativeQuery = true)
+    @Query(value = "SELECT * FROM customer WHERE joinDate >= CURDATE() AND joinDate < DATE_ADD(CURDATE(), INTERVAL 1 DAY) ORDER BY joinDate DESC LIMIT 5", nativeQuery = true)
     List<Customer> findByJoinDate();
 
     Optional<Customer> findById(String id);
