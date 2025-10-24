@@ -110,7 +110,6 @@ public class CustomerController {
                 .totalPrice(customerEntity.getTotalPrice() != null ? new java.math.BigDecimal(customerEntity.getTotalPrice()) : null)
                 .rank(customerEntity.getRank())
                 .joinDate(customerEntity.getJoinDate())
-                .status(customerEntity.getStatus())
                 .build();
             
             return ResponseEntity.ok(customerDto);
