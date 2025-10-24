@@ -57,4 +57,5 @@ public class CustomerService {
     public List<Customer> findByNicknameContaining(String nickname) {
         return customerRepository.findByNicknameContaining(nickname);
     }
+    
 }

@@ -14,11 +14,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
+import com.sist.backend.entity.Admin;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.service.admin.AdminService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -34,6 +38,8 @@ public class LoginController {
 
     @Autowired
     private CustomerService customerService;
+    @Autowired
+    private AdminService adminService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -52,9 +58,9 @@ public class LoginController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<String> getAccessToken(@CookieValue(value = "refreshToken", required = false) String refreshToken,HttpServletResponse response) {
-        System.out.println("=============getAccessToken ~~~~~~~~ start==============");
+       
         String accessToken = null;
-        System.out.println("======================================"+"refreshToken: " + refreshToken+"=============================================");
+        
         if(refreshToken != null){
             
             if(jwtProvider.verify(refreshToken)){
@@ -75,7 +81,7 @@ public class LoginController {
                         String reTokenID = UUID.randomUUID().toString();
 
                         Map<String, Object> refreshpayload = new HashMap<>();
-                        refreshpayload.put("id", customer_entity.getId());
+                        refreshpayload.put("customerIdx", customer_entity.getCustomerIdx());
                         refreshpayload.put("tokenID",reTokenID);
 
                         String newRefreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
@@ -93,53 +99,101 @@ public class LoginController {
     }
 
     @PostMapping("")
-    @Operation(summary="로그인", description="로그인 창에서 입력한 값 가져오기")
+    @Operation(summary="회원 로그인", description="로그인 창에서 입력한 값 가져오기")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<String> login(@RequestBody Customer customer, HttpServletResponse response) {
-        Optional<Customer> customer_exist = customerService.findById(customer.getId());
-        Customer customer_exist_entity = new Customer();
+    public ResponseEntity<String> login(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO, HttpServletResponse response) {
         String accessToken =null;
+       if(customerAdminSignupDTO.getRole().equals("customer")){
+            Optional<Customer> customer_exist= customerService.findById(customerAdminSignupDTO.getId());
+       
+            Customer customer_exist_entity = new Customer();
+            
 
-        if(customer_exist.isPresent()){
-            customer_exist_entity = customer_exist.get();
-            System.out.println("==================아이디 존재!==================");
-            if(passwordEncoder.matches(customer.getPassword(), customer_exist.get().getPassword())){
-                System.out.println("==================로그인 성공!==================");
-                String uuid = UUID.randomUUID().toString();
+            if(customer_exist.isPresent()&& customer_exist.get().getStatus()==0){
+                customer_exist_entity = customer_exist.get();
+            
+                if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), customer_exist.get().getPassword())){
+                    
+                    String uuid = UUID.randomUUID().toString();
 
-                
-                
-                Map<String, Object> accesspayload = new HashMap<>();
-                Map<String, Object> refreshpayload = new HashMap<>();
+                    
+                    
+                    Map<String, Object> accesspayload = new HashMap<>();
+                    Map<String, Object> refreshpayload = new HashMap<>();
 
-                accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
-                accesspayload.put("nickname", customer_exist_entity.getNickname());
-                accesspayload.put("cash", customer_exist_entity.getCash());
-                accesspayload.put("point", customer_exist_entity.getPoint());
-                System.out.println("==================access start==================");
-                accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
-                System.out.println("=============access end==============");
-                
-                refreshpayload.put("id",customer_exist_entity.getId());
-                refreshpayload.put("tokenID",uuid);
-                
-                String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
-                System.out.println("=============refresh end==============");
+                    accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
+                    accesspayload.put("nickname", customer_exist_entity.getNickname());
+                    accesspayload.put("cash", customer_exist_entity.getCash());
+                    accesspayload.put("point", customer_exist_entity.getPoint());
+                    accesspayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
+                    
+                    
+                    refreshpayload.put("id",customer_exist_entity.getId());
+                    refreshpayload.put("tokenID",uuid);
+                    refreshpayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
+                    
 
-                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
-                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
-                response.setHeader("Set-Cookie", accessTokenCookieHeader);
-                response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+                    response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                    response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
-                customer_exist_entity.setRefToken(uuid);
-                customerService.save(customer_exist_entity);
+                    customer_exist_entity.setRefToken(uuid);
+                    customerService.save(customer_exist_entity);
+                }
+            }else{
             }
-        }else{
+        }else if(customerAdminSignupDTO.getRole().equals("admin")){
+            Optional<Admin> admin_exist= adminService.findById(customerAdminSignupDTO.getId());
+       
+            Admin admin_exist_entity = new Admin();
+            
+
+            if(admin_exist.isPresent()&& admin_exist.get().getStatus()==false){
+                admin_exist_entity = admin_exist.get();
+            
+                if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), admin_exist.get().getPw())){
+                    
+                    String uuid = UUID.randomUUID().toString();
+
+                    
+                    
+                    Map<String, Object> accesspayload = new HashMap<>();
+                    Map<String, Object> refreshpayload = new HashMap<>();
+
+                    accesspayload.put("adminIdx", admin_exist_entity.getAdminIdx());
+                    accesspayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
+                    
+                    
+                    refreshpayload.put("id",admin_exist_entity.getId());
+                    refreshpayload.put("tokenID",uuid);
+                    refreshpayload.put("role", customerAdminSignupDTO.getRole());
+                    
+                    String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
+                    
+
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+
+                    response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                    response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+
+                    admin_exist_entity.setRefToken(uuid);
+                    adminService.save(admin_exist_entity);
+                }
+            }else{
+            }
         }
 
         return ResponseEntity.ok(accessToken);
@@ -163,24 +217,42 @@ public class LoginController {
 
     @PostMapping("/signup")
     @Operation(summary="회원가입" , description="회원가입 창에서 사용자가 입력한 값을 가져오기")
-    public ResponseEntity<Map<String, Object>> signup(@RequestBody Customer customer) {
+    public ResponseEntity<Map<String, Object>> signup(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         Map<String, Object> result = new HashMap<>();
-        System.out.println("====================================="+customer+"========================================");
-        customer.setPassword(passwordEncoder.encode(customer.getPassword()));
-        customer.setJoinDate(LocalDateTime.now());
-        customer.setCash(0);
-        customer.setStatus(0);
-        customer.setTotalPrice(0);
-        customer.setPoint(0);
-        customer.setRefToken(null);
-        customer.setProvider(null);
-        customer.setRank("Traveler");
-        System.out.println("====================================="+customer+"========================================");
-        if(customerService.save(customer) != null) {
-            result.put("message","회원가입 성공");
+        if(customerAdminSignupDTO.getRole().equals("customer")){
+            Customer customer = new Customer();
+            customer.setPassword(passwordEncoder.encode(customer.getPassword()));
+            customer.setJoinDate(LocalDateTime.now());
+            customer.setCash(0);
+            customer.setStatus(0);
+            customer.setTotalPrice(0);
+            customer.setPoint(0);
+            customer.setRefToken(null);
+            customer.setProvider(null);
+            customer.setRank("Traveler");
+            if(customerService.save(customer) != null) {
+                result.put("message","고객 회원가입 성공");
+            }else{
+                result.put("message","회원가입 실패");
+            }
+        }else if(customerAdminSignupDTO.getRole().equals("admin")){
+            Admin admin = new Admin();
+            admin.setId(customerAdminSignupDTO.getId());
+            admin.setPw(passwordEncoder.encode(customerAdminSignupDTO.getPassword()));
+            admin.setStatus(false);
+            admin.setName(customerAdminSignupDTO.getName());
+            admin.setPhone(customerAdminSignupDTO.getPhone());
+            admin.setRefToken(null);
+            admin.setType(true);
+            if(adminService.save(admin) != null) {
+                result.put("message","관리자 회원가입 성공");
+            }else{
+                result.put("message","회원가입 실패");
+            }
         }else{
-            result.put("message","회원가입 실패");
+            result.put("message","잘못된 접근입니다");
         }
+        
         
         return ResponseEntity.ok(result);
     }
