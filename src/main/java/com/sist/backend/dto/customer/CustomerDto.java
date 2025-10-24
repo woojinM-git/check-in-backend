@@ -17,6 +17,7 @@ public class CustomerDto {
     private String id;
     private String nickname;
     private String email;
+    private String phone;
     private BigDecimal cash;
     private BigDecimal point;
     private BigDecimal totalPrice;
