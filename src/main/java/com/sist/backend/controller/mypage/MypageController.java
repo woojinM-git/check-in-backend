@@ -36,20 +36,10 @@ public class MypageController {
     @GetMapping("/reservations")
     public ResponseEntity<?> getReservations(
             @RequestParam(name = "status") String status,
-            @RequestParam(name = "customerIdx", required = false) Integer devCustomerIdx,
             HttpServletRequest request) {
 
-        // 🔧 개발 모드: customerIdx를 쿼리 파라미터로 받을 수 있도록 허용
-        // TODO: 실제 배포 시 제거 필요
-        Integer customerIdx;
-        if (devCustomerIdx != null) {
-            // 개발 모드: 쿼리 파라미터로 받은 customerIdx 사용
-            customerIdx = devCustomerIdx;
-            System.out.println("🔧 개발 모드: customerIdx=" + customerIdx + " (쿼리 파라미터)");
-        } else {
-            // 실제 운영 모드: JWT에서 사용자 정보 가져오기
-            customerIdx = getCustomerIdxFromToken(request);
-        }
+        // JWT에서 사용자 정보 가져오기
+        Integer customerIdx = getCustomerIdxFromToken(request);
 
         if (customerIdx == null) {
             //인증 정보가 없을 경우 401 에러 반환
@@ -70,18 +60,10 @@ public class MypageController {
     @GetMapping("/reservations/{reservationId}")
     public ResponseEntity<?> getReservationDetail(
             @PathVariable Integer reservationId,
-            @RequestParam(name = "customerIdx", required = false) Integer devCustomerIdx,
             HttpServletRequest request) {
         
-        // 🔧 개발 모드: customerIdx를 쿼리 파라미터로 받을 수 있도록 허용
-        Integer customerIdx;
-        if (devCustomerIdx != null) {
-            customerIdx = devCustomerIdx;
-            System.out.println("🔧 개발 모드: customerIdx=" + customerIdx + " (쿼리 파라미터)");
-        } else {
-            // JWT에서 사용자 정보 가져오기
-            customerIdx = getCustomerIdxFromToken(request);
-        }
+        // JWT에서 사용자 정보 가져오기
+        Integer customerIdx = getCustomerIdxFromToken(request);
 
         if (customerIdx == null) {
             return ResponseEntity.status(401).body(Map.of(
@@ -109,19 +91,10 @@ public class MypageController {
     }
     /* 프로필 정보 조회 */
     @GetMapping("/profile")
-    public ResponseEntity<?> getProfile(
-            @RequestParam(name = "customerIdx", required = false) Integer devCustomerIdx,
-            HttpServletRequest request) {
+    public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
-            // 🔧 개발 모드: customerIdx를 쿼리 파라미터로 받을 수 있도록 허용
-            Integer customerIdx;
-            if (devCustomerIdx != null) {
-                customerIdx = devCustomerIdx;
-                System.out.println("🔧 개발 모드: customerIdx=" + customerIdx + " (쿼리 파라미터)");
-            } else {
-                // 1. JWT에서 사용자 정보 가져오기
-                customerIdx = getCustomerIdxFromToken(request);
-            }
+            // JWT에서 사용자 정보 가져오기
+            Integer customerIdx = getCustomerIdxFromToken(request);
             
             if (customerIdx == null) {
                 return ResponseEntity.status(401).body(Map.of(
