@@ -1,6 +1,8 @@
 package com.sist.backend.controller.hotel;
 
 import com.sist.backend.dto.hotel.HotelImageResponse;
+import com.sist.backend.dto.hotel.HotelResponse;
+import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.service.hotel.HotelQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -79,5 +82,21 @@ public class HotelQueryController {
     @GetMapping("/{contentId}/images")
     public ResponseEntity<List<HotelImageResponse>> getHotelImages(@PathVariable(name = "contentId") String contentId) {
         return ResponseEntity.ok(hotelQueryService.getHotelImages(contentId));
+    }
+
+    // Swagger: 객실 예약 가능성 조회 API 문서
+    @Operation(summary = "객실 예약 가능성 조회", description = "체크인/체크아웃 날짜를 기준으로 객실의 예약 가능 여부를 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 날짜 형식"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{contentId}/rooms/availability")
+    public ResponseEntity<List<RoomAvailabilityResponse>> getRoomAvailability(
+            @PathVariable(name = "contentId") String contentId,
+            @RequestParam(name = "checkinDate") LocalDate checkinDate,
+            @RequestParam(name = "checkoutDate") LocalDate checkoutDate
+    ) {
+        return ResponseEntity.ok(hotelQueryService.getRoomAvailability(contentId, checkinDate, checkoutDate));
     }
 }

@@ -49,3 +49,8 @@ node_modules/
 # Dependency files
 package-lock.json
 package.json
+
+logs/
+*.log
+*.log.*
+api-*.log*
