@@ -38,4 +38,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
            "AND c.status = 0 " +
            "ORDER BY c.customerIdx ASC")
     List<Customer> findByNicknameContaining(@Param("nickname") String nickname);
+
+    Optional<Customer> findByRefTokenAndId(String tokenID, String id);
+
 }
