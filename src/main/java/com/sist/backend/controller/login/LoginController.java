@@ -24,7 +24,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
@@ -117,7 +116,7 @@ public class LoginController {
                 Map<String, Object> accesspayload = new HashMap<>();
                 Map<String, Object> refreshpayload = new HashMap<>();
 
-                accesspayload.put("id", customer_exist_entity.getId());
+                accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
                 accesspayload.put("nickname", customer_exist_entity.getNickname());
                 accesspayload.put("cash", customer_exist_entity.getCash());
                 accesspayload.put("point", customer_exist_entity.getPoint());
@@ -131,8 +130,10 @@ public class LoginController {
                 String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
                 System.out.println("=============refresh end==============");
 
+                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
                 String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
+                response.setHeader("Set-Cookie", accessTokenCookieHeader);
                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
                 customer_exist_entity.setRefToken(uuid);
@@ -183,7 +184,5 @@ public class LoginController {
         
         return ResponseEntity.ok(result);
     }
-
-    
     
 }

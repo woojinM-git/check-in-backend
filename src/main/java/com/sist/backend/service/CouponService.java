@@ -1,10 +1,14 @@
 package com.sist.backend.service;
 
+import com.sist.backend.dto.admin.CouponDto;
 import com.sist.backend.entity.Coupon;
 import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.repository.CouponRepository;
 import com.sist.backend.repository.CouponTemplateRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,5 +67,10 @@ public class CouponService {
         return couponRepository.findByCustomerIdx(customerIdx).stream()
             .filter(coupon -> !coupon.getStatus() && coupon.getEndDate().isAfter(LocalDateTime.now()))
             .toList();
+    }
+
+    public Page<CouponDto> findByAdminIdx(Integer adminIdx, Pageable pageable) {
+        Page<Coupon> couponPage = couponRepository.findByAdminIdx(adminIdx, pageable);
+        return couponPage.map(CouponDto::fromEntity);
     }
 }

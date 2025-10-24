@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegistrationRequestDto {
+public class RegistrationRequestPlusDto {
     // RegistrationRequest 기본 정보
     private Integer registrationIdx;
     private Integer adminIdx;
@@ -30,7 +30,9 @@ public class RegistrationRequestDto {
     @AllArgsConstructor
     public static class Admin {
         private Integer adminIdx;
-        private String adminName;
+        private String id;
+        private String name;
+        private String phone;
     }
 
     @Data
@@ -41,11 +43,10 @@ public class RegistrationRequestDto {
         private String title;
         private String adress;
         private Integer rooms;
-        private Integer count;
     }
 
-    public static RegistrationRequestDto fromEntity(RegistrationRequest registrationRequest) {
-        RegistrationRequestDto dto = new RegistrationRequestDto();
+    public static RegistrationRequestPlusDto fromEntity(RegistrationRequest registrationRequest) {
+        RegistrationRequestPlusDto dto = new RegistrationRequestPlusDto();
         dto.setRegistrationIdx(registrationRequest.getRegistrationIdx());
         dto.setAdminIdx(registrationRequest.getAdminIdx());
         dto.setContentid(registrationRequest.getContentid());
@@ -55,7 +56,9 @@ public class RegistrationRequestDto {
         if(registrationRequest.getAdmin() != null) {
             Admin admin = new Admin();
             admin.setAdminIdx(registrationRequest.getAdmin().getAdminIdx());
-            admin.setAdminName(registrationRequest.getAdmin().getName());
+            admin.setId(registrationRequest.getAdmin().getId());
+            admin.setName(registrationRequest.getAdmin().getName());
+            admin.setPhone(registrationRequest.getAdmin().getPhone());
             dto.setAdmin(admin);
         }
 

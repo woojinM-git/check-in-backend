@@ -23,10 +23,10 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "WHERE r.checkoutDate = CURRENT_DATE")
     Integer findTodayCheckoutCount();
 
-    /* 예약 확정인 사람의 수 */
+    /* 오늘 예약한 사람의 수 */
     @Query("SELECT COUNT(r) FROM RoomReservation r " +
-        "WHERE r.status = 1")
-    Integer findByStatus();
+        "WHERE r.createdAt = CURRENT_DATE")
+    Integer findByTodayCount();
 
     @Query("SELECT r FROM RoomReservation r " +
         "WHERE r.contentid = :contentid " +

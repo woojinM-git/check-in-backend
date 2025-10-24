@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.repository.CouponTemplateRepository;
@@ -38,4 +39,24 @@ public class CouponTemplateService {
         return couponTemplateRepository.save(newCouponTemplate);
     }
 
+    /* 쿠폰 템플릿 수정 */
+    @Transactional
+    public CouponTemplate updateTemplate(Integer templateIdx, CouponTemplate updateData) {
+        CouponTemplate existingTemplate = couponTemplateRepository.findById(templateIdx)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 쿠폰 템플릿입니다: " + templateIdx));
+        
+        existingTemplate.setTemplateName(updateData.getTemplateName());
+        existingTemplate.setDiscount(updateData.getDiscount());
+        existingTemplate.setValidDays(updateData.getValidDays());
+        existingTemplate.setStatus(updateData.getStatus());
+        existingTemplate.setUpdatedAt(LocalDateTime.now());
+        
+        return couponTemplateRepository.save(existingTemplate);
+    }
+
+    /* 쿠폰 템플릿 조회 */
+    public CouponTemplate findById(Integer templateIdx) {
+        return couponTemplateRepository.findById(templateIdx)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 쿠폰 템플릿입니다: " + templateIdx));
+    }
 }

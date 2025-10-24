@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.RegistrationRequest;
 
 @Repository
@@ -20,13 +21,26 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
         "LEFT JOIN FETCH rr.hotelInfo " +
         "WHERE rr.status = 0 " +
         "ORDER BY rr.regiDate ASC")
-    List<RegistrationRequest> findByStatusInDashboard();
+    List<RegistrationRequest> findTop5ByStatusInDashboard(Pageable pageable);
 
-    /* status가 0인 등록 요청 (페이징 처리) */
+    /* 승인요청중인 호텔의 수 */
+    @Query("SELECT COUNT(rr) FROM RegistrationRequest rr " +
+        "WHERE rr.status = 0")
+    Integer findByStatusCount();
+
+    /* 승인요청중인 호텔의 목록 */
     @Query("SELECT rr FROM RegistrationRequest rr " +
         "LEFT JOIN FETCH rr.admin " +
         "LEFT JOIN FETCH rr.hotelInfo " +
         "WHERE rr.status = 0 " +
         "ORDER BY rr.regiDate ASC")
     Page<RegistrationRequest> findByStatus(Pageable pageable);
+
+    /* 오늘 승인된 호텔 수 */
+    @Query(value = "SELECT COUNT(*) FROM registrationRequest WHERE status = 1 AND DATE(regiDate) = CURDATE()", nativeQuery = true)
+    Integer findTodayApprovedCount();
+
+    /* 오늘 거부된 호텔 수 */
+    @Query(value = "SELECT COUNT(*) FROM registrationRequest WHERE status = 2 AND DATE(regiDate) = CURDATE()", nativeQuery = true)
+    Integer findTodayRejectedCount();
 }
