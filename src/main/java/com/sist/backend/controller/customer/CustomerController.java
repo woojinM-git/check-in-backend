@@ -1,5 +1,6 @@
 package com.sist.backend.controller.customer;
 
+import com.sist.backend.dto.customer.CustomerDto;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.jwt.JwtProvider;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -98,15 +98,22 @@ public class CustomerController {
             
             Customer customerEntity = customerOpt.get();
             
-            // 4. 응답 데이터 구성
-            Map<String, Object> userInfo = new HashMap<>();
-            userInfo.put("customerIdx", customerEntity.getCustomerIdx());
-            userInfo.put("id", customerEntity.getId());
-            userInfo.put("nickname", customerEntity.getNickname());
-            userInfo.put("rank", customerEntity.getRank());
-            userInfo.put("joinDate", customerEntity.getJoinDate());
+            // 4. 응답 데이터 구성 (CustomerDTO로 반환)
+            CustomerDto customerDto = CustomerDto.builder()
+                .customerIdx(customerEntity.getCustomerIdx())
+                .id(customerEntity.getId())
+                .nickname(customerEntity.getNickname())
+                .email(customerEntity.getEmail())
+                .phone(customerEntity.getPhone())
+                .cash(customerEntity.getCash() != null ? new java.math.BigDecimal(customerEntity.getCash()) : null)
+                .point(customerEntity.getPoint() != null ? new java.math.BigDecimal(customerEntity.getPoint()) : null)
+                .totalPrice(customerEntity.getTotalPrice() != null ? new java.math.BigDecimal(customerEntity.getTotalPrice()) : null)
+                .rank(customerEntity.getRank())
+                .joinDate(customerEntity.getJoinDate())
+                .status(customerEntity.getStatus())
+                .build();
             
-            return ResponseEntity.ok(userInfo);
+            return ResponseEntity.ok(customerDto);
             
         } catch (Exception e) {
             e.printStackTrace();
