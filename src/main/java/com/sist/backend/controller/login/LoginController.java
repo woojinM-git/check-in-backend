@@ -136,6 +136,7 @@ public class LoginController {
                     
                     refreshpayload.put("id",customer_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
+                    refreshpayload.put("role", customerAdminSignupDTO.getRole());
                     
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
                     
@@ -177,6 +178,7 @@ public class LoginController {
                     
                     refreshpayload.put("id",admin_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
+                    refreshpayload.put("role", customerAdminSignupDTO.getRole());
                     
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
                     
