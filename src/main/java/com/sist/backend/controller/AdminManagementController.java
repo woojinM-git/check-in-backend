@@ -5,26 +5,28 @@ import java.util.List;
 import java.util.Map;
 
 import com.sist.backend.entity.Coupon;
-import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.sist.backend.dto.admin.RoomReservationDto;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.RoomService;
+import com.sist.backend.service.hotel.HotelInfoService;
+import com.sist.backend.service.hotel.HotelQueryService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -44,6 +46,7 @@ public class AdminManagementController {
     private final CouponTemplateService couponTemplateService;
     private final CustomerService customerService;
     private final CouponService couponService;
+    private final HotelInfoService hotelInfoService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -221,6 +224,22 @@ public class AdminManagementController {
             errorResponse.put("message", "쿠폰 발급 중 오류가 발생했습니다.");
             return ResponseEntity.internalServerError().body(errorResponse);
         }
+    }
+
+    @GetMapping("/hotel/{adminIdx}")
+    @Operation(summary = "관리자별 호텔 정보 조회", description = "adminIdx로 해당 관리자의 호텔 정보를 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "404", description = "해당 관리자의 호텔 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<String> findContentIdByAdminIdx(
+        @Parameter(description = "관리자 ID", example = "1")
+        @PathVariable("adminIdx") Integer adminIdx) {
+        
+        return hotelInfoService.findContentIdByAdminIdx(adminIdx)
+                .<ResponseEntity<String>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
 
