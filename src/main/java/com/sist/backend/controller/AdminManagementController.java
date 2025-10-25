@@ -3,6 +3,7 @@ package com.sist.backend.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.sist.backend.entity.Coupon;
 import com.sist.backend.entity.Customer;
@@ -26,7 +27,6 @@ import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.RoomService;
 import com.sist.backend.service.hotel.HotelInfoService;
-import com.sist.backend.service.hotel.HotelQueryService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -237,9 +237,13 @@ public class AdminManagementController {
         @Parameter(description = "관리자 ID", example = "1")
         @PathVariable("adminIdx") Integer adminIdx) {
         
-        return hotelInfoService.findContentIdByAdminIdx(adminIdx)
-                .<ResponseEntity<String>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        
+        if (contentIdOpt.isPresent()) {
+            return ResponseEntity.ok(contentIdOpt.get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
 

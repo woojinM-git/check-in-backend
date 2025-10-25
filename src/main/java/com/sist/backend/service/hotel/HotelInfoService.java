@@ -47,8 +47,7 @@ public class HotelInfoService {
     }
 
     public Optional<String> findContentIdByAdminIdx(Integer adminIdx) {
-        String contentId = hotelInfoRepository.findContentIdByAdminIdx(adminIdx);
-        return Optional.ofNullable(contentId);
+        return hotelInfoRepository.findContentIdByAdminIdx(adminIdx);
     }
 }
 

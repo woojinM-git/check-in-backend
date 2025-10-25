@@ -68,6 +68,6 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
      * adminIdx로 contentId 조회
      */
     @Query("SELECT h.contentId FROM HotelInfo h WHERE h.adminIdx = :adminIdx")
-    String findContentIdByAdminIdx(@Param("adminIdx") Integer adminIdx);
+    Optional<String> findContentIdByAdminIdx(@Param("adminIdx") Integer adminIdx);
 }
 
