@@ -159,7 +159,7 @@ public class MypageController {
             }
 
             // 4. 사용자 ID로 customerIdx 조회
-            Customer customer = customerService.findById(userId).orElse(null);
+            Customer customer = customerService.findByIdAndStatus(userId, 0).orElse(null);
             
             return customer != null ? customer.getCustomerIdx() : null;
 

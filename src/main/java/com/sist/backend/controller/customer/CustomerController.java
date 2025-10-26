@@ -75,7 +75,7 @@ public class CustomerController {
                 // customerIdx가 없으면 id로 조회
                 String userId = (String) claims.get("id");
                 if (userId != null) {
-                    Optional<Customer> customer = customerService.findById(userId);
+                    Optional<Customer> customer = customerService.findByIdAndStatus(userId, 0);
                     if (customer.isPresent()) {
                         customerIdx = customer.get().getCustomerIdx();
                     }

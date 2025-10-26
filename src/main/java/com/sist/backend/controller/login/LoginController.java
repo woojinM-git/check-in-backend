@@ -108,7 +108,7 @@ public class LoginController {
     public ResponseEntity<String> login(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO, HttpServletResponse response) {
         String accessToken =null;
        if(customerAdminSignupDTO.getRole().equals("customer")){
-            Optional<Customer> customer_exist= customerService.findById(customerAdminSignupDTO.getId());
+            Optional<Customer> customer_exist= customerService.findByIdAndStatus(customerAdminSignupDTO.getId(), 0);
        
             Customer customer_exist_entity = new Customer();
             
@@ -153,7 +153,7 @@ public class LoginController {
             }else{
             }
         }else if(customerAdminSignupDTO.getRole().equals("admin")){
-            Optional<Admin> admin_exist= adminService.findById(customerAdminSignupDTO.getId());
+            Optional<Admin> admin_exist= adminService.findByIdAndStatus(customerAdminSignupDTO.getId(), false);
        
             Admin admin_exist_entity = new Admin();
             
@@ -205,21 +205,45 @@ public class LoginController {
         
         Map<String, Object> result = new HashMap<>();
         if(customerAdminSignupDTO.getRole().equals("customer")){
-            Optional<Customer> customer_exist = customerService.findById(customerAdminSignupDTO.getId());
+            Optional<Customer> customer_exist = customerService.findByIdAndStatus(customerAdminSignupDTO.getId(),0);
             
             if(customer_exist.isPresent()){
                 result.put("message","중복된 아이디입니다" );
+                result.put("status","fail" );
             }else{
                 result.put("message","사용 가능한 아이디입니다");
+                result.put("status","success");
             }
         }else if(customerAdminSignupDTO.getRole().equals("admin")){
-            Optional<Admin> admin_exist = adminService.findById(customerAdminSignupDTO.getId());
+            Optional<Admin> admin_exist = adminService.findByIdAndStatus(customerAdminSignupDTO.getId(),false);
             if(admin_exist.isPresent()){
                 result.put("message","중복된 아이디입니다" );
+                result.put("status","fail");
             }else{
                 result.put("message","사용 가능한 아이디입니다");
+                result.put("status","success");
             }
         }
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/checkNickname")
+    @Operation(summary="닉네임 중복 체크", description="닉네임을 가져와서 중복 검사하기")
+    public ResponseEntity<Map<String, Object>> checkNickname(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
+        
+        Map<String, Object> result = new HashMap<>();
+        
+        Optional<Customer> customer_exist = customerService.findByNicknameAndStatus(customerAdminSignupDTO.getNickname(),0);
+        
+        if(customer_exist.isPresent()){
+            result.put("message","중복된 닉네임입니다" );
+            result.put("status","fail" );
+        }else{
+            result.put("message","사용 가능한 닉네임입니다");
+            result.put("status","success");
+        }
+        
 
         return ResponseEntity.ok(result);
     }
@@ -230,8 +254,15 @@ public class LoginController {
         Map<String, Object> result = new HashMap<>();
         if(customerAdminSignupDTO.getRole().equals("customer")){
             Customer customer = new Customer();
-            customer.setPassword(passwordEncoder.encode(customer.getPassword()));
+            customer.setPassword(passwordEncoder.encode(customerAdminSignupDTO.getPassword()));
             customer.setJoinDate(LocalDateTime.now());
+            customer.setId(customerAdminSignupDTO.getId());
+            customer.setNickname(customerAdminSignupDTO.getNickname());
+            customer.setName(customerAdminSignupDTO.getName());
+            customer.setGender(customerAdminSignupDTO.getGender());
+            customer.setPhone(customerAdminSignupDTO.getPhone());
+            customer.setEmail(customerAdminSignupDTO.getEmail());
+            customer.setBirthday(customerAdminSignupDTO.getBirthday());
             customer.setCash(0);
             customer.setStatus(0);
             customer.setTotalPrice(0);
