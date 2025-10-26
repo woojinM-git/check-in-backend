@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -117,78 +116,7 @@ public class HotelDraftController {
             return ResponseEntity.badRequest().body(response);
         }
     }
-    
-    // 임시저장 데이터 삭제
-    @DeleteMapping("/draft")
-    @Operation(summary = "임시저장 삭제", description = "임시저장 데이터를 삭제합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "삭제 성공"),
-        @ApiResponse(responseCode = "401", description = "인증되지 않음"),
-        @ApiResponse(responseCode = "500", description = "서버 오류")
-    })
-    public ResponseEntity<Map<String, Object>> deleteDraft(HttpServletRequest request) {
-        try {
-            // JWT에서 adminIdx 추출
-            Integer adminIdx = getAdminIdxFromToken(request);
-            if (adminIdx == null) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "인증 정보가 유효하지 않습니다.");
-                return ResponseEntity.status(401).body(response);
-            }
-            
-            hotelDraftService.deleteDraft(adminIdx);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "임시저장 데이터가 삭제되었습니다.");
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "임시저장 삭제 중 오류가 발생했습니다: " + e.getMessage());
-            
-            return ResponseEntity.badRequest().body(response);
-        }
-    }
-    
-    // 임시저장 상태 확인
-    @GetMapping("/draft/status")
-    @Operation(summary = "임시저장 상태 확인", description = "임시저장 데이터 존재 여부를 확인합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "상태 확인 성공"),
-        @ApiResponse(responseCode = "401", description = "인증되지 않음"),
-        @ApiResponse(responseCode = "500", description = "서버 오류")
-    })
-    public ResponseEntity<Map<String, Object>> getDraftStatus(HttpServletRequest request) {
-        try {
-            // JWT에서 adminIdx 추출
-            Integer adminIdx = getAdminIdxFromToken(request);
-            if (adminIdx == null) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "인증 정보가 유효하지 않습니다.");
-                return ResponseEntity.status(401).body(response);
-            }
-            
-            boolean hasDraft = hotelDraftService.hasDraft(adminIdx);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("hasDraft", hasDraft);
-            response.put("message", hasDraft ? "임시저장 데이터가 있습니다." : "임시저장 데이터가 없습니다.");
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "임시저장 상태 확인 중 오류가 발생했습니다: " + e.getMessage());
-            
-            return ResponseEntity.badRequest().body(response);
-        }
-    }
-    
+
     /**
      * HTTP 요청의 쿠키에서 JWT 토큰을 추출하고 adminIdx를 반환
      * @param request HTTP 요청
