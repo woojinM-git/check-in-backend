@@ -43,22 +43,31 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: "prod"
+      # Database
       DB_URL: "jdbc:mysql://mysql80:3306/checkin?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true"
       DB_USERNAME: "${DB_USERNAME}"
       DB_PASSWORD: "${DB_PASSWORD}"
+      # Redis
       SPRING_DATA_REDIS_HOST: "redis"
       SPRING_DATA_REDIS_PORT: "6379"
+      # JPA
       SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.MySQL8Dialect"
+      # JWT
       JWT_SECRET: "${JWT_SECRET}"
+      # Gmail
       GMAIL_USERNAME: "${GMAIL_USERNAME}"
       GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
+      # Toss Payments
       TOSS_SECRET_KEY: "${TOSS_SECRET_KEY}"
       TOSS_CLIENT_KEY: "${TOSS_CLIENT_KEY}"
+      # AWS S3
       AWS_S3_ACCESS_KEY: "${AWS_S3_ACCESS_KEY}"
       AWS_S3_SECRET_ACCESS_KEY: "${AWS_S3_SECRET_ACCESS_KEY}"
       AWS_S3_BUCKET_NAME: "${AWS_S3_BUCKET_NAME}"
       AWS_S3_REGION: "${AWS_S3_REGION}"
+      # API URL
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
     restart: always
 
 networks:
