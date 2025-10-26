@@ -30,13 +30,13 @@ public class RegistrationRequest {
     private Integer adminIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contentid", referencedColumnName = "contentId", insertable = false, updatable = false)
+    @JoinColumn(name = "draftIdx", referencedColumnName = "draftIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
-    private HotelInfo hotelInfo;
+    private HotelDraft hotelDraft;
     
-    @Column(name = "contentid", nullable = false, length = 50)
-    private String contentid;
+    @Column(name = "draftIdx")
+    private Integer draftIdx;
     
     @Column(name = "regiDate")
     private LocalDateTime regiDate;
