@@ -2,7 +2,6 @@
 .gitignore
 *.md
 logs/
-build/
 .idea/
 .vscode/
 *.swp
@@ -15,4 +14,19 @@ node_modules/
 docker-compose.yml
 .github/
 docs/
+
+# 빌드 산출물 제외 (build/libs/*.jar는 포함됨)
+build/classes/
+build/generated/
+build/reports/
+build/resources/
+build/tmp/
+
+# 소스코드 제외 (이미 빌드된 JAR 사용)
+src/
+gradle/
+settings.gradle
+gradlew
+gradlew.bat
+build.gradle
 
