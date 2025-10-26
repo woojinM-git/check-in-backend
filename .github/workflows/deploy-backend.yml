@@ -41,8 +41,6 @@ jobs:
     # ==========================================================
     - name: Build Backend
       run: |
-        cd backend
-        
         # Gradle 빌드 실행
         chmod +x gradlew
         ./gradlew clean build -x test --no-daemon
@@ -54,15 +52,21 @@ jobs:
     # ==========================================================
     - name: Create Deployment Archive
       run: |
-        cd backend
+        # build/libs/ 확인
+        ls -lh build/libs/
+        
+        # 필요한 파일만 압축 (JAR, 설정 파일)
         tar -czf deployment.tar.gz \
           Dockerfile \
           docker-compose.yml \
           .dockerignore \
           build/libs/*.jar \
-          src/ \
           v1.sql \
           .env
+        
+        # 압축 내용 확인
+        echo "✅ 압축 완료"
+        tar -tzf deployment.tar.gz | head -20
 
     - name: Copy Archive to EC2
       run: |
