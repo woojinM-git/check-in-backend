@@ -8,7 +8,7 @@ logs/
 *.swo
 *~
 .DS_Store
-.env
+# .env는 포함해야 함 (백엔드 코드에서 필요)
 .env.local
 node_modules/
 docker-compose.yml

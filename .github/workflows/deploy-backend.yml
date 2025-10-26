@@ -104,6 +104,21 @@ jobs:
         # 2. tar 아카이브 압축 해제
         tar -xzf deployment.tar.gz
         
+        # 압축 해제 확인
+        echo "=== 압축 해제된 파일 확인 ==="
+        ls -lh
+        
+        # .env 파일 존재 확인
+        if [ -f .env ]; then
+          echo "✅ .env 파일이 존재합니다"
+          echo "파일 크기: $(stat -f%z .env) bytes"
+        else
+          echo "❌ .env 파일이 없습니다!"
+          echo "현재 디렉토리 내용:"
+          ls -la
+          exit 1
+        fi
+        
         # 3. Docker권한 설정
         sudo chmod -R 777 "$DEPLOY_DIR"
         sudo chmod 777 /var/run/docker.sock
