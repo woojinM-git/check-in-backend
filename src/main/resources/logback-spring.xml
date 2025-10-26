@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <!-- 공통 경로 및 패턴 -->
+    <property name="LOG_PATH" value="logs"/>
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{apiName} - %msg%n"/>
+
+    <!-- 콘솔 로그 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- MDC 기반 API별 로그 분리용 SiftingAppender -->
+    <appender name="API_FILE" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <!-- apiName이 MDC에 없으면 default로 -->
+        <discriminator>
+            <key>apiName</key>
+            <defaultValue>default</defaultValue>
+        </discriminator>
+
+        <sift>
+            <appender name="API_FILE_${apiName}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${LOG_PATH}/api-${apiName}.log</file>
+                <encoder>
+                    <pattern>${LOG_PATTERN}</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_PATH}/api-${apiName}-%d{yyyy-MM-dd_HH}.log</fileNamePattern>
+                    <maxHistory>48</maxHistory> <!-- 최근 2일치 -->
+                    <cleanHistoryOnStart>true</cleanHistoryOnStart>
+                </rollingPolicy>
+            </appender>
+        </sift>
+    </appender>
+
+    <!-- 일반 애플리케이션 로그 -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app.log</file>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 에러 전용 로그 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/error-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Hibernate SQL 로그 보기 -->
+    <logger name="org.hibernate.SQL" level="INFO" additivity="false"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="INFO" additivity="false"/>
+
+    <!-- 루트 로거 설정 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="API_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+</configuration>

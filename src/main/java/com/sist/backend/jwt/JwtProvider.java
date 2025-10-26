@@ -74,4 +74,10 @@ public class JwtProvider {
     public Map<String, Object> getClaims(String token){
         return Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(token).getPayload();
     }
+
+    public boolean inspectiontoken(String id ,String accessToken , String refreshToken){
+        
+
+        return true;
+    }
 }

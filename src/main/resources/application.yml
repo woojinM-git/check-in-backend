@@ -1,7 +1,9 @@
-# Conversion to YAML from Properties formar report
-# Warnings:
-# - The yaml file had comments which are lost in the refactoring!
+logging:
+  system: org.springframework.boot.logging.logback.LogbackLoggingSystem
+# 공통 설정
 spring:
+  profiles:
+    active: dev
   application:
     name: checkin-backend
   datasource:
@@ -14,10 +16,8 @@ spring:
       ddl-auto: validate
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-    show-sql: true
     properties:
       hibernate:
-        format_sql: true
         jdbc:
           time_zone: Asia/Seoul
   flyway:
@@ -25,8 +25,28 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
-    validate-on-migrate: true
+    validate-on-migrate: false
     clean-disabled: false
+    mixed: true
+    connect-retries: 10
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  # Gmail SMTP 설정
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME}
+    password: ${GMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: smtp.gmail.com
 
 server:
   port: 8888
@@ -40,3 +60,22 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+
+# TossPayments 설정
+toss:
+  payments:
+    secret-key: ${TOSS_SECRET_KEY}
+    client-key: ${TOSS_CLIENT_KEY}
+
+# S3
+cloud:
+  aws:
+    credentials:
+      accessKey: ${AWS_S3_ACCESS_KEY}
+      secretKey: ${AWS_S3_SECRET_ACCESS_KEY}
+    s3:
+      bucketName: ${AWS_S3_BUCKET_NAME}
+    region:
+      static: ${AWS_S3_REGION}
+    stack:
+      auto: false

@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.42, for macos15 (arm64)
+-- MySQL dump 10.13  Distrib 8.0.42, for Win64 (x86_64)
 --
--- Host: localhost    Database: checkin
+-- Host: 127.0.0.1    Database: checkin
 -- ------------------------------------------------------
--- Server version	8.0.42
+-- Server version	8.0.43
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `admin`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `admin` (
-  `adminIdx` int NOT NULL COMMENT '관리자번호',
+  `adminIdx` int NOT NULL AUTO_INCREMENT COMMENT '관리자번호',
   `contentid` varchar(50) NOT NULL COMMENT '업소번호(외래키 hotelInfo에 contentid)',
   `type` tinyint(1) DEFAULT NULL COMMENT '관리자유형(0 사이트운영자 1 숙박업소주인)',
   `id` varchar(255) DEFAULT NULL COMMENT '관리자아이디',
@@ -53,7 +53,7 @@ DROP TABLE IF EXISTS `answer`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `answer` (
-  `answerIdx` int NOT NULL,
+  `answerIdx` int NOT NULL AUTO_INCREMENT,
   `centerIdx` int NOT NULL,
   `contentid` varchar(50) NOT NULL,
   `status` tinyint(1) DEFAULT NULL,
@@ -130,7 +130,7 @@ DROP TABLE IF EXISTS `center`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `center` (
-  `centerIdx` int NOT NULL,
+  `centerIdx` int NOT NULL AUTO_INCREMENT,
   `adminIdx` int NOT NULL,
   `type` varchar(50) DEFAULT NULL,
   `content` varchar(255) DEFAULT NULL,
@@ -159,16 +159,19 @@ DROP TABLE IF EXISTS `coupon`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `coupon` (
-  `couponIdx` int NOT NULL,
+  `couponIdx` int NOT NULL AUTO_INCREMENT,
   `idx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `customerIdx` int NOT NULL,
   `createDate` datetime DEFAULT NULL,
   `endDate` datetime DEFAULT NULL,
   `status` int DEFAULT NULL COMMENT '0 : 사용전\n1 : 사용완료\n2 : 만료',
   `count` int DEFAULT NULL,
   PRIMARY KEY (`couponIdx`,`idx`),
   KEY `FK_couponPolicy_TO_coupon_1` (`idx`),
-  CONSTRAINT `FK_couponPolicy_TO_coupon_1` FOREIGN KEY (`idx`) REFERENCES `couponPolicy` (`idx`)
+  CONSTRAINT `FK_couponPolicy_TO_coupon_1` FOREIGN KEY (`idx`) REFERENCES `couponPolicy` (`idx`),
+  KEY `FK_customer_TO_coupon_1` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_coupon_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`)
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -189,7 +192,7 @@ DROP TABLE IF EXISTS `couponPolicy`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `couponPolicy` (
-  `idx` int NOT NULL,
+  `idx` int NOT NULL AUTO_INCREMENT,
   `price` int DEFAULT NULL,
   `expireStandard` datetime DEFAULT NULL,
   `count` int DEFAULT NULL,
@@ -218,6 +221,7 @@ DROP TABLE IF EXISTS `customer`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `customer` (
+  `customerIdx` int NOT NULL AUTO_INCREMENT,
   `id` varchar(20) NOT NULL,
   `rank` varchar(50) NOT NULL,
   `birthday` date DEFAULT NULL,
@@ -226,13 +230,16 @@ CREATE TABLE `customer` (
   `gender` varchar(20) DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
+  `email` varchar(255) NOT NULL,
   `cash` int DEFAULT NULL,
   `status` int DEFAULT NULL,
   `totalPrice` int DEFAULT NULL,
   `point` int DEFAULT NULL,
   `refToken` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`),
+  `provider` int DEFAULT NULL,
+  PRIMARY KEY (`customerIdx`),
+  UNIQUE KEY `email_UNIQUE` (`email`),
+  UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `FK_rank_TO_customer_1` (`rank`),
   CONSTRAINT `FK_rank_TO_customer_1` FOREIGN KEY (`rank`) REFERENCES `rank` (`rank`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -255,10 +262,13 @@ DROP TABLE IF EXISTS `dining`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `dining` (
-  `diningIdx` int NOT NULL,
+  `diningIdx` int NOT NULL AUTO_INCREMENT,
   `contentid` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `time` varchar(50) DEFAULT '점심' COMMENT '점심 or 저녁',
+  `price` int NOT NULL,
   `content` text,
   `amount` int DEFAULT NULL,
+  `date` date NOT NULL COMMENT '한달 2주뒤까지 예약받게 만들기 -> 매일 자정에 오늘날+2주 쿼리해서 없는 날짜 생성',
   PRIMARY KEY (`diningIdx`),
   KEY `FK_hotelInfo_TO_dining_1` (`contentid`),
   CONSTRAINT `FK_hotelInfo_TO_dining_1` FOREIGN KEY (`contentid`) REFERENCES `hotelInfo` (`contentId`)
@@ -282,16 +292,25 @@ DROP TABLE IF EXISTS `diningPayment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `diningPayment` (
-  `diningpayIdx` int NOT NULL,
-  `diningIdx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
-  `type` varchar(255) DEFAULT NULL,
+  `diningpayIdx` int NOT NULL AUTO_INCREMENT COMMENT '결제번호',
+  `diningIdx` int NOT NULL COMMENT '다이닝번호',
+  `customerIdx` int NOT NULL COMMENT '고객번호',
+  `couponIdx` int NULL COMMENT '쿠폰사용 시 쿠폰고유번호',
   `price` int DEFAULT NULL,
   `status` int DEFAULT NULL,
+  `paymentKey` varchar(50) DEFAULT NULL,
+  `pointUsed` int DEFAULT NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updateAt` datetime DEFAULT NULL,
+  `method` varchar(255) DEFAULT NULL COMMENT '결제수단',
+  `receiptUrl` varchar(500) DEFAULT NULL COMMENT '토스영수증url',
+  `approvedAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
   PRIMARY KEY (`diningpayIdx`),
   KEY `FK_dining_TO_diningPayment_1` (`diningIdx`),
-  KEY `FK_customer_TO_diningPayment_1` (`customerId`),
-  CONSTRAINT `FK_customer_TO_diningPayment_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  KEY `FK_customer_TO_diningPayment_1` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_diningPayment_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_dining_TO_diningPayment_1` FOREIGN KEY (`diningIdx`) REFERENCES `dining` (`diningIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -313,17 +332,21 @@ DROP TABLE IF EXISTS `diningResrevation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `diningResrevation` (
-  `idx` varchar(255) NOT NULL,
+  `diningResrIdx` int NOT NULL AUTO_INCREMENT,
   `diningIdx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `customerIdx` int NOT NULL,
   `diningpayIdx` int NOT NULL,
   `status` varchar(255) DEFAULT NULL,
   `checkIn` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`idx`),
+  `guest` int NOT NULL COMMENT '인원',
+  `totalPrice` int NOT NULL COMMENT '4인단위로 guest/4 * 다이닝가격',
+  `createdAt` datetime NOT NULL COMMENT '예약생성 시각',
+  `updatedAt` datetime NOT NULL COMMENT '예약변경/취소 시각',
+  PRIMARY KEY (`diningResrIdx`),
   KEY `FK_dining_TO_diningResrevation_1` (`diningIdx`),
-  KEY `FK_customer_TO_diningResrevation_1` (`customerId`),
+  KEY `FK_customer_TO_diningResrevation_1` (`customerIdx`),
   KEY `FK_diningPayment_TO_diningResrevation_1` (`diningpayIdx`),
-  CONSTRAINT `FK_customer_TO_diningResrevation_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  CONSTRAINT `FK_customer_TO_diningResrevation_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_dining_TO_diningResrevation_1` FOREIGN KEY (`diningIdx`) REFERENCES `dining` (`diningIdx`),
   CONSTRAINT `FK_diningPayment_TO_diningResrevation_1` FOREIGN KEY (`diningpayIdx`) REFERENCES `diningPayment` (`diningpayIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -339,6 +362,37 @@ LOCK TABLES `diningResrevation` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `emailLog`
+--
+
+DROP TABLE IF EXISTS `emailLog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `emailLog` (
+  `emailLogIdx` bigint NOT NULL AUTO_INCREMENT COMMENT '이메일로그기본키',
+  `customerIdx` int NOT NULL COMMENT '회원인덱스',
+  `template` varchar(100) DEFAULT NULL COMMENT '템플릿명 (예: 예약확정, 환불 등)',
+  `subject` varchar(200) DEFAULT NULL COMMENT '이메일 제목',
+  `toEmail` varchar(255) NOT NULL COMMENT '수신 이메일 주소',
+  `payloadJson` text COMMENT '본문 데이터(JSON 형태)',
+  `status` tinyint(1) DEFAULT '0' COMMENT '상태 (0=실패, 1=성공)',
+  `sentAt` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '메일 발송 시각',
+  PRIMARY KEY (`emailLogIdx`),
+  KEY `FK_customer_TO_emailLog` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_emailLog` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `emailLog`
+--
+
+LOCK TABLES `emailLog` WRITE;
+/*!40000 ALTER TABLE `emailLog` DISABLE KEYS */;
+/*!40000 ALTER TABLE `emailLog` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `event`
 --
 
@@ -346,7 +400,7 @@ DROP TABLE IF EXISTS `event`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `event` (
-  `eventIdx` int NOT NULL,
+  `eventIdx` int NOT NULL AUTO_INCREMENT,
   `contentid` varchar(50) NOT NULL,
   `status` int DEFAULT NULL,
   PRIMARY KEY (`eventIdx`),
@@ -364,6 +418,7 @@ LOCK TABLES `event` WRITE;
 /*!40000 ALTER TABLE `event` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
 --
 -- Table structure for table `hotelBookMark`
 --
@@ -372,13 +427,13 @@ DROP TABLE IF EXISTS `hotelBookMark`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `hotelBookMark` (
-  `hotelBookIdx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `hotelBookIdx` int NOT NULL AUTO_INCREMENT,
+  `customerIdx` int NOT NULL,
   `contentId` varchar(50) NOT NULL,
   PRIMARY KEY (`hotelBookIdx`),
-  KEY `FK_customer_TO_hotelBookMark_1` (`customerId`),
+  KEY `FK_customer_TO_hotelBookMark_1` (`customerIdx`),
   KEY `FK_hotel_info_TO_hotelBookMark_1` (`contentId`),
-  CONSTRAINT `FK_customer_TO_hotelBookMark_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  CONSTRAINT `FK_customer_TO_hotelBookMark_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_hotel_info_TO_hotelBookMark_1` FOREIGN KEY (`contentId`) REFERENCES `hotelInfo` (`contentId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -458,14 +513,15 @@ DROP TABLE IF EXISTS `hotelInfo`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `hotelInfo` (
-  `contentId` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `contentId` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL ,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `adress` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `tel` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `hotelCategoryCode` varchar(20) DEFAULT NULL,
   `areaCode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `imageUrl` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  PRIMARY KEY (`contentId`)
+  PRIMARY KEY (`contentId`),
+  FULLTEXT KEY `ft_hotel_title` (`title`) /*!50100 WITH PARSER `ngram` */ 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -515,15 +571,15 @@ DROP TABLE IF EXISTS `paytopromotion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `paytopromotion` (
-  `promotionPayIdx` int NOT NULL,
+  `promotionPayIdx` int NOT NULL AUTO_INCREMENT,
   `contentid` varchar(50) NOT NULL,
   `promotionIdx` int NOT NULL,
   `promotionPayDate` datetime DEFAULT NULL,
   `couponCount` int DEFAULT NULL,
-  `Field3` datetime DEFAULT NULL,
-  `Field2` datetime DEFAULT NULL,
-  `Field` int DEFAULT NULL,
-  `Field4` varchar(255) DEFAULT NULL,
+  `createDate` datetime DEFAULT NULL,
+  `endDate` datetime DEFAULT NULL,
+  `price` int DEFAULT NULL,
+  `status` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`promotionPayIdx`),
   KEY `FK_hotelInfo_TO_paytopromotion_1` (`contentid`),
   CONSTRAINT `FK_hotelInfo_TO_paytopromotion_1` FOREIGN KEY (`contentid`) REFERENCES `hotelInfo` (`contentId`)
@@ -540,6 +596,35 @@ LOCK TABLES `paytopromotion` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `pointLedger`
+--
+
+DROP TABLE IF EXISTS `pointLedger`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pointLedger` (
+  `pointIdx` bigint NOT NULL AUTO_INCREMENT COMMENT '포인트이력기본키',
+  `customerIdx` int NOT NULL COMMENT '회원 아이디 (customer.id 참조)',
+  `memo` varchar(255) DEFAULT NULL COMMENT '비고',
+  `amount` int NOT NULL COMMENT '변동포인트',
+  `type` varchar(30) NOT NULL COMMENT '적립/사용 구분',
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '생성 시각',
+  PRIMARY KEY (`pointIdx`),
+  KEY `FK_customer_TO_pointLedger` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_pointLedger` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `pointLedger`
+--
+
+LOCK TABLES `pointLedger` WRITE;
+/*!40000 ALTER TABLE `pointLedger` DISABLE KEYS */;
+/*!40000 ALTER TABLE `pointLedger` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `promDuplication`
 --
 
@@ -547,11 +632,11 @@ DROP TABLE IF EXISTS `promDuplication`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `promDuplication` (
-  `promotionPayIdx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `promotionPayIdx` int NOT NULL AUTO_INCREMENT,
+  `customerIdx` int NOT NULL,
   PRIMARY KEY (`promotionPayIdx`),
-  KEY `FK_customer_TO_promDuplication_1` (`customerId`),
-  CONSTRAINT `FK_customer_TO_promDuplication_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  KEY `FK_customer_TO_promDuplication_1` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_promDuplication_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_paytopromotion_TO_promDuplication_1` FOREIGN KEY (`promotionPayIdx`) REFERENCES `paytopromotion` (`promotionPayIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -573,7 +658,7 @@ DROP TABLE IF EXISTS `promotion`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `promotion` (
-  `promotionIdx` int NOT NULL,
+  `promotionIdx` int NOT NULL AUTO_INCREMENT,
   `content` text,
   `status` int DEFAULT NULL,
   `price` int DEFAULT NULL,
@@ -621,26 +706,27 @@ DROP TABLE IF EXISTS `review`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `review` (
-  `reviewIdx` int NOT NULL,
+  `reviewIdx` int NOT NULL AUTO_INCREMENT,
   `contentid` varchar(50) NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `customerIdx` int NOT NULL,
   `reservIdx` int NOT NULL,
   `roomIdx` int NOT NULL,
-  `number` int NOT NULL,
+  `orderIdx` int DEFAULT NULL,
   `content` varchar(500) DEFAULT NULL,
   `status` tinyint(1) DEFAULT NULL,
   `hide` tinyint(1) DEFAULT NULL,
   `star` decimal(2,1) DEFAULT NULL,
   PRIMARY KEY (`reviewIdx`),
-  KEY `FK_customer_TO_review_1` (`customerId`),
+  KEY `FK_customer_TO_review_1` (`customerIdx`),
   KEY `FK_roomReservation_TO_review_1` (`reservIdx`),
   KEY `FK_roomReservation_TO_review_2` (`contentid`,`roomIdx`),
-  KEY `FK_roomReservation_TO_review_3` (`number`),
-  CONSTRAINT `FK_customer_TO_review_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  KEY `FK_roomReservation_TO_review_3` (`orderIdx`),
+  CONSTRAINT `FK_customer_TO_review_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_hotelInfo_TO_review_1` FOREIGN KEY (`contentid`) REFERENCES `hotelInfo` (`contentId`),
+  CONSTRAINT `FK_roomPayment_TO_review_1` FOREIGN KEY (`orderIdx`) REFERENCES `roomPayment` (`orderIdx`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `FK_roomReservation_TO_review_1` FOREIGN KEY (`reservIdx`) REFERENCES `roomReservation` (`reservIdx`),
   CONSTRAINT `FK_roomReservation_TO_review_2` FOREIGN KEY (`contentid`, `roomIdx`) REFERENCES `room` (`contentId`, `roomIdx`),
-  CONSTRAINT `FK_roomReservation_TO_review_3` FOREIGN KEY (`number`) REFERENCES `roomReservation` (`number`)
+  CONSTRAINT `FK_roomReservation_TO_review_3` FOREIGN KEY (`orderIdx`) REFERENCES `roomReservation` (`orderIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -661,7 +747,7 @@ DROP TABLE IF EXISTS `room`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `room` (
-  `roomIdx` int NOT NULL,
+  `roomIdx` int NOT NULL AUTO_INCREMENT,
   `contentId` varchar(50) NOT NULL,
   `name` varchar(120) DEFAULT NULL,
   `capacity` int DEFAULT NULL,
@@ -670,7 +756,7 @@ CREATE TABLE `room` (
   `breakfastIncluded` tinyint(1) DEFAULT NULL,
   `smoking` tinyint(1) DEFAULT NULL,
   `imageUrl` varchar(500) DEFAULT NULL,
-  PRIMARY KEY (`contentId`,`roomIdx`),
+  PRIMARY KEY (`roomIdx`,`contentId`),
   CONSTRAINT `FK_hotelInfo_TO_room_1` FOREIGN KEY (`contentId`) REFERENCES `hotelInfo` (`contentId`),
   CONSTRAINT `room_ibfk_1` FOREIGN KEY (`contentId`) REFERENCES `hotelInfo` (`contentId`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -695,14 +781,14 @@ DROP TABLE IF EXISTS `roomBookMark`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roomBookMark` (
-  `roomBookIdx` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
+  `roomBookIdx` int NOT NULL AUTO_INCREMENT,
+  `customerIdx` int NOT NULL,
   `roomIdx` int NOT NULL,
   `contentid` varchar(50) NOT NULL,
   PRIMARY KEY (`roomBookIdx`),
-  KEY `FK_customer_TO_roomBookMark_1` (`customerId`),
+  KEY `FK_customer_TO_roomBookMark_1` (`customerIdx`),
   KEY `FK_room_TO_roomBookMark_1` (`contentid`,`roomIdx`),
-  CONSTRAINT `FK_customer_TO_roomBookMark_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  CONSTRAINT `FK_customer_TO_roomBookMark_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_room_TO_roomBookMark_1` FOREIGN KEY (`contentid`, `roomIdx`) REFERENCES `room` (`contentId`, `roomIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -724,16 +810,22 @@ DROP TABLE IF EXISTS `roomPayment`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roomPayment` (
-  `number` int NOT NULL,
-  `customerId` varchar(20) NOT NULL,
-  `couponIdx` int NOT NULL,
-  `type` varchar(255) DEFAULT NULL,
+  `orderIdx` int NOT NULL AUTO_INCREMENT,
+  `customerIdx` int NOT NULL,
+  `promotionPayIdx` int DEFAULT NULL,
+  `couponIdx` int DEFAULT NULL,
   `price` int DEFAULT NULL,
   `status` int DEFAULT NULL,
-  `Field` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`number`),
-  KEY `FK_customer_TO_roomPayment_1` (`customerId`),
-  CONSTRAINT `FK_customer_TO_roomPayment_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`)
+  `paymentKey` varchar(128) DEFAULT NULL,
+  `pointsUsed` int DEFAULT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `method` varchar(50) DEFAULT NULL,
+  `receiptUrl` varchar(500) DEFAULT NULL,
+  `approvedAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`orderIdx`),
+  KEY `FK_customer_TO_roomPayment_1` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_roomPayment_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -754,20 +846,26 @@ DROP TABLE IF EXISTS `roomReservation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roomReservation` (
-  `reservIdx` int NOT NULL,
+  `reservIdx` int NOT NULL AUTO_INCREMENT,
   `roomIdx` int NOT NULL,
   `contentid` varchar(50) NOT NULL,
-  `customerId` varchar(20) NOT NULL,
-  `number` int NOT NULL,
+  `customerIdx` int NOT NULL,
+  `orderIdx` int DEFAULT NULL,
   `status` int DEFAULT NULL,
-  `checkin` int DEFAULT NULL,
+  `checkin` date DEFAULT NULL,
+  `checkout` date DEFAULT NULL,
+  `guest` int DEFAULT NULL,
+  `totalPrice` int DEFAULT NULL,
+  `qrUrl` varchar(500) DEFAULT NULL,
+  `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`reservIdx`),
   KEY `FK_room_TO_roomReservation_1` (`contentid`,`roomIdx`),
-  KEY `FK_customer_TO_roomReservation_1` (`customerId`),
-  KEY `FK_roomPayment_TO_roomReservation_1` (`number`),
-  CONSTRAINT `FK_customer_TO_roomReservation_1` FOREIGN KEY (`customerId`) REFERENCES `customer` (`id`),
+  KEY `FK_customer_TO_roomReservation_1` (`customerIdx`),
+  KEY `FK_roomPayment_TO_roomReservation_1` (`orderIdx`),
+  CONSTRAINT `FK_customer_TO_roomReservation_1` FOREIGN KEY (`customerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_room_TO_roomReservation_1` FOREIGN KEY (`contentid`, `roomIdx`) REFERENCES `room` (`contentId`, `roomIdx`),
-  CONSTRAINT `FK_roomPayment_TO_roomReservation_1` FOREIGN KEY (`number`) REFERENCES `roomPayment` (`number`)
+  CONSTRAINT `FK_roomPayment_TO_roomReservation_1` FOREIGN KEY (`orderIdx`) REFERENCES `roomPayment` (`orderIdx`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -788,7 +886,7 @@ DROP TABLE IF EXISTS `usedPay`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usedPay` (
-  `usedPayIdx` int NOT NULL,
+  `usedPayIdx` int NOT NULL AUTO_INCREMENT,
   `usedTradeIdx` int NOT NULL,
   PRIMARY KEY (`usedPayIdx`),
   KEY `FK_usedTrade_TO_usedPay_1` (`usedTradeIdx`),
@@ -806,6 +904,35 @@ LOCK TABLES `usedPay` WRITE;
 UNLOCK TABLES;
 
 --
+-- Dumping data for table `usedItem`
+--
+
+DROP TABLE IF EXISTS `usedItem`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `usedItem` (
+  `usedItemIdx` int NOT NULL AUTO_INCREMENT,
+  `reservIdx` int NOT NULL,
+  `price` int NULL,
+  `status` int NULL,
+  `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` datetime DEFAULT NULL,
+  PRIMARY KEY (`usedItemIdx`),
+  KEY `FK_roomReservation_TO_usedItem_1` (`reservIdx`),
+  CONSTRAINT `FK_roomReservation_TO_usedItem_1` FOREIGN KEY (`reservIdx`) REFERENCES `roomReservation` (`reservIdx`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `usedItem`
+--
+
+LOCK TABLES `usedItem` WRITE;
+/*!40000 ALTER TABLE `usedItem` DISABLE KEYS */;
+/*!40000 ALTER TABLE `usedItem` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `usedTrade`
 --
 
@@ -813,16 +940,19 @@ DROP TABLE IF EXISTS `usedTrade`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usedTrade` (
-  `usedTradeIdx` int NOT NULL,
+  `usedTradeIdx` int NOT NULL AUTO_INCREMENT,
+  `userItemIdx` int NOT NULL,
   `reservIdx` int NOT NULL,
-  `buyerId` varchar(20) NOT NULL,
-  `sellerId` varchar(20) DEFAULT NULL,
+  `buyerIdx` int NOT NULL,
+  `sellerIdx` int DEFAULT NULL,
   `price` int DEFAULT NULL,
   `ststus` int DEFAULT NULL,
   PRIMARY KEY (`usedTradeIdx`),
-  KEY `FK_customer_TO_usedTrade_1` (`buyerId`),
+  KEY `FK_customer_TO_usedTrade_1` (`buyerIdx`),
+  KEY `FK_customer_TO_usedTrade_2` (`sellerIdx`),
   KEY `FK_roomReservation_TO_usedTrade_1` (`reservIdx`),
-  CONSTRAINT `FK_customer_TO_usedTrade_1` FOREIGN KEY (`buyerId`) REFERENCES `customer` (`id`),
+  CONSTRAINT `FK_customer_TO_usedTrade_1` FOREIGN KEY (`buyerIdx`) REFERENCES `customer` (`customerIdx`),
+  CONSTRAINT `FK_customer_TO_usedTrade_2` FOREIGN KEY (`sellerIdx`) REFERENCES `customer` (`customerIdx`),
   CONSTRAINT `FK_roomReservation_TO_usedTrade_1` FOREIGN KEY (`reservIdx`) REFERENCES `roomReservation` (`reservIdx`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -845,4 +975,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-06 19:54:43
+-- Dump completed on 2025-10-14 15:58:51
