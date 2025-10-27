@@ -125,6 +125,7 @@ public class LoginController {
                     Map<String, Object> accesspayload = new HashMap<>();
                     Map<String, Object> refreshpayload = new HashMap<>();
 
+                    accesspayload.put("id", customer_exist_entity.getId()); // id 필드 추가
                     accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
                     accesspayload.put("nickname", customer_exist_entity.getNickname());
                     accesspayload.put("cash", customer_exist_entity.getCash());

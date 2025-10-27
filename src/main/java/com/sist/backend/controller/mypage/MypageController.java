@@ -161,25 +161,40 @@ public class MypageController {
                 return null;
             }
 
-            // 4. JWT에서 사용자 ID 추출
+            // 4. JWT에서 customerIdx 추출
             Map<String, Object> claims = jwtProvider.getClaims(accessToken);
-            String userId = (String) claims.get("id");
+            Object customerIdxObj = claims.get("customerIdx");
+            Integer customerIdx = null;
+            
+            if (customerIdxObj != null) {
+                // customerIdx가 있으면 바로 사용
+                if (customerIdxObj instanceof Integer) {
+                    customerIdx = (Integer) customerIdxObj;
+                } else if (customerIdxObj instanceof String) {
+                    try {
+                        customerIdx = Integer.parseInt((String) customerIdxObj);
+                    } catch (NumberFormatException e) {
+                        System.err.println("customerIdx 파싱 오류: " + e.getMessage());
+                    }
+                }
+            } else {
+                // customerIdx가 없으면 id로 조회
+                String userId = (String) claims.get("id");
+                if (userId != null) {
+                    Customer customer = customerService.findById(userId).orElse(null);
+                    if (customer != null) {
+                        customerIdx = customer.getCustomerIdx();
+                    }
+                }
+            }
 
-            if (userId == null) {
+            if (customerIdx == null) {
                 System.out.println("❌ JWT에서 사용자 ID를 찾을 수 없습니다.");
                 return null;
             }
 
-            // 5. 사용자 ID로 customerIdx 조회
-            Customer customer = customerService.findById(userId).orElse(null);
-            
-            if (customer == null) {
-                System.out.println("❌ 사용자 ID로 고객 정보를 찾을 수 없습니다: " + userId);
-                return null;
-            }
-            
-            System.out.println("✅ 토큰 검증 성공 - userId: " + userId + ", customerIdx: " + customer.getCustomerIdx());
-            return customer.getCustomerIdx();
+            System.out.println("✅ 토큰 검증 성공 - customerIdx: " + customerIdx);
+            return customerIdx;
 
         } catch (Exception e) {
             System.out.println("❌ 토큰 처리 중 오류 발생: " + e.getMessage());
