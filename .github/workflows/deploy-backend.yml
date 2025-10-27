@@ -132,9 +132,49 @@ jobs:
         # 5. Docker Compose로 서비스 시작
         sudo docker-compose up -d --build
         
-        # 6. 헬스체크
-        sleep 30
-        curl -f http://localhost:8888 || exit 1
+        # 6. 초기 대기 (Spring Boot 시작 시간)
+        echo "⏳ 백엔드 서비스가 시작될 때까지 대기 중..."
+        sleep 10
+        
+        # 7. 컨테이너 상태 확인
+        echo "=== 컨테이너 상태 확인 ==="
+        sudo docker ps -a
+        sudo docker stats --no-stream
+        
+        # 8. Backend 컨테이너 로그 확인 (전체)
+        echo "=== Backend 컨테이너 로그 (전체) ==="
+        sudo docker logs backend 2>&1 || true
+        
+        # 9. 메모리 사용량 확인
+        echo "=== 시스템 메모리 상태 ==="
+        free -h
+        sudo docker stats --no-stream
+        
+        # 10. 추가 대기
+        sleep 20
+        
+        # 8. 헬스체크 (재시도)
+        echo "=== 헬스체크 시작 ==="
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          echo "시도 $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+          
+          if curl -f -s http://localhost:8888 > /dev/null 2>&1; then
+            echo "✅ 백엔드 서비스가 정상적으로 시작되었습니다!"
+            exit 0
+          fi
+          
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          sleep 5
+        done
+        
+        echo "❌ 백엔드 서비스가 $((MAX_RETRIES * 5))초 내에 시작되지 않았습니다."
+        echo "=== 최종 컨테이너 로그 ==="
+        sudo docker logs backend --tail 100 || true
+        sudo docker ps -a
+        exit 1
         
         EOF
 
