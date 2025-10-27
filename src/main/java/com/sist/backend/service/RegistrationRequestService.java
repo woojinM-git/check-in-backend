@@ -1,5 +1,6 @@
 package com.sist.backend.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -51,8 +52,15 @@ public class RegistrationRequestService {
     }
 
     /* 승인 요청 업데이트 */
-    public RegistrationRequest updateRequest(RegistrationRequest registrationRequest) {
-        return rrRepository.save(registrationRequest);
+    @org.springframework.transaction.annotation.Transactional
+    public void updateRequest(Integer registrationIdx, Integer status, LocalDateTime approvDate) {
+        rrRepository.updateRequest(registrationIdx, status, approvDate);
+    }
+
+    /* 거부 요청 업데이트 */
+    @org.springframework.transaction.annotation.Transactional
+    public void updateRejectRequest(Integer registrationIdx, Integer status) {
+        rrRepository.updateRejectRequest(registrationIdx, status);
     }
 
     /* 오늘 승인된 호텔 수 */

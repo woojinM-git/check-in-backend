@@ -46,10 +46,15 @@ public class HotelDraftService {
         return HotelDraftDto.fromEntity(savedDraft);
     }
     
-    // 임시저장 데이터 조회
+    // 임시저장 데이터 조회 (adminIdx로)
     public Optional<HotelDraftDto> getDraft(Integer adminIdx) {
         return hotelDraftRepository.findByAdminIdx(adminIdx)
                 .map(HotelDraftDto::fromEntity);
+    }
+
+    // 임시저장 데이터 조회 (draftIdx로)
+    public Optional<HotelDraft> findById(Integer draftIdx) {
+        return hotelDraftRepository.findById(draftIdx);
     }
     
     // 임시저장 데이터 삭제

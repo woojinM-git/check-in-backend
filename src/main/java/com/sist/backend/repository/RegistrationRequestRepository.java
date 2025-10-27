@@ -1,14 +1,16 @@
 package com.sist.backend.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.RegistrationRequest;
 
 @Repository
@@ -44,6 +46,14 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
     @Query(value = "SELECT COUNT(*) FROM registrationRequest WHERE status = 2 AND DATE(regiDate) = CURDATE()", nativeQuery = true)
     Integer findTodayRejectedCount();
 
-    /* RegistrationRequest객체를 저장하는 JPA*/
-    RegistrationRequest save(RegistrationRequest request);
+    /* 승인 요청 업데이트 */
+    @Modifying
+    @Query("UPDATE RegistrationRequest rr SET rr.status = :status, rr.approvDate = :approvDate WHERE rr.registrationIdx = :registrationIdx")
+    void updateRequest(@Param("registrationIdx") Integer registrationIdx, @Param("status") Integer status, @Param("approvDate") LocalDateTime approvDate);
+
+
+    /* 거부 요청 업데이트 */
+    @Modifying
+    @Query("UPDATE RegistrationRequest rr SET rr.status = :status WHERE rr.registrationIdx = :registrationIdx")
+    void updateRejectRequest(@Param("registrationIdx") Integer registrationIdx, @Param("status") Integer status);
 }

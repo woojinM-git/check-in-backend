@@ -1,7 +1,9 @@
 package com.sist.backend.dto.master;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sist.backend.entity.RegistrationRequest;
 
 import lombok.AllArgsConstructor;
@@ -39,9 +41,10 @@ public class RegistrationRequestPlusDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class HotelInfo {
-        private String contentId;
         private String title;
         private String adress;
+        private String phone;
+        private String email;
         private Integer rooms;
     }
 
@@ -63,14 +66,41 @@ public class RegistrationRequestPlusDto {
         }
 
         if(registrationRequest.getHotelDraft() != null) {
-            // HotelDraft에서 JSON을 파싱하여 HotelInfo 생성
-            // 이 부분은 실제 구현 시 JSON 파싱 로직 추가 필요
-            HotelInfo hotelInfo = new HotelInfo();
-            // hotelInfo.setContentId(parsedData.getContentId());
-            // hotelInfo.setTitle(parsedData.getTitle());
-            // hotelInfo.setAdress(parsedData.getAdress());
-            // hotelInfo.setRooms(parsedData.getRooms().size());
-            dto.setHotelInfo(hotelInfo);
+            try {
+                // HotelDraft에서 JSON을 파싱하여 HotelInfo 생성
+                ObjectMapper objectMapper = new ObjectMapper();
+                String formData = registrationRequest.getHotelDraft().getFormData();
+                
+                if (formData != null && !formData.isEmpty()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> parsedData = (Map<String, Object>) objectMapper.readValue(formData, Map.class);
+                    
+                    HotelInfo hotelInfo = new HotelInfo();
+                    
+                    // 기본 정보 파싱
+                    if (parsedData.get("hotelInfo") instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> hotelInfoMap = (Map<String, Object>) parsedData.get("hotelInfo");
+                        hotelInfo.setTitle((String) hotelInfoMap.get("title"));
+                        hotelInfo.setAdress((String) hotelInfoMap.get("adress"));
+                        hotelInfo.setPhone((String) hotelInfoMap.get("phone"));
+                        hotelInfo.setEmail((String) hotelInfoMap.get("email"));
+                    }
+                    
+                    // 객실 개수 파싱
+                    if (parsedData.get("rooms") instanceof java.util.List) {
+                        java.util.List<?> rooms = (java.util.List<?>) parsedData.get("rooms");
+                        hotelInfo.setRooms(rooms != null ? rooms.size() : 0);
+                    } else {
+                        hotelInfo.setRooms(0);
+                    }
+                    
+                    dto.setHotelInfo(hotelInfo);
+                }
+            } catch (Exception e) {
+                // 파싱 실패 시 빈 HotelInfo 객체 생성
+                dto.setHotelInfo(new HotelInfo());
+            }
         }
         return dto;
     }
