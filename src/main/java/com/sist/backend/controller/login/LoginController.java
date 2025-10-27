@@ -7,7 +7,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +31,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
@@ -46,6 +51,12 @@ public class LoginController {
 
     @Autowired
     private JwtProvider jwtProvider;
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
     int accessTokenExpireTime = 3600;
     int refreshTokenExpireTime = 604800;
@@ -297,4 +308,35 @@ public class LoginController {
         return ResponseEntity.ok(result);
     }
     
+
+
+    @PostMapping("/send-verification-code")
+    @Operation(summary="이메일 인증 코드 발송", description="회원가입 시 이메일 인증 코드를 발송합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> sendHotelReservationEmail(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
+        Map<String, Object> result = new HashMap<>();
+    try{
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(fromEmail);
+        System.out.println("========================================="+fromEmail+"=========================================");
+        System.out.println("========================================="+customerAdminSignupDTO.getEmail()+"=========================================");
+        helper.setTo(customerAdminSignupDTO.getEmail());
+        helper.setSubject("[Check-In] 이메일 인증 코드 발송");
+        helper.setText("인증 코드:");
+        result.put("message","이메일 인증 코드 발송 성공");
+        result.put("status","success");
+    }catch(MessagingException e){
+        
+        result.put("message","이메일 인증 코드 발송 실패");
+        result.put("status","fail");
+        return ResponseEntity.ok(result);
+    }
+    return ResponseEntity.ok(result);
+    }
 }
