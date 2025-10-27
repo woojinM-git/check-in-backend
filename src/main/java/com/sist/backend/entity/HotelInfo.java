@@ -105,10 +105,5 @@ public class HotelInfo {
     @JsonIgnore
     @ToString.Exclude
     private List<Dining> dinings = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "hotelInfo", fetch = FetchType.LAZY)
-    @JsonIgnore
-    @ToString.Exclude
-    private List<RegistrationRequest> registrationRequests = new ArrayList<>();
 }
 

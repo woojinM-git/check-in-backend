@@ -15,13 +15,13 @@ public class RegistrationRequestDto {
     // RegistrationRequest 기본 정보
     private Integer registrationIdx;
     private Integer adminIdx;
-    private String contentid;
+    private Integer draftIdx; // contentid 대신 draftIdx 사용
     private LocalDateTime regiDate;
     private Integer status;
 
     /* 어드민 정보 객체 */
     private Admin admin;
-    /* 호텔 정보 객체 */
+    /* 호텔 정보 객체 (HotelDraft JSON에서 파싱) */
     private HotelInfo hotelInfo;
 
     // 중첩 클래스들
@@ -48,7 +48,7 @@ public class RegistrationRequestDto {
         RegistrationRequestDto dto = new RegistrationRequestDto();
         dto.setRegistrationIdx(registrationRequest.getRegistrationIdx());
         dto.setAdminIdx(registrationRequest.getAdminIdx());
-        dto.setContentid(registrationRequest.getContentid());
+        dto.setDraftIdx(registrationRequest.getDraftIdx()); // contentid 대신 draftIdx
         dto.setRegiDate(registrationRequest.getRegiDate());
         dto.setStatus(registrationRequest.getStatus());
 
@@ -59,12 +59,14 @@ public class RegistrationRequestDto {
             dto.setAdmin(admin);
         }
 
-        if(registrationRequest.getHotelInfo() != null) {
+        if(registrationRequest.getHotelDraft() != null) {
+            // HotelDraft에서 JSON을 파싱하여 HotelInfo 생성
+            // 이 부분은 실제 구현 시 JSON 파싱 로직 추가 필요
             HotelInfo hotelInfo = new HotelInfo();
-            hotelInfo.setContentId(registrationRequest.getHotelInfo().getContentId());
-            hotelInfo.setTitle(registrationRequest.getHotelInfo().getTitle());
-            hotelInfo.setAdress(registrationRequest.getHotelInfo().getAdress());
-            hotelInfo.setRooms(registrationRequest.getHotelInfo().getRooms().size());
+            // hotelInfo.setContentId(parsedData.getContentId());
+            // hotelInfo.setTitle(parsedData.getTitle());
+            // hotelInfo.setAdress(parsedData.getAdress());
+            // hotelInfo.setRooms(parsedData.getRooms().size());
             dto.setHotelInfo(hotelInfo);
         }
         return dto;

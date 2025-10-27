@@ -58,9 +58,9 @@ public class LoginController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<String> getAccessToken(@CookieValue(value = "refreshToken", required = false) String refreshToken,HttpServletResponse response) {
-       
+
         String accessToken = null;
-        
+
         if(refreshToken != null){
             
             if(jwtProvider.verify(refreshToken)){
@@ -109,37 +109,38 @@ public class LoginController {
         String accessToken =null;
        if(customerAdminSignupDTO.getRole().equals("customer")){
             Optional<Customer> customer_exist= customerService.findById(customerAdminSignupDTO.getId());
-       
+
             Customer customer_exist_entity = new Customer();
-            
+
 
             if(customer_exist.isPresent()&& customer_exist.get().getStatus()==0){
                 customer_exist_entity = customer_exist.get();
-            
+
                 if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), customer_exist.get().getPassword())){
-                    
+
                     String uuid = UUID.randomUUID().toString();
 
-                    
-                    
+
+
                     Map<String, Object> accesspayload = new HashMap<>();
                     Map<String, Object> refreshpayload = new HashMap<>();
 
+                    accesspayload.put("id", customer_exist_entity.getId()); // id 필드 추가
                     accesspayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
                     accesspayload.put("nickname", customer_exist_entity.getNickname());
                     accesspayload.put("cash", customer_exist_entity.getCash());
                     accesspayload.put("point", customer_exist_entity.getPoint());
                     accesspayload.put("role", customerAdminSignupDTO.getRole());
-                    
+
                     accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
-                    
-                    
+
+
                     refreshpayload.put("id",customer_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
                     refreshpayload.put("role", customerAdminSignupDTO.getRole());
-                    
+
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
-                    
+
 
                     String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
@@ -154,34 +155,34 @@ public class LoginController {
             }
         }else if(customerAdminSignupDTO.getRole().equals("admin")){
             Optional<Admin> admin_exist= adminService.findById(customerAdminSignupDTO.getId());
-       
+
             Admin admin_exist_entity = new Admin();
-            
+
 
             if(admin_exist.isPresent()&& admin_exist.get().getStatus()==false){
                 admin_exist_entity = admin_exist.get();
-            
+
                 if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), admin_exist.get().getPw())){
-                    
+
                     String uuid = UUID.randomUUID().toString();
 
-                    
-                    
+
+
                     Map<String, Object> accesspayload = new HashMap<>();
                     Map<String, Object> refreshpayload = new HashMap<>();
 
                     accesspayload.put("adminIdx", admin_exist_entity.getAdminIdx());
                     accesspayload.put("role", customerAdminSignupDTO.getRole());
-                    
+
                     accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
-                    
-                    
+
+
                     refreshpayload.put("id",admin_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
                     refreshpayload.put("role", customerAdminSignupDTO.getRole());
-                    
+
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
-                    
+
 
                     String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
@@ -252,8 +253,8 @@ public class LoginController {
         }else{
             result.put("message","잘못된 접근입니다");
         }
-        
-        
+
+
         return ResponseEntity.ok(result);
     }
     
