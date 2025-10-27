@@ -68,6 +68,8 @@ services:
       AWS_S3_REGION: "${AWS_S3_REGION}"
       # API URL
       NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
+      # CORS
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS}"
     restart: always
 
 networks:
