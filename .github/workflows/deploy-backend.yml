@@ -161,7 +161,8 @@ jobs:
         while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
           echo "시도 $((RETRY_COUNT + 1))/$MAX_RETRIES..."
           
-          if curl -f -s http://localhost:8888 > /dev/null 2>&1; then
+          # Swagger API Docs 엔드포인트로 헬스체크 (REST API 서버이므로)
+          if curl -f -s http://localhost:8888/api-docs > /dev/null 2>&1; then
             echo "✅ 백엔드 서비스가 정상적으로 시작되었습니다!"
             exit 0
           fi
