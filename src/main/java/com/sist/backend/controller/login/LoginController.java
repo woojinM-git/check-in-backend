@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -34,6 +35,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/login")
@@ -54,6 +56,9 @@ public class LoginController {
 
     @Autowired
     private JavaMailSender mailSender;
+    
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
@@ -169,8 +174,7 @@ public class LoginController {
             Admin admin_exist_entity = new Admin();
             
 
-            if(admin_exist.isPresent()&& admin_exist.get().getStatus()==false){
-                admin_exist_entity = admin_exist.get();
+            admin_exist_entity = admin_exist.get();
             
                 if(passwordEncoder.matches(customerAdminSignupDTO.getPassword(), admin_exist.get().getPw())){
                     
@@ -203,8 +207,7 @@ public class LoginController {
                     admin_exist_entity.setRefToken(uuid);
                     adminService.save(admin_exist_entity);
                 }
-            }else{
-            }
+            
         }
 
         return ResponseEntity.ok(accessToken);
@@ -322,13 +325,19 @@ public class LoginController {
     try{
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
+        int code = (int) (Math.random() * 900000) + 100000;
+        
+        // Redis에 이메일과 코드 저장 (5분 만료)
+        String key = "email:verification:" + customerAdminSignupDTO.getEmail();
+        redisTemplate.opsForValue().set(key, String.valueOf(code), 5, TimeUnit.MINUTES);
+        
         helper.setFrom(fromEmail);
-        System.out.println("========================================="+fromEmail+"=========================================");
-        System.out.println("========================================="+customerAdminSignupDTO.getEmail()+"=========================================");
         helper.setTo(customerAdminSignupDTO.getEmail());
         helper.setSubject("[Check-In] 이메일 인증 코드 발송");
-        helper.setText("인증 코드:");
+        
+        helper.setText("인증 코드:"+code);
+    
+        mailSender.send(message);
         result.put("message","이메일 인증 코드 발송 성공");
         result.put("status","success");
     }catch(MessagingException e){
@@ -338,5 +347,37 @@ public class LoginController {
         return ResponseEntity.ok(result);
     }
     return ResponseEntity.ok(result);
+    }
+    
+    @PostMapping("/verify-email")
+    @Operation(summary="이메일 인증 코드 검증", description="발송된 인증 코드를 검증합니다")
+    public ResponseEntity<Map<String, Object>> verifyEmail(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String key = "email:verification:" + customerAdminSignupDTO.getEmail();
+        String storedCode = redisTemplate.opsForValue().get(key);
+        System.out.println("========================================="+storedCode+"=========================================");
+        System.out.println("========================================="+customerAdminSignupDTO.getCode()+"=========================================");
+        System.out.println("========================================="+key+"=========================================");
+        
+        if (storedCode == null) {
+            result.put("message", "인증 코드가 만료되었거나 존재하지 않습니다");
+            result.put("status", "fail");
+            return ResponseEntity.ok(result);
+        }
+        
+        // 입력된 코드와 저장된 코드 비교
+        String inputCode = customerAdminSignupDTO.getCode();
+        if (storedCode.equals(inputCode)) {
+            // 인증 성공 시 Redis에서 삭제
+            redisTemplate.delete(key);
+            result.put("message", "이메일 인증이 완료되었습니다");
+            result.put("status", "success");
+        } else {
+            result.put("message", "인증 코드가 올바르지 않습니다");
+            result.put("status", "fail");
+        }
+        
+        return ResponseEntity.ok(result);
     }
 }
