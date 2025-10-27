@@ -3,6 +3,7 @@ package com.sist.backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,10 +42,11 @@ public class PaymentService {
         log.info("결제 검증 시작: orderId={}, amount={}", request.getOrderId(), request.getAmount());
 
         // 0단계: 이미 처리된 결제인지 확인 (중복 요청 방지)
-        RoomPayment existingPayment = roomPaymentRepository.findByOrderId(request.getOrderId()).orElse(null);
-        if (existingPayment != null && existingPayment.getStatus() == 1) {
-            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: orderId={}, orderIdx={}", 
-                    request.getOrderId(), existingPayment.getOrderIdx());
+        Optional<RoomPayment> existingPaymentOpt = roomPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
+        if (existingPaymentOpt.isPresent()) {
+            RoomPayment existingPayment = existingPaymentOpt.get();
+            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: paymentKey={}, orderIdx={}", 
+                    request.getPaymentKey(), existingPayment.getOrderIdx());
             
             return PaymentResponseDto.builder()
                     .success(true)
