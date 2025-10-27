@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.dto.master.HotelInfoDto;
+import com.sist.backend.dto.master.RejectHotelRequestDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
 import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.CouponTemplate;
@@ -260,7 +261,7 @@ public class MasterManagementController {
         }
     }
 
-    @PostMapping("/approveHotel/{registrationIdx}")
+    @PostMapping("/approveHotel")
     @Operation(summary = "호텔 승인", description = "호텔 등록 요청을 승인합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 승인됨"),
@@ -269,25 +270,24 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> approveHotel(
-        @Parameter(description = "등록 요청 ID", example = "1")
-        @PathVariable("registrationIdx") Integer registrationIdx) {
+        @RequestBody RejectHotelRequestDto request) {
         try {
-            registrationRequestService.updateRequest(registrationIdx, 1, LocalDateTime.now());
-            
+            registrationRequestService.updateRequest(request.getRegistrationIdx(), 1, LocalDateTime.now());
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "호텔이 승인되었습니다.");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "호텔 승인 중 오류가 발생했습니다: " + e.getMessage());
+            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 
-    @PostMapping("/rejectHotel/{registrationIdx}")
+    @PostMapping("/rejectHotel")
     @Operation(summary = "호텔 거부", description = "호텔 등록 요청을 거부합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 거부됨"),
@@ -296,15 +296,14 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> rejectHotel(
-        @Parameter(description = "거부할 등록 요청 ID", example = "1")
-        @PathVariable("registrationIdx") Integer registrationIdx) {
+        @RequestBody RejectHotelRequestDto request) {
         try {
-            registrationRequestService.updateRejectRequest(registrationIdx, 2);
-            
+            registrationRequestService.updateRejectRequest(request.getRegistrationIdx(), request.getRefusalMsg(), 2);
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "호텔이 거부되었습니다.");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();

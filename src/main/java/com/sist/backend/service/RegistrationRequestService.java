@@ -59,8 +59,8 @@ public class RegistrationRequestService {
 
     /* 거부 요청 업데이트 */
     @org.springframework.transaction.annotation.Transactional
-    public void updateRejectRequest(Integer registrationIdx, Integer status) {
-        rrRepository.updateRejectRequest(registrationIdx, status);
+    public void updateRejectRequest(Integer registrationIdx, String refusalMsg, Integer status) {
+        rrRepository.updateRejectRequest(registrationIdx, status, refusalMsg);
     }
 
     /* 오늘 승인된 호텔 수 */

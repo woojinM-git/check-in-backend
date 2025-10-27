@@ -54,6 +54,6 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
 
     /* 거부 요청 업데이트 */
     @Modifying
-    @Query("UPDATE RegistrationRequest rr SET rr.status = :status WHERE rr.registrationIdx = :registrationIdx")
-    void updateRejectRequest(@Param("registrationIdx") Integer registrationIdx, @Param("status") Integer status);
+    @Query("UPDATE RegistrationRequest rr SET rr.status = :status, rr.refusalMsg = :refusalMsg WHERE rr.registrationIdx = :registrationIdx")
+    void updateRejectRequest(@Param("registrationIdx") Integer registrationIdx, @Param("status") Integer status, @Param("refusalMsg") String refusalMsg);
 }

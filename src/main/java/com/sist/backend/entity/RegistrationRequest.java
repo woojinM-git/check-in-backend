@@ -47,4 +47,7 @@ public class RegistrationRequest {
     
     @Column(name = "approvDate")
     private LocalDateTime approvDate;
+    
+    @Column(name = "refusalMsg", columnDefinition = "TEXT")
+    private String refusalMsg;
 }
