@@ -78,8 +78,7 @@ dependencies {
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	//이메일 인증을 위한 의존성 추가
-	implementation 'org.springframework.boot:spring-boot-starter-mail'
-	compileOnly 'com.sun.mail:jakarta.mail:2.1.0'
+	
 	
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
