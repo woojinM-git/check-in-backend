@@ -18,7 +18,7 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
     /* 승인요청이 가장 오래된 순서대로 보여주기 */
     @Query("SELECT rr FROM RegistrationRequest rr " +
         "LEFT JOIN FETCH rr.admin " +
-        "LEFT JOIN FETCH rr.hotelInfo " +
+        "LEFT JOIN FETCH rr.hotelDraft " +
         "WHERE rr.status = 0 " +
         "ORDER BY rr.regiDate ASC")
     List<RegistrationRequest> findTop5ByStatusInDashboard(Pageable pageable);
@@ -31,7 +31,7 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
     /* 승인요청중인 호텔의 목록 */
     @Query("SELECT rr FROM RegistrationRequest rr " +
         "LEFT JOIN FETCH rr.admin " +
-        "LEFT JOIN FETCH rr.hotelInfo " +
+        "LEFT JOIN FETCH rr.hotelDraft " +
         "WHERE rr.status = 0 " +
         "ORDER BY rr.regiDate ASC")
     Page<RegistrationRequest> findByStatus(Pageable pageable);

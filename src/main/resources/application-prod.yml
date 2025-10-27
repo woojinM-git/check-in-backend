@@ -7,6 +7,10 @@ spring:
         format_sql: false
   flyway:
     clean-disabled: true
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 # 프로덕션 환경에서만 활성화되는 설정
 logging:
