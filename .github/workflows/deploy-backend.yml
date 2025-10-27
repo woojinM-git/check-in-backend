@@ -20,29 +20,28 @@ jobs:
     - name: .env 파일 생성
       run: |
         cat > .env << 'EOF'
-            # 환경변수 설정 파일
-            DB_URL=${{secrets.DB_URL}}
-            DB_USERNAME=${{secrets.DB_USERNAME}}
-            DB_PASSWORD=${{secrets.DB_PASSWORD}}
-            JWT_SECRET=${{secrets.JWT_SECRET}}
-            TOSS_SECRET_KEY=${{secrets.TOSS_SECRET_KEY}}
-            TOSS_CLIENT_KEY=${{secrets.TOSS_CLIENT_KEY}}
-            GMAIL_USERNAME=${{secrets.GMAIL_USERNAME}}
-            GMAIL_APP_PASSWORD=${{secrets.GMAIL_APP_PASSWORD}}
-            NEXT_PUBLIC_API_URL=${{secrets.NEXT_PUBLIC_API_URL}}
-            AWS_S3_ACCESS_KEY=${{secrets.AWS_S3_ACCESS_KEY}}
-            AWS_S3_SECRET_ACCESS_KEY=${{secrets.AWS_S3_SECRET_ACCESS_KEY}}
-            AWS_S3_BUCKET_NAME=${{secrets.AWS_S3_BUCKET_NAME}}
-            AWS_S3_REGION=${{secrets.AWS_S3_REGION}}
-            EOF
+        # 환경변수 설정 파일
+        DB_URL=${{secrets.DB_URL}}
+        DB_USERNAME=${{secrets.DB_USERNAME}}
+        DB_PASSWORD=${{secrets.DB_PASSWORD}}
+        JWT_SECRET=${{secrets.JWT_SECRET}}
+        TOSS_SECRET_KEY=${{secrets.TOSS_SECRET_KEY}}
+        TOSS_CLIENT_KEY=${{secrets.TOSS_CLIENT_KEY}}
+        GMAIL_USERNAME=${{secrets.GMAIL_USERNAME}}
+        GMAIL_APP_PASSWORD=${{secrets.GMAIL_APP_PASSWORD}}
+        NEXT_PUBLIC_API_URL=${{secrets.NEXT_PUBLIC_API_URL}}
+        AWS_S3_ACCESS_KEY=${{secrets.AWS_S3_ACCESS_KEY}}
+        AWS_S3_SECRET_ACCESS_KEY=${{secrets.AWS_S3_SECRET_ACCESS_KEY}}
+        AWS_S3_BUCKET_NAME=${{secrets.AWS_S3_BUCKET_NAME}}
+        AWS_S3_REGION=${{secrets.AWS_S3_REGION}}
+        CORS_ALLOWED_ORIGINS=${{secrets.CORS_ALLOWED_ORIGINS}}
+        EOF
 
     # ==========================================================
     # ⚡️ 로컬에서 빌드하여 EC2에서 빌드 시간 절약
     # ==========================================================
     - name: Build Backend
       run: |
-        cd backend
-        
         # Gradle 빌드 실행
         chmod +x gradlew
         ./gradlew clean build -x test --no-daemon
@@ -54,15 +53,21 @@ jobs:
     # ==========================================================
     - name: Create Deployment Archive
       run: |
-        cd backend
+        # build/libs/ 확인
+        ls -lh build/libs/
+        
+        # 필요한 파일만 압축 (JAR, 설정 파일)
         tar -czf deployment.tar.gz \
           Dockerfile \
           docker-compose.yml \
           .dockerignore \
           build/libs/*.jar \
-          src/ \
           v1.sql \
           .env
+        
+        # 압축 내용 확인
+        echo "✅ 압축 완료"
+        tar -tzf deployment.tar.gz | head -20
 
     - name: Copy Archive to EC2
       run: |
@@ -100,6 +105,21 @@ jobs:
         # 2. tar 아카이브 압축 해제
         tar -xzf deployment.tar.gz
         
+        # 압축 해제 확인
+        echo "=== 압축 해제된 파일 확인 ==="
+        ls -lh
+        
+        # .env 파일 존재 확인
+        if [ -f .env ]; then
+          echo "✅ .env 파일이 존재합니다"
+          echo "파일 크기: $(stat -f%z .env) bytes"
+        else
+          echo "❌ .env 파일이 없습니다!"
+          echo "현재 디렉토리 내용:"
+          ls -la
+          exit 1
+        fi
+        
         # 3. Docker권한 설정
         sudo chmod -R 777 "$DEPLOY_DIR"
         sudo chmod 777 /var/run/docker.sock
@@ -113,9 +133,50 @@ jobs:
         # 5. Docker Compose로 서비스 시작
         sudo docker-compose up -d --build
         
-        # 6. 헬스체크
-        sleep 30
-        curl -f http://localhost:8888 || exit 1
+        # 6. 초기 대기 (Spring Boot 시작 시간)
+        echo "⏳ 백엔드 서비스가 시작될 때까지 대기 중..."
+        sleep 10
+        
+        # 7. 컨테이너 상태 확인
+        echo "=== 컨테이너 상태 확인 ==="
+        sudo docker ps -a
+        sudo docker stats --no-stream
+        
+        # 8. Backend 컨테이너 로그 확인 (전체)
+        echo "=== Backend 컨테이너 로그 (전체) ==="
+        sudo docker logs backend 2>&1 || true
+        
+        # 9. 메모리 사용량 확인
+        echo "=== 시스템 메모리 상태 ==="
+        free -h
+        sudo docker stats --no-stream
+        
+        # 10. 추가 대기
+        sleep 20
+        
+        # 8. 헬스체크 (재시도)
+        echo "=== 헬스체크 시작 ==="
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          echo "시도 $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+          
+          # Swagger API Docs 엔드포인트로 헬스체크 (REST API 서버이므로)
+          if curl -f -s http://localhost:8888/api-docs > /dev/null 2>&1; then
+            echo "✅ 백엔드 서비스가 정상적으로 시작되었습니다!"
+            exit 0
+          fi
+          
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+          sleep 5
+        done
+        
+        echo "❌ 백엔드 서비스가 $((MAX_RETRIES * 5))초 내에 시작되지 않았습니다."
+        echo "=== 최종 컨테이너 로그 ==="
+        sudo docker logs backend --tail 100 || true
+        sudo docker ps -a
+        exit 1
         
         EOF
 
