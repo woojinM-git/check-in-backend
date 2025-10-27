@@ -122,4 +122,115 @@ public class CustomerController {
             ));
         }
     }
+
+    @PutMapping("/profile")
+    @Operation(summary="프로필 정보 수정", description="현재 사용자의 프로필 정보를 수정합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
+        @ApiResponse(responseCode = "401", description = "인증이 필요합니다"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> data, HttpServletRequest request) {
+        try {
+            // 1. 쿠키에서 accessToken 가져오기
+            Cookie[] cookies = request.getCookies();
+            String accessToken = null;
+            
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("accessToken".equals(cookie.getName())) {
+                        accessToken = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+            
+            if (accessToken == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "인증이 필요합니다."
+                ));
+            }
+            
+            // 2. JWT에서 사용자 정보 추출
+            Map<String, Object> claims = jwtProvider.getClaims(accessToken);
+            Object customerIdxObj = claims.get("customerIdx");
+            Integer customerIdx = null;
+            
+            if (customerIdxObj != null) {
+                if (customerIdxObj instanceof String) {
+                    try {
+                        customerIdx = Integer.parseInt((String) customerIdxObj);
+                    } catch (NumberFormatException e) {
+                        System.err.println("customerIdx 파싱 오류: " + e.getMessage());
+                    }
+                } else if (customerIdxObj instanceof Integer) {
+                    customerIdx = (Integer) customerIdxObj;
+                }
+            } else {
+                // customerIdx가 없으면 id로 조회
+                String userId = (String) claims.get("id");
+                if (userId != null) {
+                    Optional<Customer> customer = customerService.findById(userId);
+                    if (customer.isPresent()) {
+                        customerIdx = customer.get().getCustomerIdx();
+                    }
+                }
+            }
+            
+            if (customerIdx == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "사용자 정보를 찾을 수 없습니다."
+                ));
+            }
+            
+            // 3. 데이터베이스에서 고객 정보 조회
+            Optional<Customer> customerOpt = customerService.findByCustomerIdx(customerIdx);
+            if (!customerOpt.isPresent()) {
+                return ResponseEntity.status(404).body(Map.of(
+                    "message", "사용자 정보를 찾을 수 없습니다."
+                ));
+            }
+            
+            Customer customerEntity = customerOpt.get();
+            
+            // 4. 프로필 정보 업데이트
+            if (data.containsKey("nickname")) {
+                customerEntity.setNickname(data.get("nickname"));
+            }
+            if (data.containsKey("phone")) {
+                customerEntity.setPhone(data.get("phone"));
+            }
+            if (data.containsKey("email")) {
+                customerEntity.setEmail(data.get("email"));
+            }
+            
+            // 5. 변경사항 저장
+            Customer savedCustomer = customerService.save(customerEntity);
+            
+            // 6. 응답 데이터 구성
+            CustomerDto customerDto = CustomerDto.builder()
+                .customerIdx(savedCustomer.getCustomerIdx())
+                .id(savedCustomer.getId())
+                .nickname(savedCustomer.getNickname())
+                .email(savedCustomer.getEmail())
+                .phone(savedCustomer.getPhone())
+                .cash(savedCustomer.getCash() != null ? new java.math.BigDecimal(savedCustomer.getCash()) : null)
+                .point(savedCustomer.getPoint() != null ? new java.math.BigDecimal(savedCustomer.getPoint()) : null)
+                .totalPrice(savedCustomer.getTotalPrice() != null ? new java.math.BigDecimal(savedCustomer.getTotalPrice()) : null)
+                .rank(savedCustomer.getRank())
+                .joinDate(savedCustomer.getJoinDate())
+                .build();
+            
+            return ResponseEntity.ok(customerDto);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                "message", "프로필 수정 중 오류가 발생했습니다.",
+                "error", e.getMessage()
+            ));
+        }
+    }
 }
+
+
