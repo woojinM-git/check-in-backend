@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 // 이 어노테이션은 롬복에서 제공하는 @Slf4j 어노테이션으로, 클래스 내에서 간편하게 로그를 남길 수 있도록 log 필드를 자동으로 생성해줍니다. 
 // 예: log.info("메시지");
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class S3ImageService {
@@ -75,6 +76,12 @@ public class S3ImageService {
 
     String s3FileName = UUID.randomUUID().toString().substring(0, 10) + originalFilename; //변경된 파일 명
 
+    log.info("=== S3 업로드 시작 ===");
+    log.info("원본 파일명: {}", originalFilename);
+    log.info("S3 파일명: {}", s3FileName);
+    log.info("버킷 이름: {}", bucketName);
+    log.info("파일 크기: {} bytes", image.getSize());
+
     InputStream is = image.getInputStream();
     byte[] bytes = IOUtils.toByteArray(is);
 
@@ -87,15 +94,26 @@ public class S3ImageService {
       PutObjectRequest putObjectRequest =
           new PutObjectRequest(bucketName, s3FileName, byteArrayInputStream, metadata)
               .withCannedAcl(CannedAccessControlList.PublicRead);
+      log.info("S3에 업로드 중...");
       amazonS3.putObject(putObjectRequest); // put image to S3
+      log.info("✅ S3 업로드 성공!");
     }catch (Exception e){
+      log.error("❌ S3 업로드 실패!");
+      log.error("에러 타입: {}", e.getClass().getName());
+      log.error("에러 메시지: {}", e.getMessage());
+      if (e.getCause() != null) {
+        log.error("원인: {}", e.getCause().getMessage());
+      }
       throw new S3UploadException(s3FileName, "S3에 파일을 업로드하는 중 오류가 발생했습니다.", e);
     }finally {
       byteArrayInputStream.close();
       is.close();
     }
 
-    return amazonS3.getUrl(bucketName, s3FileName).toString();
+    String imageUrl = amazonS3.getUrl(bucketName, s3FileName).toString();
+    log.info("생성된 URL: {}", imageUrl);
+    log.info("=== S3 업로드 완료 ===");
+    return imageUrl;
   }
 
   public void deleteImageFromS3(String imageAddress){
