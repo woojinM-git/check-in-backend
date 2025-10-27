@@ -231,6 +231,14 @@ public class CustomerController {
             ));
         }
     }
+
+    @PutMapping("/changePassword")
+    @Operation(summary="비밀번호 수정", description="현재 사용자의 비밀번호를 수정합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
+        @ApiResponse(responseCode = "401", description = "인증이 필요합니다"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
 }
 
 
