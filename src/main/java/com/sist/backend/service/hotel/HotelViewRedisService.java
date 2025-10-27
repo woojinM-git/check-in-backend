@@ -12,50 +12,65 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Redis 기반 호텔 실시간 조회자 관리 서비스 세션당 TTL1분 프론트가 나갔을 때 갱신되지 않으면 자동 제거됨
- *
+ * Redis 기반 호텔 실시간 조회자 관리 서비스
+ * 
+ * - 세션당 TTL 3분
+ * - 프론트엔드 sessionStorage 기반 세션 ID 사용
+ * - 조회수 갱신 시 TTL 자동 갱신, 이탈 시 즉시 제거
+ * - TTL 만료 시 자동 제거
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class HotelViewRedisService {
 
-    private final StringRedisTemplate stringRedisTemplate;
-
-    private static final String PREFIX = "hotel:view:";
-    private static final long TTL_MINUTES = 3L; // TTL 5분
     private final StringRedisTemplate redisTemplate;
 
+    private static final String PREFIX = "hotel:view:";
+    private static final long TTL_MINUTES = 3L; // TTL 3분
+
     /**
-     * 호텔 상세 페이지 진입 시 Redus 에 세션 즉 활성 사용자 등록 TTL 1분
-     *
-     * 리팩터링 예정사항
-     * TTL 3분으로 증가
-     * 만료시 자동 제거
-     * @param contentId 호텔 고유 ID (호텔 식별자,DB에선 VARCHAR(50))
-     * @param sessionId 브라우저 세션 ID
-     *
-     * 추후 프로젝트 종료 후 파이프라인 배치 + SCAN 사용 예정
+     * 호텔 상세 페이지 진입 시 Redis에 세션 등록 (신규 세션만)
+     * 
+     * - 신규 세션이면 등록하고 TTL 3분 설정
+     * - 기존 세션이면 TTL만 갱신
+     * 
+     * @param contentId 호텔 고유 ID (DB에서 VARCHAR(50))
+     * @param sessionId 프론트엔드 sessionStorage 기반 세션 ID
      */
     public void addActiveViewer(String contentId, String sessionId) {
         String key = PREFIX + contentId + ":" + sessionId;
         try {
-            //존재하는지 여부 파악후 등록 된 세션일 경우 TTL 갱신
-            if(Boolean.FALSE.equals(redisTemplate.hasKey(key))){
-                // opsForValue Spring Data Redis에서 Redis의 문자열(String) 데티어 타입에 접근하여
-                //값을 저장하는데 사용되는 객체를 반환하는 메서드 set으로 저장 get으로 값 조회
-                redisTemplate.opsForValue().set(key,"1", TTL_MINUTES, TimeUnit.MINUTES);
-                log.debug("호텔 ={} 접속자 등록 (세션ID: {}", contentId,sessionId);
-            }else {
-                redisTemplate.expire(key,TTL_MINUTES,TimeUnit.MINUTES);
-                log.debug("호텔 ={} TTL 갱신 (세션ID: {})", contentId,sessionId);
+            // 신규 세션이면 등록, 기존 세션이면 TTL 갱신
+            if (Boolean.FALSE.equals(redisTemplate.hasKey(key))) {
+                redisTemplate.opsForValue().set(key, "1", TTL_MINUTES, TimeUnit.MINUTES);
+                log.info("호텔 = {} 접속자 등록 (세션ID: {})", contentId, sessionId);
+            } else {
+                redisTemplate.expire(key, TTL_MINUTES, TimeUnit.MINUTES);
+                log.debug("호텔 = {} TTL 갱신 (세션ID: {})", contentId, sessionId);
             }
         } catch (Exception e) {
             log.error("Redis 등록 중 오류: {}", e.getMessage(), e);
         }
-        //값은 존재하면 1로 저장 TTL은 3분
-        redisTemplate.opsForValue().set(key, "1", 1, TimeUnit.MINUTES);
-        log.info("호텔 {}접속자 등록 (세션ID:{})", contentId, sessionId);
+    }
+
+    /**
+     * 기존 세션의 TTL만 갱신 (이미 등록된 세션인 경우에만)
+     * 
+     * @param contentId 호텔 고유 ID
+     * @param sessionId 브라우저 세션 ID
+     */
+    public void refreshViewerTTL(String contentId, String sessionId) {
+        String key = PREFIX + contentId + ":" + sessionId;
+        try {
+            // 이미 등록된 세션인 경우에만 TTL 갱신
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+                redisTemplate.expire(key, TTL_MINUTES, TimeUnit.MINUTES);
+                log.debug("호텔 = {} TTL 갱신 (세션ID: {})", contentId, sessionId);
+            }
+        } catch (Exception e) {
+            log.error("Redis TTL 갱신 중 오류: {}", e.getMessage(), e);
+        }
     }
 
     /**
