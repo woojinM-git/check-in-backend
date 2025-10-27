@@ -1,17 +1,27 @@
 package com.sist.backend.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.dto.PaymentResponseDto;
-import com.sist.backend.entity.RoomPayment;
+import com.sist.backend.service.MailService;
 import com.sist.backend.service.PaymentService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
@@ -19,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final MailService mailService;
 
     @PostMapping("/confirm")
     @Operation(summary = "결제 확인", description = "토스페이먼츠 결제를 확인하고 데이터베이스에 저장합니다.")
@@ -29,14 +40,37 @@ public class PaymentController {
     })
     public ResponseEntity<PaymentResponseDto> confirmPayment(@RequestBody PaymentRequestDto request) {
         try {
+            // 1단계: 결제 검증 및 DB 저장 (트랜잭션으로 보호)
             PaymentResponseDto response = paymentService.verifyAndSavePayment(request);
+
+            // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기, 실패해도 롤백 안됨)
+            if (response.getSuccess()) {
+                sendEmailAsync(request, response.getQrUrl());
+            }
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("결제 확인 실패: orderId={}", request.getOrderId(), e);
             return ResponseEntity.badRequest()
                     .body(PaymentResponseDto.builder()
                             .success(false)
                             .message("결제 확인 실패: " + e.getMessage())
                             .build());
+        }
+    }
+
+    @Async
+    private void sendEmailAsync(PaymentRequestDto request, String qrUrl) {
+        try {
+            boolean emailSent = false;
+            if ("hotel_reservation".equals(request.getType())) {
+                emailSent = mailService.sendHotelReservationEmail(request, qrUrl);
+            } else if ("used_hotel".equals(request.getType())) {
+                emailSent = mailService.sendUsedHotelPurchaseEmail(request, qrUrl);
+            }
+            log.info("이메일 발송 완료: orderId={}, emailSent={}", request.getOrderId(), emailSent);
+        } catch (Exception e) {
+            log.error("이메일 발송 실패 (결제는 이미 완료됨): orderId={}", request.getOrderId(), e);
         }
     }
 

@@ -93,7 +93,7 @@ public class MypageController {
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
-            // 1. JWT에서 사용자 정보 가져오기
+            // JWT에서 사용자 정보 가져오기
             Integer customerIdx = getCustomerIdxFromToken(request);
             
             if (customerIdx == null) {
@@ -121,49 +121,83 @@ public class MypageController {
     }
 
     /**
-     * HTTP 요청의 쿠키에서 JWT 토큰을 추출하고 사용자 ID를 반환
+     * HTTP 요청의 Authorization 헤더 또는 쿠키에서 JWT 토큰을 추출하고 사용자 ID를 반환
      * @param request HTTP 요청
      * @return customerIdx (사용자 고유 ID)
      */
     private Integer getCustomerIdxFromToken(HttpServletRequest request) {
         try {
-            // 1. 쿠키에서 accessToken 가져오기
-            Cookie[] cookies = request.getCookies();
-            if (cookies == null) {
-                return null;
-            }
-
             String accessToken = null;
-            for (Cookie cookie : cookies) {
-                if ("accessToken".equals(cookie.getName())) {
-                    accessToken = cookie.getValue();
-                    break;
+            
+            // 1. Authorization 헤더에서 Bearer 토큰 확인
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                accessToken = authHeader.substring(7); // "Bearer " 제거
+                System.out.println("🔑 Authorization 헤더에서 토큰 추출: " + accessToken.substring(0, Math.min(20, accessToken.length())) + "...");
+            }
+            
+            // 2. Authorization 헤더에 토큰이 없으면 쿠키에서 확인
+            if (accessToken == null) {
+                Cookie[] cookies = request.getCookies();
+                if (cookies != null) {
+                    for (Cookie cookie : cookies) {
+                        if ("accessToken".equals(cookie.getName())) {
+                            accessToken = cookie.getValue();
+                            System.out.println("🍪 쿠키에서 토큰 추출: " + accessToken.substring(0, Math.min(20, accessToken.length())) + "...");
+                            break;
+                        }
+                    }
                 }
             }
 
             if (accessToken == null) {
+                System.out.println("❌ 토큰을 찾을 수 없습니다.");
                 return null;
             }
 
-            // 2. JWT 토큰 검증
+            // 3. JWT 토큰 검증
             if (!jwtProvider.verify(accessToken)) {
+                System.out.println("❌ 토큰 검증 실패");
                 return null;
             }
 
-            // 3. JWT에서 사용자 ID 추출
+            // 4. JWT에서 customerIdx 추출
             Map<String, Object> claims = jwtProvider.getClaims(accessToken);
-            String userId = (String) claims.get("id");
+            Object customerIdxObj = claims.get("customerIdx");
+            Integer customerIdx = null;
+            
+            if (customerIdxObj != null) {
+                // customerIdx가 있으면 바로 사용
+                if (customerIdxObj instanceof Integer) {
+                    customerIdx = (Integer) customerIdxObj;
+                } else if (customerIdxObj instanceof String) {
+                    try {
+                        customerIdx = Integer.parseInt((String) customerIdxObj);
+                    } catch (NumberFormatException e) {
+                        System.err.println("customerIdx 파싱 오류: " + e.getMessage());
+                    }
+                }
+            } else {
+                // customerIdx가 없으면 id로 조회
+                String userId = (String) claims.get("id");
+                if (userId != null) {
+                    Customer customer = customerService.findByIdAndStatus(userId, 0).orElse(null);
+                    if (customer != null) {
+                        customerIdx = customer.getCustomerIdx();
+                    }
+                }
+            }
 
-            if (userId == null) {
+            if (customerIdx == null) {
+                System.out.println("❌ JWT에서 사용자 ID를 찾을 수 없습니다.");
                 return null;
             }
 
-            // 4. 사용자 ID로 customerIdx 조회
-            Customer customer = customerService.findById(userId).orElse(null);
-            
-            return customer != null ? customer.getCustomerIdx() : null;
+            System.out.println("✅ 토큰 검증 성공 - customerIdx: " + customerIdx);
+            return customerIdx;
 
         } catch (Exception e) {
+            System.out.println("❌ 토큰 처리 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
