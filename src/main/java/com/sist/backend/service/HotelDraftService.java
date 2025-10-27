@@ -68,3 +68,4 @@ public class HotelDraftService {
         return hotelDraftRepository.existsByAdminIdx(adminIdx);
     }
 }
+

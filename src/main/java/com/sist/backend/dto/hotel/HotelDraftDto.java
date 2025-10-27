@@ -31,3 +31,4 @@ public class HotelDraftDto {
         return dto;
     }
 }
+
