@@ -232,13 +232,37 @@ public class CustomerController {
         }
     }
 
-    @PutMapping("/changePassword")
-    @Operation(summary="비밀번호 수정", description="현재 사용자의 비밀번호를 수정합니다")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "프로필 수정 성공"),
-        @ApiResponse(responseCode = "401", description = "인증이 필요합니다"),
-        @ApiResponse(responseCode = "500", description = "서버 오류")
-    })
+    // @PutMapping("/changePassword")
+    // @Operation(summary="비밀번호 수정", description="현재 사용자의 비밀번호를 수정합니다")
+    // @ApiResponses(value = {
+    //     @ApiResponse(responseCode = "200", description = "비밀번호 수정 성공"),
+    //     @ApiResponse(responseCode = "401", description = "인증이 필요합니다"),
+    //     @ApiResponse(responseCode = "500", description = "서버 오류")
+    // })
+    // public ResponseEntity<?> changePassword(@RequestBody Map<String, String> data, HttpServletRequest request){
+    //     try {
+    //         // 1. 쿠키에서 accessToken 가져오기
+    //         Cookie[] cookies = request.getCookies();
+    //         String accessToken = null;
+            
+    //         if (cookies != null) {
+    //             for (Cookie cookie : cookies) {
+    //                 if ("accessToken".equals(cookie.getName())) {
+    //                     accessToken = cookie.getValue();
+    //                     break;
+    //                 }
+    //             }
+    //         }
+            
+    //         if (accessToken == null) {
+    //             return ResponseEntity.status(401).body(Map.of(
+    //                 "message", "인증이 필요합니다."
+    //             ));
+    //         }
+    //         // 2. JWT에서 customerIdx 추출
+
+    //     } 
+    // }
 }
 
 
