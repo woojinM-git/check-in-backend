@@ -40,6 +40,26 @@ public class PaymentService {
     public PaymentResponseDto verifyAndSavePayment(PaymentRequestDto request) {
         log.info("결제 검증 시작: orderId={}, amount={}", request.getOrderId(), request.getAmount());
 
+        // 0단계: 이미 처리된 결제인지 확인 (중복 요청 방지)
+        RoomPayment existingPayment = roomPaymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+        if (existingPayment != null && existingPayment.getStatus() == 1) {
+            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: orderId={}, orderIdx={}", 
+                    request.getOrderId(), existingPayment.getOrderIdx());
+            
+            return PaymentResponseDto.builder()
+                    .success(true)
+                    .message("이미 처리된 결제입니다.")
+                    .orderId(request.getOrderId())
+                    .paymentKey(request.getPaymentKey())
+                    .amount(existingPayment.getPrice())
+                    .status("DONE")
+                    .approvedAt(existingPayment.getApprovedAt())
+                    .receiptUrl(existingPayment.getReceiptUrl())
+                    .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                    .emailSent(false)
+                    .build();
+        }
+
         try {
             // 1단계: TossPayments API로 결제 검증
             Map<String, Object> tossResponse = tossPaymentsService.confirmPayment(
