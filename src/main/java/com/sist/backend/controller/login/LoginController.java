@@ -230,7 +230,7 @@ public class LoginController {
                 result.put("status","success");
             }
         }else if(customerAdminSignupDTO.getRole().equals("admin")){
-            Optional<Admin> admin_exist = adminService.findByIdAndStatus(customerAdminSignupDTO.getId(),false);
+            Optional<Admin> admin_exist = adminService.findById(customerAdminSignupDTO.getId());
             if(admin_exist.isPresent()){
                 result.put("message","중복된 아이디입니다" );
                 result.put("status","fail");
