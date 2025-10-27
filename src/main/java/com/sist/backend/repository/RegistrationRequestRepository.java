@@ -43,4 +43,7 @@ public interface RegistrationRequestRepository extends JpaRepository<Registratio
     /* 오늘 거부된 호텔 수 */
     @Query(value = "SELECT COUNT(*) FROM registrationRequest WHERE status = 2 AND DATE(regiDate) = CURDATE()", nativeQuery = true)
     Integer findTodayRejectedCount();
+
+    /* RegistrationRequest객체를 저장하는 JPA*/
+    RegistrationRequest save(RegistrationRequest request);
 }

@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class RegistrationRequest {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "registrationIdx")
     private Integer registrationIdx;
     
