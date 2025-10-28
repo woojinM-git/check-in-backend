@@ -7,15 +7,20 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
+import com.sist.backend.dto.mypage.WritableReviewDTO;
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
 public class MyPageService {
     
     private final RoomReservationRepository roomReservationRepository;
+    private final ReviewRepository reviewRepository;
     
     // 날짜 포맷터 (YYYY.MM.DD)
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
@@ -148,5 +153,61 @@ public class MyPageService {
             case 4: return "이용완료";
             default: return "알 수 없음";
         }
+    }
+
+    /**
+     * 작성 가능한 리뷰 목록 조회
+     * - status = 4 (이용완료)인 예약만 조회
+     * - 이미 리뷰를 작성한 예약은 제외
+     */
+    public List<WritableReviewDTO> getWritableReviews(Integer customerIdx) {
+        // 1. 이용완료된 예약 조회 (status = 4)
+        List<RoomReservation> completedReservations = 
+            roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 4);
+        
+        // 2. 이미 리뷰를 작성한 예약 ID 목록 조회
+        List<Integer> reviewedReservationIds = 
+            reviewRepository.findReservationIdsByCustomerIdx(customerIdx);
+        
+        // 3. 리뷰를 작성하지 않은 예약만 필터링
+        List<RoomReservation> writableReservations = completedReservations.stream()
+            .filter(r -> !reviewedReservationIds.contains(r.getReservIdx()))
+            .collect(Collectors.toList());
+        
+        // 4. DTO 변환
+        return writableReservations.stream()
+            .map(this::convertToWritableReviewDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * RoomReservation을 WritableReviewDTO로 변환
+     */
+    private WritableReviewDTO convertToWritableReviewDTO(RoomReservation reservation) {
+        // 체크아웃 날짜로부터 남은 일수 계산
+        LocalDate checkOut = reservation.getCheckoutDate();
+        long daysLeft = checkOut != null 
+            ? java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), checkOut)
+            : 0;
+
+        return WritableReviewDTO.builder()
+            .reservationIdx(reservation.getReservIdx())
+            .hotelName(reservation.getRoom() != null && reservation.getRoom().getHotelInfo() != null
+                ? reservation.getRoom().getHotelInfo().getTitle()
+                : "호텔명 없음")
+            .location(reservation.getRoom() != null && reservation.getRoom().getHotelInfo() != null
+                && reservation.getRoom().getHotelInfo().getArea() != null
+                ? reservation.getRoom().getHotelInfo().getArea().getAreaName()
+                : reservation.getRoom() != null && reservation.getRoom().getHotelInfo() != null
+                    ? reservation.getRoom().getHotelInfo().getAdress()
+                    : "위치 정보 없음")
+            .contentId(reservation.getContentid())
+            .roomIdx(reservation.getRoomIdx())
+            .roomType(reservation.getRoom() != null
+                ? reservation.getRoom().getName()
+                : "객실 정보 없음")
+            .checkOutDate(checkOut != null ? checkOut.format(DATE_FORMATTER) : "")
+            .daysLeft(daysLeft)
+            .build();
     }
 }

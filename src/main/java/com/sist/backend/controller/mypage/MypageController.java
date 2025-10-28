@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
+import com.sist.backend.dto.mypage.WritableReviewDTO;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
@@ -89,6 +90,35 @@ public class MypageController {
                 "error", e.getMessage()));
         }
     }
+    /**
+     * 작성 가능한 리뷰 조회 (이용완료된 예약 중 아직 리뷰를 작성하지 않은 것)
+     */
+    @GetMapping("/writable-reviews")
+    public ResponseEntity<?> getWritableReviews(HttpServletRequest request) {
+        try {
+            // JWT에서 사용자 정보 가져오기
+            Integer customerIdx = getCustomerIdxFromToken(request);
+            
+            if (customerIdx == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "인증 정보가 유효하지 않습니다."));
+            }
+            
+            System.out.println("👤 작성 가능한 리뷰 조회 - customerIdx: " + customerIdx);
+            
+            // 작성 가능한 리뷰 목록 조회
+            List<WritableReviewDTO> writableReviews = myPageService.getWritableReviews(customerIdx);
+            
+            return ResponseEntity.ok(Map.of("reviews", writableReviews));
+            
+        } catch (Exception e) {
+            System.out.println("❌ 작성 가능한 리뷰 조회 실패: " + e.getMessage());
+            return ResponseEntity.status(500).body(Map.of(
+                "message", "작성 가능한 리뷰 조회 중 오류가 발생했습니다.",
+                "error", e.getMessage()));
+        }
+    }
+
     /* 프로필 정보 조회 */
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {

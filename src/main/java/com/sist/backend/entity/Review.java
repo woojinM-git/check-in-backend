@@ -3,6 +3,7 @@ package com.sist.backend.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -14,9 +15,11 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Review {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "reviewIdx")
     private Integer reviewIdx;
     
@@ -70,5 +73,22 @@ public class Review {
     
     @Column(name = "star", precision = 2, scale = 1)
     private BigDecimal star;
+    
+    @Column(name = "createdAt")
+    private java.time.LocalDateTime createdAt;
+    
+    @Column(name = "updatedAt")
+    private java.time.LocalDateTime updatedAt;
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = java.time.LocalDateTime.now();
+        updatedAt = java.time.LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = java.time.LocalDateTime.now();
+    }
 }
 
