@@ -3,9 +3,11 @@ package com.sist.backend.service.hotel;
 import com.sist.backend.entity.UsedTrade;
 import com.sist.backend.entity.UsedItem;
 import com.sist.backend.entity.UsedPay;
+import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.UsedTradeRepository;
 import com.sist.backend.repository.UsedItemRepository;
 import com.sist.backend.repository.UsedPayRepository;
+import com.sist.backend.repository.RoomReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class UsedHotelTradeService {
     private final UsedTradeRepository usedTradeRepository;
     private final UsedItemRepository usedItemRepository;
     private final UsedPayRepository usedPayRepository;
+    private final RoomReservationRepository roomReservationRepository;
 
     /**
      * 중고 아이템 거래 가능 여부 확인
@@ -272,7 +275,30 @@ public class UsedHotelTradeService {
 
             UsedPay savedPayment = usedPayRepository.save(usedPay);
             
-            log.info("결제 내역 생성 성공: {} (거래: {})", savedPayment.getUsedPayIdx(), usedTradeIdx);
+            // 1. 거래 확정
+            confirmTrade(usedTradeIdx);
+            
+            // 2. RoomReservation의 customerIdx를 구매자(buyerIdx)로 변경
+            Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
+            if (usedItem.isPresent()) {
+                UsedItem item = usedItem.get();
+                Integer reservIdx = item.getReservIdx();
+                
+                // RoomReservation 업데이트
+                Optional<RoomReservation> reservationOpt = roomReservationRepository.findById(reservIdx);
+                if (reservationOpt.isPresent()) {
+                    RoomReservation reservation = reservationOpt.get();
+                    Integer oldCustomerIdx = reservation.getCustomerIdx();
+                    reservation.setCustomerIdx(trade.getBuyerIdx());
+                    roomReservationRepository.save(reservation);
+                    log.info("예약 고객 ID 변경: reservIdx={}, 기존 customerIdx={}, 새로운 customerIdx={}", 
+                        reservIdx, oldCustomerIdx, trade.getBuyerIdx());
+                } else {
+                    log.warn("예약을 찾을 수 없습니다: reservIdx={}", reservIdx);
+                }
+            }
+            
+            log.info("결제 내역 생성 및 거래 확정 완료: {} (거래: {})", savedPayment.getUsedPayIdx(), usedTradeIdx);
             return savedPayment;
             
         } catch (Exception e) {
