@@ -50,6 +50,7 @@ public class RoomReservationDto {
     @AllArgsConstructor
     public static class Customer {
         private Integer customerIdx;
+        private String nickname;
         private String name;
         private String phone;
     }
