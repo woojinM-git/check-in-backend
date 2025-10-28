@@ -75,4 +75,48 @@ public class UsedTradeService {
         // Page<UsedItem>을 Page<UsedItemDto>로 변환
         return usedItemPage.map(UsedItemDto::fromEntity);
     }
+
+    /**
+     * 양도거래 아이템 등록
+     * @param reservIdx 예약 ID
+     * @param price 판매 가격
+     * @param comment 설명
+     * @return 등록된 UsedItem
+     */
+    public UsedItem registerUsedItem(Integer reservIdx, Integer price, String comment) {
+        UsedItem usedItem = new UsedItem();
+        usedItem.setReservIdx(reservIdx);
+        usedItem.setPrice(price);
+        usedItem.setComment(comment);
+        usedItem.setStatus(0); // 0: 등록됨
+        
+        return usedItemRepository.save(usedItem);
+    }
+
+    /**
+     * 예약에 대한 양도거래 아이템 조회
+     * @param reservIdx 예약 ID
+     * @return UsedItem 또는 null
+     */
+    public UsedItem findByReservIdx(Integer reservIdx) {
+        return usedItemRepository.findByReservIdx(reservIdx);
+    }
+
+    /**
+     * 양도거래 아이템 수정
+     * @param usedItemIdx 양도거래 아이템 ID
+     * @param price 판매 가격
+     * @param comment 설명
+     * @return 수정된 UsedItem
+     */
+    public UsedItem updateUsedItem(Integer usedItemIdx, Integer price, String comment) {
+        var usedItem = usedItemRepository.findById(usedItemIdx)
+            .orElseThrow(() -> new RuntimeException("양도거래 아이템을 찾을 수 없습니다."));
+        
+        usedItem.setPrice(price);
+        usedItem.setComment(comment);
+        // updatedAt은 @PreUpdate로 자동 갱신됨
+        
+        return usedItemRepository.save(usedItem);
+    }
 }

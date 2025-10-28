@@ -77,6 +77,100 @@ public class UsedTradeController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 예약에 대한 양도거래 등록 여부 확인
+     */
+    @GetMapping("/check/{reservIdx}")
+    @Operation(summary = "양도거래 등록 여부 확인", description = "특정 예약에 대한 양도거래 등록 여부를 확인합니다.")
+    public ResponseEntity<?> checkUsedItemStatus(@PathVariable Integer reservIdx) {
+        try {
+            var usedItem = usedTradeService.findByReservIdx(reservIdx);
+            
+            if (usedItem == null) {
+                return ResponseEntity.ok(Map.of(
+                    "registered", false,
+                    "message", "양도거래가 등록되지 않았습니다."
+                ));
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "registered", true,
+                "usedItemIdx", usedItem.getUsedItemIdx(),
+                "price", usedItem.getPrice(),
+                "status", usedItem.getStatus(),
+                "comment", usedItem.getComment() != null ? usedItem.getComment() : ""
+            ));
+        } catch (Exception e) {
+            log.error("양도거래 등록 여부 확인 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "확인 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 양도거래 아이템 등록
+     */
+    @PostMapping("/register")
+    @Operation(summary = "양도거래 아이템 등록", description = "새로운 양도거래 아이템을 등록합니다.")
+    public ResponseEntity<?> registerUsedItem(@RequestBody Map<String, Object> request) {
+        try {
+            Integer reservIdx = parseInteger(request.get("reservIdx"));
+            Integer price = parseInteger(request.get("price"));
+            String comment = (String) request.get("comment");
+
+            if (reservIdx == null || price == null || comment == null || comment.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("message", "필수 입력값이 누락되었습니다."));
+            }
+
+            var usedItem = usedTradeService.registerUsedItem(reservIdx, price, comment);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "양도거래 아이템이 등록되었습니다.",
+                "usedItemIdx", usedItem.getUsedItemIdx(),
+                "reservIdx", usedItem.getReservIdx(),
+                "price", usedItem.getPrice()
+            ));
+
+        } catch (Exception e) {
+            log.error("양도거래 아이템 등록 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "양도거래 아이템 등록 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 양도거래 아이템 수정
+     */
+    @PutMapping("/{usedItemIdx}")
+    @Operation(summary = "양도거래 아이템 수정", description = "기존 양도거래 아이템을 수정합니다.")
+    public ResponseEntity<?> updateUsedItem(
+            @PathVariable Integer usedItemIdx,
+            @RequestBody Map<String, Object> request) {
+        try {
+            Integer price = parseInteger(request.get("price"));
+            String comment = (String) request.get("comment");
+
+            if (price == null || comment == null || comment.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("message", "필수 입력값이 누락되었습니다."));
+            }
+
+            var usedItem = usedTradeService.updateUsedItem(usedItemIdx, price, comment);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "양도거래 아이템이 수정되었습니다.",
+                "usedItemIdx", usedItem.getUsedItemIdx(),
+                "price", usedItem.getPrice()
+            ));
+
+        } catch (Exception e) {
+            log.error("양도거래 아이템 수정 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "양도거래 아이템 수정 중 오류가 발생했습니다."));
+        }
+    }
+
     // ===== UsedHotelTradeController에서 이전된 API들 =====
 
     /**
