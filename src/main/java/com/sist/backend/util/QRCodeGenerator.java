@@ -1,41 +1,46 @@
 package com.sist.backend.util;
 
-import lombok.extern.slf4j.Slf4j;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.imageio.ImageIO;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * QR 코드 생성 유틸리티 클래스 Google Chart API를 사용하여 QR 코드를 생성합니다.
+ * QR 코드 생성 유틸리티 클래스 ZXing 라이브러리를 사용하여 QR 코드를 Base64 인코딩된 데이터 URL로 생성합니다.
  */
 @Component
 @Slf4j
 public class QRCodeGenerator {
 
-    private static final String GOOGLE_CHART_API_URL = "https://chart.googleapis.com/chart";
+    @Value("${server.domain:http://localhost:8888}")
+    private String serverDomain;
+
     private static final int DEFAULT_SIZE = 200;
 
     /**
-     * 주문 ID를 기반으로 QR 코드 URL을 생성합니다.
+     * 주문 ID를 기반으로 QR 코드의 Base64 데이터 URL을 생성합니다.
      *
      * @param orderId 주문 ID
-     * @return QR 코드 이미지 URL
+     * @return QR 코드 이미지의 데이터 URL (data:image/png;base64,...)
      */
     public String generateQRCodeUrl(String orderId) {
         try {
-            // TODO: QR 코드에 더 많은 정보 포함 (호텔명, 체크인/아웃 날짜 등)
-            // TODO: QR 코드 만료 시간 설정 로직 추가
-            // TODO: QR 코드 보안 강화 (암호화, 서명 등)
-
-            String encodedOrderId = URLEncoder.encode(orderId, StandardCharsets.UTF_8);
-            String qrUrl = String.format("%s?chs=%dx%d&cht=qr&chl=%s",
-                    GOOGLE_CHART_API_URL, DEFAULT_SIZE, DEFAULT_SIZE, encodedOrderId);
-
-            log.info("QR 코드 URL 생성 완료: orderId={}, url={}", orderId, qrUrl);
-            return qrUrl;
+            String url = String.format("%s/api/qr/%s?s=%d", serverDomain, orderId, DEFAULT_SIZE);
+            log.info("QR 코드 링크 생성 완료: orderId={}, url={}", orderId, url);
+            return url;
         } catch (Exception e) {
             log.error("QR 코드 URL 생성 실패: orderId={}", orderId, e);
             return null;
@@ -43,20 +48,57 @@ public class QRCodeGenerator {
     }
 
     /**
+     * QR 코드 이미지를 ByteArrayOutputStream으로 생성합니다.
+     *
+     * @param text QR 코드에 인코딩할 텍스트
+     * @param size 이미지 크기 (픽셀)
+     * @return 이미지 바이트 배열
+     */
+    public ByteArrayOutputStream generateQRCodeImage(String text, int size) {
+        try {
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            Map<EncodeHintType, Object> hints = new HashMap<>();
+            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+            hints.put(EncodeHintType.MARGIN, 1);
+
+            BitMatrix bitMatrix = qrCodeWriter.encode(text, BarcodeFormat.QR_CODE, size, size, hints);
+
+            BufferedImage bufferedImage = MatrixToImageWriter.toBufferedImage(bitMatrix);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(bufferedImage, "png", baos);
+
+            return baos;
+
+        } catch (Exception e) {
+            log.error("QR 코드 이미지 생성 실패: text={}, size={}", text, size, e);
+            return null;
+        }
+    }
+
+    /**
+     * QR 코드 PNG 바이트 배열을 생성합니다.
+     */
+    public byte[] generateQRCodePng(String text, int size) {
+        ByteArrayOutputStream baos = generateQRCodeImage(text, size);
+        if (baos == null) {
+            return null;
+        }
+        return baos.toByteArray();
+    }
+
+    /**
      * 사용자 정의 크기로 QR 코드 URL을 생성합니다.
      *
      * @param orderId 주문 ID
      * @param size QR 코드 크기 (픽셀)
-     * @return QR 코드 이미지 URL
+     * @return QR 코드 이미지의 데이터 URL
      */
     public String generateQRCodeUrl(String orderId, int size) {
         try {
-            String encodedOrderId = URLEncoder.encode(orderId, StandardCharsets.UTF_8);
-            String qrUrl = String.format("%s?chs=%dx%d&cht=qr&chl=%s",
-                    GOOGLE_CHART_API_URL, size, size, encodedOrderId);
-
-            log.info("QR 코드 URL 생성 완료: orderId={}, size={}, url={}", orderId, size, qrUrl);
-            return qrUrl;
+            String url = String.format("%s/api/qr/%s?s=%d", serverDomain, orderId, size);
+            log.info("QR 코드 링크 생성 완료: orderId={}, url={}", orderId, url);
+            return url;
         } catch (Exception e) {
             log.error("QR 코드 URL 생성 실패: orderId={}, size={}", orderId, size, e);
             return null;
@@ -70,50 +112,29 @@ public class QRCodeGenerator {
      * @param hotelName 호텔명
      * @param checkIn 체크인 날짜
      * @param checkOut 체크아웃 날짜
-     * @return QR 코드 이미지 URL
+     * @return QR 코드 이미지 URL (파라미터 포함)
      */
     public String generateDetailedQRCodeUrl(String orderId, String hotelName, String checkIn, String checkOut) {
         try {
-            String qrData = String.format("주문번호: %s\n호텔: %s\n체크인: %s\n체크아웃: %s",
-                    orderId, hotelName, checkIn, checkOut);
-            String encodedData = URLEncoder.encode(qrData, StandardCharsets.UTF_8);
-            String qrUrl = String.format("%s?chs=%dx%d&cht=qr&chl=%s",
-                    GOOGLE_CHART_API_URL, DEFAULT_SIZE, DEFAULT_SIZE, encodedData);
+            // URL에 상세 정보를 파라미터로 추가
+            StringBuilder urlBuilder = new StringBuilder();
+            urlBuilder.append(String.format("%s/api/qr/%s?s=%d", serverDomain, orderId, DEFAULT_SIZE));
 
-            log.info("상세 QR 코드 URL 생성 완료: orderId={}, hotelName={}", orderId, hotelName);
-            return qrUrl;
-        } catch (Exception e) {
-            log.error("상세 QR 코드 URL 생성 실패: orderId={}, hotelName={}", orderId, hotelName, e);
-            return null;
-        }
-    }
-
-    /**
-     * QR 코드 이미지를 바이트 배열로 다운로드합니다.
-     *
-     * @param qrUrl QR 코드 URL
-     * @return QR 코드 이미지 바이트 배열
-     */
-    public byte[] downloadQRCodeImage(String qrUrl) {
-        try {
-            java.net.URL url = new java.net.URL(qrUrl);
-            java.io.InputStream inputStream = url.openStream();
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
+            if (hotelName != null && !hotelName.isEmpty()) {
+                urlBuilder.append("&n=").append(java.net.URLEncoder.encode(hotelName, "UTF-8"));
+            }
+            if (checkIn != null && !checkIn.isEmpty()) {
+                urlBuilder.append("&ci=").append(java.net.URLEncoder.encode(checkIn, "UTF-8"));
+            }
+            if (checkOut != null && !checkOut.isEmpty()) {
+                urlBuilder.append("&co=").append(java.net.URLEncoder.encode(checkOut, "UTF-8"));
             }
 
-            inputStream.close();
-            byte[] imageBytes = outputStream.toByteArray();
-            outputStream.close();
-
-            log.info("QR 코드 이미지 다운로드 완료: size={} bytes", imageBytes.length);
-            return imageBytes;
-        } catch (IOException e) {
-            log.error("QR 코드 이미지 다운로드 실패: url={}", qrUrl, e);
+            String url = urlBuilder.toString();
+            log.info("상세 QR 코드 링크 생성 완료: orderId={}, hotelName={}, url={}", orderId, hotelName, url);
+            return url;
+        } catch (Exception e) {
+            log.error("상세 QR 코드 URL 생성 실패: orderId={}, hotelName={}", orderId, hotelName, e);
             return null;
         }
     }
