@@ -1,5 +1,6 @@
 package com.sist.backend.repository;
 
+import com.sist.backend.dto.admin.CouponDto;
 import com.sist.backend.entity.Coupon;
 
 import org.springframework.data.domain.Page;
@@ -22,7 +23,7 @@ public interface CouponRepository extends JpaRepository<Coupon, Integer>{
     // 상태별 쿠폰 조회
     List<Coupon> findByStatus(Boolean status);
 
-    // 
+    // 관리자별 쿠폰 조회
     @Query("SELECT c FROM Coupon c " +
             "LEFT JOIN FETCH c.couponTemplate " +
             "LEFT JOIN FETCH c.customer " +

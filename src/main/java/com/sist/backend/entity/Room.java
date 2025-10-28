@@ -28,7 +28,7 @@ public class Room {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contentId", referencedColumnName = "contentId", insertable = false, updatable = false)
-    @JsonIgnore
+    @JsonIgnore  // HotelInfo는 순환 참조 방지를 위해 유지
     @ToString.Exclude
     private HotelInfo hotelInfo;
     
