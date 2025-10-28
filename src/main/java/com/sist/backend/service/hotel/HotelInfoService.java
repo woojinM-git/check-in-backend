@@ -49,5 +49,21 @@ public class HotelInfoService {
     public Optional<String> findContentIdByAdminIdx(Integer adminIdx) {
         return hotelInfoRepository.findContentIdByAdminIdx(adminIdx);
     }
+
+    /**
+     * 호텔 정지 처리
+     * @param contentId 호텔 ID
+     * @param reason 정지 사유
+     */
+    @Transactional
+    public void suspendHotel(String contentId, String reason) {
+        HotelInfo hotelInfo = hotelInfoRepository.findById(contentId)
+            .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다."));
+        
+        // status를 1로 변경 (운영종료)
+        hotelInfo.setStatus(1);
+        
+        hotelInfoRepository.save(hotelInfo);
+    }
 }
 
