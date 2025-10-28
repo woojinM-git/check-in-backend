@@ -276,16 +276,20 @@ public class UsedHotelTradeService {
             UsedPay savedPayment = usedPayRepository.save(usedPay);
             
             // 1. 거래 확정
-            confirmTrade(usedTradeIdx);
+            trade.setStstus(1); // 거래완료 상태
+            usedTradeRepository.save(trade);
             
-            // 2. RoomReservation의 customerIdx를 구매자(buyerIdx)로 변경
+            // 2. UsedItem 상태 업데이트
             Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
             if (usedItem.isPresent()) {
                 UsedItem item = usedItem.get();
-                Integer reservIdx = item.getReservIdx();
+                item.setStatus(2); // 거래완료 상태
+                usedItemRepository.save(item);
                 
-                // RoomReservation 업데이트
+                // 3. RoomReservation의 customerIdx를 구매자(buyerIdx)로 변경
+                Integer reservIdx = item.getReservIdx();
                 Optional<RoomReservation> reservationOpt = roomReservationRepository.findById(reservIdx);
+                
                 if (reservationOpt.isPresent()) {
                     RoomReservation reservation = reservationOpt.get();
                     Integer oldCustomerIdx = reservation.getCustomerIdx();
