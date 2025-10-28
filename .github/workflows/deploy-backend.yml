@@ -35,6 +35,7 @@ jobs:
         AWS_S3_BUCKET_NAME=${{secrets.AWS_S3_BUCKET_NAME}}
         AWS_S3_REGION=${{secrets.AWS_S3_REGION}}
         CORS_ALLOWED_ORIGINS=${{secrets.CORS_ALLOWED_ORIGINS}}
+        SERVER_DOMAIN=${{secrets.SERVER_DOMAIN}}
         EOF
 
     # ==========================================================

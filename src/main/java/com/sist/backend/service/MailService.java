@@ -2,6 +2,7 @@ package com.sist.backend.service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -56,12 +57,15 @@ public class MailService {
             String htmlContent = generateHotelReservationEmailHtml(request, qrUrl);
             helper.setText(htmlContent, true);
 
-            // QR 코드 이미지를 첨부파일로 추가
-            if (qrUrl != null) {
-                byte[] qrImageBytes = qrCodeGenerator.downloadQRCodeImage(qrUrl);
-                if (qrImageBytes != null) {
+            // QR 코드 이미지를 첨부파일로 추가 (Base64에서 디코딩)
+            if (qrUrl != null && qrUrl.startsWith("data:image")) {
+                try {
+                    String base64Data = qrUrl.split(",")[1];
+                    byte[] qrImageBytes = Base64.getDecoder().decode(base64Data);
                     ByteArrayResource qrResource = new ByteArrayResource(qrImageBytes);
                     helper.addAttachment("reservation_qr.png", qrResource, "image/png");
+                } catch (Exception e) {
+                    log.error("QR 코드 이미지 첨부 실패", e);
                 }
             }
 
@@ -99,12 +103,15 @@ public class MailService {
             String htmlContent = generateUsedHotelPurchaseEmailHtml(request, qrUrl);
             helper.setText(htmlContent, true);
 
-            // QR 코드 이미지를 첨부파일로 추가
-            if (qrUrl != null) {
-                byte[] qrImageBytes = qrCodeGenerator.downloadQRCodeImage(qrUrl);
-                if (qrImageBytes != null) {
+            // QR 코드 이미지를 첨부파일로 추가 (Base64에서 디코딩)
+            if (qrUrl != null && qrUrl.startsWith("data:image")) {
+                try {
+                    String base64Data = qrUrl.split(",")[1];
+                    byte[] qrImageBytes = Base64.getDecoder().decode(base64Data);
                     ByteArrayResource qrResource = new ByteArrayResource(qrImageBytes);
                     helper.addAttachment("purchase_qr.png", qrResource, "image/png");
+                } catch (Exception e) {
+                    log.error("QR 코드 이미지 첨부 실패", e);
                 }
             }
 
@@ -122,120 +129,175 @@ public class MailService {
     }
 
     /**
-     * 호텔 예약 이메일 HTML 본문을 생성합니다.
+     * 호텔 예약 이메일 HTML 본문을 생성합니다 (리디자인 버전)
      */
     private String generateHotelReservationEmailHtml(PaymentRequestDto request, String qrUrl) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일");
 
         return String.format("""
-            <!DOCTYPE html>
-            <html lang="ko">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>결제 완료</title>
-                <style>
-                    body { font-family: 'Malgun Gothic', Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
-                    .container { max-width: 600px; margin: 0 auto; background-color: white; }
-                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); padding: 30px; text-align: center; color: white; }
-                    .content { padding: 30px; }
-                    .info-box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-                    .info-title { color: #667eea; font-size: 18px; font-weight: bold; margin-bottom: 15px; }
-                    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-                    .info-row:last-child { border-bottom: none; }
-                    .total-row { font-size: 18px; font-weight: bold; color: #667eea; padding: 15px 0; }
-                    .qr-section { text-align: center; margin: 30px 0; }
-                    .qr-section img { max-width: 200px; border: 1px solid #ddd; border-radius: 8px; }
-                    .footer { background: #333; color: white; padding: 20px; text-align: center; font-size: 14px; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>🎉 예약 완료!</h1>
-                        <p>체크인 호텔 예약이 성공적으로 완료되었습니다.</p>
+        <!DOCTYPE html>
+        <html lang="ko">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>결제 완료 안내</title>
+            <style>
+                body {
+                    font-family: 'Malgun Gothic', Arial, sans-serif;
+                    background-color: #f4f6f9;
+                    margin: 0;
+                    padding: 40px 0;
+                    line-height: 1.6;
+                    color: #333;
+                }
+                .container {
+                    max-width: 640px;
+                    margin: 0 auto;
+                    background-color: #fff;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                }
+                .header {
+                    background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+                    color: #fff;
+                    text-align: center;
+                    padding: 40px 20px;
+                }
+                .header h1 {
+                    margin: 0;
+                    font-size: 28px;
+                }
+                .header p {
+                    margin-top: 10px;
+                    font-size: 16px;
+                    opacity: 0.9;
+                }
+                .content {
+                    padding: 30px 35px 40px;
+                }
+                .info-box {
+                    background: #fafafa;
+                    padding: 24px;
+                    border-radius: 10px;
+                    margin-bottom: 28px;
+                    border: 1px solid #eee;
+                }
+                .info-title {
+                    color: #4a56e2;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 18px;
+                    border-left: 4px solid #4a56e2;
+                    padding-left: 10px;
+                }
+                .info-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #eee;
+                    font-size: 15px;
+                }
+                .info-row:last-child {
+                    border-bottom: none;
+                }
+                .total-row {
+                    font-size: 17px;
+                    font-weight: bold;
+                    color: #4a56e2;
+                    padding-top: 14px;
+                }
+                .qr-section {
+                    text-align: center;
+                    margin-top: 40px;
+                    padding: 30px;
+                    background: #f9f9ff;
+                    border-radius: 10px;
+                    border: 1px solid #eee;
+                }
+                .qr-section h3 {
+                    color: #4a56e2;
+                    margin-bottom: 12px;
+                }
+                .qr-section p {
+                    font-size: 14px;
+                    color: #555;
+                    margin-bottom: 20px;
+                }
+                .qr-section img {
+                    max-width: 220px;
+                    border-radius: 10px;
+                    border: 1px solid #ddd;
+                    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+                }
+                .footer {
+                    background: #333;
+                    color: #fff;
+                    padding: 25px 20px;
+                    text-align: center;
+                    font-size: 14px;
+                }
+                .footer p {
+                    margin: 6px 0;
+                }
+                .footer small {
+                    color: #bbb;
+                    font-size: 12px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 예약이 완료되었습니다!</h1>
+                    <p>체크인 호텔과 함께 멋진 여행을 시작하세요.</p>
+                </div>
+
+                <div class="content">
+                    <div class="info-box">
+                        <div class="info-title">📅 예약 정보</div>
+                        <div class="info-row"><span>주문번호</span><span><strong>%s</strong></span></div>
+                        <div class="info-row"><span>체크인</span><span>%s</span></div>
+                        <div class="info-row"><span>체크아웃</span><span>%s</span></div>
+                        <div class="info-row"><span>숙박 일수</span><span>%d박</span></div>
+                        <div class="info-row"><span>게스트</span><span>%d명</span></div>
                     </div>
-                    
-                    <div class="content">
-                        <div class="info-box">
-                            <div class="info-title">예약 정보</div>
-                            <div class="info-row">
-                                <span>주문번호</span>
-                                <span><strong>%s</strong></span>
-                            </div>
-                            <div class="info-row">
-                                <span>체크인</span>
-                                <span>%s</span>
-                            </div>
-                            <div class="info-row">
-                                <span>체크아웃</span>
-                                <span>%s</span>
-                            </div>
-                            <div class="info-row">
-                                <span>숙박 일수</span>
-                                <span>%d박</span>
-                            </div>
-                            <div class="info-row">
-                                <span>게스트</span>
-                                <span>%d명</span>
-                            </div>
-                        </div>
-                        
-                        <div class="info-box">
-                            <div class="info-title">예약자 정보</div>
-                            <div class="info-row">
-                                <span>이름</span>
-                                <span>%s</span>
-                            </div>
-                            <div class="info-row">
-                                <span>이메일</span>
-                                <span>%s</span>
-                            </div>
-                            <div class="info-row">
-                                <span>전화번호</span>
-                                <span>%s</span>
-                            </div>
-                            %s
-                        </div>
-                        
-                        <div class="info-box">
-                            <div class="info-title">결제 정보</div>
-                            <div class="info-row">
-                                <span>객실 가격</span>
-                                <span>₩%,d/박</span>
-                            </div>
-                            <div class="info-row">
-                                <span>숙박 일수</span>
-                                <span>%d박</span>
-                            </div>
-                            <div class="info-row">
-                                <span>결제 수단</span>
-                                <span>%s</span>
-                            </div>
-                            <div class="info-row total-row">
-                                <span>총 결제 금액</span>
-                                <span>₩%,d</span>
-                            </div>
-                        </div>
-                        
-                        <div class="qr-section">
-                            <h3>예약 확인 QR 코드</h3>
-                            <p>체크인 시 이 QR 코드를 제시해주세요.</p>
-                            %s
+
+                    <div class="info-box">
+                        <div class="info-title">👤 예약자 정보</div>
+                        <div class="info-row"><span>이름</span><span>%s</span></div>
+                        <div class="info-row"><span>이메일</span><span>%s</span></div>
+                        <div class="info-row"><span>전화번호</span><span>%s</span></div>
+                        %s
+                    </div>
+
+                    <div class="info-box">
+                        <div class="info-title">💳 결제 정보</div>
+                        <div class="info-row"><span>객실 가격</span><span>₩%,d /박</span></div>
+                        <div class="info-row"><span>숙박 일수</span><span>%d박</span></div>
+                        <div class="info-row"><span>결제 수단</span><span>%s</span></div>
+                        <div class="info-row total-row">
+                            <span>총 결제 금액</span>
+                            <span>₩%,d</span>
                         </div>
                     </div>
-                    
-                    <div class="footer">
-                        <p><strong>체크인 서비스</strong></p>
-                        <p>고객센터: 1588-0000 | 이메일: support@checkin.com</p>
-                        <p style="color: #ccc; font-size: 12px; margin-top: 10px;">
-                            이 이메일은 발신 전용입니다. 문의사항이 있으시면 고객센터로 연락해주세요.
-                        </p>
+
+                    <div class="qr-section">
+                        <h3>📱 예약 확인 QR 코드</h3>
+                        <p>체크인 시 아래 QR 코드를 제시해주세요.</p>
+                        %s
                     </div>
                 </div>
-            </body>
-            </html>
-            """,
+
+                <div class="footer">
+                    <p><strong>체크인 서비스</strong></p>
+                    <p>고객센터: 1588-0000 | 이메일: support@checkin.com</p>
+                    <small>이 이메일은 발신 전용입니다. 문의사항은 고객센터로 연락해주세요.</small>
+                </div>
+            </div>
+        </body>
+        </html>
+        """,
                 request.getOrderId(),
                 request.getCheckIn() != null ? LocalDate.parse(request.getCheckIn()).format(formatter) : "미정",
                 request.getCheckOut() != null ? LocalDate.parse(request.getCheckOut()).format(formatter) : "미정",
