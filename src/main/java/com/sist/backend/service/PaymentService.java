@@ -45,9 +45,9 @@ public class PaymentService {
         Optional<RoomPayment> existingPaymentOpt = roomPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
         if (existingPaymentOpt.isPresent()) {
             RoomPayment existingPayment = existingPaymentOpt.get();
-            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: paymentKey={}, orderIdx={}", 
+            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: paymentKey={}, orderIdx={}",
                     request.getPaymentKey(), existingPayment.getOrderIdx());
-            
+
             return PaymentResponseDto.builder()
                     .success(true)
                     .message("이미 처리된 결제입니다.")

@@ -64,6 +64,10 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
     @Query("SELECT r FROM RoomReservation r WHERE r.reservIdx = :reservIdx")
     RoomReservation findRoomReservationByReservIdx(@Param("reservIdx") Integer reservIdx);
 
+    // 특정 reservIdx에 대한 양도거래 아이템 조회
+    @Query("SELECT u FROM UsedItem u WHERE u.reservIdx = :reservIdx")
+    UsedItem findByReservIdx(@Param("reservIdx") Integer reservIdx);
+
     /*
      * 복합 조건 검색
      */

@@ -60,7 +60,7 @@ public class PaymentController {
     }
 
     @Async
-    private void sendEmailAsync(PaymentRequestDto request, String qrUrl) {
+    protected void sendEmailAsync(PaymentRequestDto request, String qrUrl) {
         try {
             boolean emailSent = false;
             if ("hotel_reservation".equals(request.getType())) {
