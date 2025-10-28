@@ -68,5 +68,8 @@ public class CustomerService {
     public List<Customer> findByContentIdAndSearchTerm(String contentId, String searchTerm) {
         return customerRepository.findByContentIdAndSearchTerm(contentId, searchTerm);
     }
-    
+
+    public Optional<Customer> findByEmailAndStatus(String email, Integer status) {
+        return customerRepository.findByEmailAndStatus(email, status);
+    }
 }
