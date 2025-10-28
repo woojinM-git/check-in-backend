@@ -1,5 +1,6 @@
 package com.sist.backend.controller;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,6 +200,55 @@ public class AdminManagementController {
         return ResponseEntity.ok(map);
     }
     
+    @GetMapping("/calendar")
+    @Operation(summary = "예약 달력 조회", description = "달력 형식으로 예약을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getCalendarReservations(
+        @Parameter(description = "조회 시작 날짜", example = "2024-01-01")
+        @RequestParam(value = "startDate", required = false) String startDate,
+        @Parameter(description = "조회 종료 날짜", example = "2024-01-31")
+        @RequestParam(value = "endDate", required = false) String endDate,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 날짜가 없으면 이번 달 1일부터 한 달간
+        LocalDate start = startDate != null ? LocalDate.parse(startDate) : LocalDate.now().withDayOfMonth(1);
+        LocalDate end = endDate != null ? LocalDate.parse(endDate) : start.plusMonths(1).minusDays(1);
+        
+        List<RoomReservationDto> reservations = roomReservationService.findByDateRangeWithDetails(contentid, start, end);
+        
+        map.put("success", true);
+        map.put("reservations", reservations);
+        map.put("startDate", start);
+        map.put("endDate", end);
+        
+        return ResponseEntity.ok(map);
+    }
+
     @RequestMapping("/recentCustomers")
     @Operation(summary = "최근 이용 고객 조회", description = "해당 호텔을 최근에 이용한 고객 5명을 조회합니다.")
     @ApiResponses(value = {
