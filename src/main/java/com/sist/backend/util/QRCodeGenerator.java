@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class QRCodeGenerator {
 
-    @Value("${server.domain:http://localhost:8888}")
+    @Value("${server.domain}")
     private String serverDomain;
 
     private static final int DEFAULT_SIZE = 200;
