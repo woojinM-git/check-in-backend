@@ -11,4 +11,5 @@ import com.sist.backend.entity.Admin;
 @Repository
 public interface AdminRepository extends JpaRepository<Admin, Integer> {
     public Optional<Admin> findById(String id);
+    public Optional<Admin> findByIdAndStatus(String id, boolean status);
 }

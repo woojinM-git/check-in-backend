@@ -170,8 +170,10 @@ public class LoginController {
             }else{
             }
         }else if(customerAdminSignupDTO.getRole().equals("admin")){
-            Optional<Admin> admin_exist= adminService.findById(customerAdminSignupDTO.getId());
-
+            Optional<Admin> admin_exist= adminService.findByIdAndStatus(customerAdminSignupDTO.getId(),false);
+            if(admin_exist.isEmpty()){
+                return ResponseEntity.ok(accessToken);
+            }
             Admin admin_exist_entity = new Admin();
 
 
@@ -220,7 +222,7 @@ public class LoginController {
         
         Map<String, Object> result = new HashMap<>();
         if(customerAdminSignupDTO.getRole().equals("customer")){
-            Optional<Customer> customer_exist = customerService.findByIdAndStatus(customerAdminSignupDTO.getId(),0);
+            Optional<Customer> customer_exist = customerService.findById(customerAdminSignupDTO.getId());
             
             if(customer_exist.isPresent()){
                 result.put("message","중복된 아이디입니다" );
@@ -285,6 +287,15 @@ public class LoginController {
             customer.setRefToken(null);
             customer.setProvider(null);
             customer.setRank("Traveler");
+            if(customerService.findByEmailAndStatus(customerAdminSignupDTO.getEmail(),1).isPresent()){
+                Customer customer_exist = customerService.findByEmailAndStatus(customerAdminSignupDTO.getEmail(),1).get();
+                customer.setCustomerIdx(customer_exist.getCustomerIdx());
+                customer.setCash(customer_exist.getCash());
+                customer.setTotalPrice(customer_exist.getTotalPrice());
+                customer.setPoint(customer_exist.getPoint());
+                customer.setProvider(customer_exist.getProvider());
+                customer.setRank(customer_exist.getRank());
+            }
             if(customerService.save(customer) != null) {
                 result.put("message","고객 회원가입 성공");
             }else{
@@ -323,20 +334,26 @@ public class LoginController {
     })
     public ResponseEntity<Map<String, Object>> sendHotelReservationEmail(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         Map<String, Object> result = new HashMap<>();
+        String inputemail = customerAdminSignupDTO.getEmail(); 
+        if(customerService.findByEmailAndStatus(inputemail,0).isPresent()){
+            result.put("message","가입 이력이 존재하는 이메일입니다.");
+            result.put("status","fail");
+            return ResponseEntity.ok(result);
+        }
     try{
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
         int code = (int) (Math.random() * 900000) + 100000;
         
         // Redis에 이메일과 코드 저장 (5분 만료)
-        String key = "email:verification:" + customerAdminSignupDTO.getEmail();
+        String key = "email:verification:" + inputemail;
         redisTemplate.opsForValue().set(key, String.valueOf(code), 5, TimeUnit.MINUTES);
         
         helper.setFrom(fromEmail);
-        helper.setTo(customerAdminSignupDTO.getEmail());
+        helper.setTo(inputemail);
         helper.setSubject("[Check-In] 이메일 인증 코드 발송");
         
-        helper.setText("인증 코드:"+code);
+        helper.setText("인증 코드:   "+code);
     
         mailSender.send(message);
         result.put("message","이메일 인증 코드 발송 성공");
@@ -381,4 +398,7 @@ public class LoginController {
         
         return ResponseEntity.ok(result);
     }
+
+
+    
 }
