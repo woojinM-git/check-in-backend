@@ -61,5 +61,10 @@ public class CustomerService {
     public List<Customer> findByNicknameContaining(String nickname) {
         return customerRepository.findByNicknameContaining(nickname);
     }
+
+    // 해당 호텔을 이용한 고객 중에서 검색어로 필터링
+    public List<Customer> findByContentIdAndSearchTerm(String contentId, String searchTerm) {
+        return customerRepository.findByContentIdAndSearchTerm(contentId, searchTerm);
+    }
     
 }

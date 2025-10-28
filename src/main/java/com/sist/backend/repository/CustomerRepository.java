@@ -41,6 +41,15 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
            "ORDER BY c.customerIdx ASC")
     List<Customer> findByNicknameContaining(@Param("nickname") String nickname);
 
+    // 해당 호텔을 이용한 고객 중에서 닉네임으로 검색
+    @Query("SELECT DISTINCT c FROM Customer c " +
+           "INNER JOIN RoomReservation rr ON c.customerIdx = rr.customerIdx " +
+           "WHERE rr.contentid = :contentId " +
+           "AND c.status = 0 " +
+           "AND (c.nickname LIKE %:nickname% OR c.name LIKE %:nickname% OR c.email LIKE %:nickname%) " +
+           "ORDER BY c.customerIdx ASC")
+    List<Customer> findByContentIdAndSearchTerm(@Param("contentId") String contentId, @Param("nickname") String nickname);
+
     Optional<Customer> findByRefTokenAndId(String tokenID, String id);
 
 }
