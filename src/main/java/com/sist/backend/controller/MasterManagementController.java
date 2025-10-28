@@ -1,34 +1,39 @@
 package com.sist.backend.controller;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.dto.master.HotelInfoDto;
+import com.sist.backend.dto.master.RejectHotelRequestDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
 import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.entity.Customer;
-import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.entity.HotelDraft;
 import com.sist.backend.entity.RegistrationRequest;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.service.HotelDraftService;
 import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;
@@ -50,9 +55,11 @@ public class MasterManagementController {
     private final HotelInfoService hotelInfoService;
     private final RoomPaymentService roomPaymentService;
     private final RegistrationRequestService registrationRequestService;
+    private final HotelDraftService hotelDraftService;
     private final CustomerService customerService;
     private final CouponTemplateService couponTemplateService;
     private final RoomReservationService roomReservationService;
+    private final ObjectMapper objectMapper;
 
    
     /* 등록되어 있는 회원의 목록 */
@@ -118,6 +125,66 @@ public class MasterManagementController {
         response.put("todayRejectedCount", todayRejectedCount);
         
         return ResponseEntity.ok(response);
+    }
+
+    /* 승인요청 상세 조회 */
+    @GetMapping("/hotelApproval/{registrationIdx}")
+    @Operation(summary = "승인요청 상세 조회", description = "특정 호텔 승인 요청의 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getHotelApprovalDetail(
+            @Parameter(description = "등록 요청 ID", example = "1") 
+            @PathVariable Integer registrationIdx) {
+        try {
+            // 1. RegistrationRequest 조회
+            RegistrationRequest request = registrationRequestService.findById(registrationIdx);
+            
+            // 2. HotelDraft 조회
+            Integer draftIdx = request.getDraftIdx();
+            if (draftIdx == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "임시저장 데이터를 찾을 수 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            Optional<HotelDraft> draftOpt = hotelDraftService.findById(draftIdx);
+            if (draftOpt.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "임시저장 데이터를 찾을 수 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            HotelDraft draft = draftOpt.get();
+            
+            // 3. formData를 Map으로 파싱
+            TypeFactory typeFactory = objectMapper.getTypeFactory();
+            MapType mapType = typeFactory.constructMapType(Map.class, String.class, Object.class);
+            Map<String, Object> formDataMap = objectMapper.readValue(draft.getFormData(), mapType);
+            
+            // 4. 응답 구성
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", formDataMap);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔 상세 정보 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 
     /* 대시보드 */
@@ -202,31 +269,20 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> approveHotel(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> approveHotel(
+        @RequestBody RejectHotelRequestDto request) {
         try {
-            Integer registrationIdx = (Integer) request.get("registrationIdx");
-            
-            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
-            registrationRequest.setStatus(1); // 승인 상태로 변경
-            registrationRequest.setRegiDate(LocalDateTime.now()); // 승인일 업데이트
-            
-            RegistrationRequest updatedRequest = registrationRequestService.updateRequest(registrationRequest);
-            
+            registrationRequestService.updateRequest(request.getRegistrationIdx(), 1, LocalDateTime.now());
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "호텔이 승인되었습니다.");
-            response.put("request", updatedRequest);
-            
+
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "호텔 승인 중 오류가 발생했습니다.");
+            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
@@ -239,31 +295,20 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> rejectHotel(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> rejectHotel(
+        @RequestBody RejectHotelRequestDto request) {
         try {
-            Integer registrationIdx = (Integer) request.get("registrationIdx");
-            
-            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
-            registrationRequest.setStatus(2); // 거부 상태로 변경
-            registrationRequest.setRegiDate(LocalDateTime.now()); // 거부일 업데이트
-            
-            RegistrationRequest updatedRequest = registrationRequestService.updateRequest(registrationRequest);
-            
+            registrationRequestService.updateRejectRequest(request.getRegistrationIdx(), request.getRefusalMsg(), 2);
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "호텔이 거부되었습니다.");
-            response.put("request", updatedRequest);
-            
+
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다.");
+            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
@@ -301,6 +346,41 @@ public class MasterManagementController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "템플릿 삭제 중 오류가 발생했습니다.");
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/suspendHotel")
+    @Operation(summary = "호텔 정지", description = "호텔을 정지 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 정지됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "호텔을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> suspendHotel(
+        @Parameter(description = "호텔 contentId", example = "1003654")
+        @PathVariable String contentId,
+        @RequestBody Map<String, Object> request) {
+        try {
+            String reason = (String) request.get("reason");
+            
+            hotelInfoService.suspendHotel(contentId, reason);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "호텔이 정지되었습니다.");
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔 정지 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }

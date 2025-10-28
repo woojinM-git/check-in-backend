@@ -19,5 +19,5 @@ public class CustomerAdminSignupDTO {
     private String nickname;
     private LocalDate birthday;
     private String gender;
-
+    private String code;
 }

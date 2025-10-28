@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class RegistrationRequest {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "registrationIdx")
     private Integer registrationIdx;
     
@@ -46,4 +47,7 @@ public class RegistrationRequest {
     
     @Column(name = "approvDate")
     private LocalDateTime approvDate;
+    
+    @Column(name = "refusalMsg", columnDefinition = "TEXT")
+    private String refusalMsg;
 }
