@@ -10,6 +10,8 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.util.JwtUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +49,7 @@ public class AdminManagementController {
     private final CustomerService customerService;
     private final CouponService couponService;
     private final HotelInfoService hotelInfoService;
+    private final JwtUtils jwtUtils;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -59,9 +62,22 @@ public class AdminManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public Map<String, Object> dashboard(
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "HTTP 요청", hidden = true) 
+        HttpServletRequest request){
         Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return map;
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654"); // 기본값
+        
         // 오늘 체크인한 사람의 수
         Integer todayCheckinCount = roomReservationService.getTodayCheckinCount();
         map.put("todayCheckinCount", todayCheckinCount != null ? todayCheckinCount : 0);
