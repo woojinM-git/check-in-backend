@@ -24,3 +24,4 @@ public interface HotelDraftRepository extends JpaRepository<HotelDraft, Integer>
     @Query("DELETE FROM HotelDraft hd WHERE hd.adminIdx = :adminIdx")
     void deleteByAdminIdx(@Param("adminIdx") Integer adminIdx);
 }
+

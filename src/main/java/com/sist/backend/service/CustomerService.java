@@ -22,9 +22,13 @@ public class CustomerService {
     public int findRegistrationCustomerCount(){
         return customerRepository.findRegistrationCustomerCount();
     }
+    
 
-    public Optional<Customer> findById(String id){
-        return customerRepository.findById(id);
+    public Optional<Customer> findByIdAndStatus(String id, Integer status){
+        return customerRepository.findByIdAndStatus(id, status);
+    }
+    public Optional<Customer> findByNicknameAndStatus(String nickname, Integer status){
+        return customerRepository.findByNicknameAndStatus(nickname, status);
     }
 
     public Optional<Customer> findByRefTokenAndId(String tokenID, String id){

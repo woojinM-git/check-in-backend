@@ -76,6 +76,9 @@ dependencies {
 	
 	// Configuration Processor
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	//이메일 인증을 위한 의존성 추가
+	
 	
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

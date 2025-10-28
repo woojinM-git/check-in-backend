@@ -181,7 +181,7 @@ public class MypageController {
                 // customerIdx가 없으면 id로 조회
                 String userId = (String) claims.get("id");
                 if (userId != null) {
-                    Customer customer = customerService.findById(userId).orElse(null);
+                    Customer customer = customerService.findByIdAndStatus(userId, 0).orElse(null);
                     if (customer != null) {
                         customerIdx = customer.getCustomerIdx();
                     }
