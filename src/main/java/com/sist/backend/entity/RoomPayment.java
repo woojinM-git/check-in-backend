@@ -75,4 +75,9 @@ public class RoomPayment {
     @JsonIgnore
     @ToString.Exclude
     private List<Review> reviews = new ArrayList<>();
+
+    @OneToOne(mappedBy = "roomPayment", fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ToString.Exclude
+    private ReservationTime reservationTime;
 }
