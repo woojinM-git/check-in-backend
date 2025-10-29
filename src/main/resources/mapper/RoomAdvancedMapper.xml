@@ -27,18 +27,18 @@
         WHEN r.status = 0 THEN '숙소 측 요청으로 사용 불가능한 방입니다'
         WHEN IFNULL(SUM(
         CASE
-        WHEN rr.reservationStatus IN ('예약확정', '이용중')
-        AND rp.paymentStatus = '결제완료'
-        AND rr.checkin <![CDATA[ < ]]> #{checkoutDate}
-        AND rr.checkout <![CDATA[ > ]]> #{checkinDate}
+        WHEN rr.status = 1
+        <![CDATA[
+        AND rr.checkin <= #{checkoutDate}
+        AND rr.checkout >= #{checkinDate}
+        ]]>
         THEN 1 ELSE 0 END
         ), 0) >= r.roomCount
         THEN '이미 예약된 방입니다'
         ELSE '예약 가능한 방입니다'
         END AS availabilityMessage
         FROM room r
-        LEFT JOIN roomReservation rr ON r.roomIdx = rr.roomIdx
-        LEFT JOIN roomPayment rp ON rr.orderIdx = rp.orderIdx
+        LEFT JOIN roomReservation rr ON r.roomIdx = rr.roomIdx AND r.contentId = rr.contentid
         WHERE r.contentId = #{contentId}
         GROUP BY r.roomIdx, r.contentId, r.name, r.capacity, r.basePrice, r.imageUrl, r.roomCount, r.status
         ORDER BY r.roomIdx
