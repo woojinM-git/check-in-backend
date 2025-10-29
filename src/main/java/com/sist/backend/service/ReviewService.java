@@ -76,8 +76,34 @@ public class ReviewService {
     /**
      * 고객이 작성한 리뷰 목록 조회
      */
-    public List<Review> getMyReviews(Integer customerIdx) {
-        return reviewRepository.findByCustomerIdx(customerIdx);
+    public List<com.sist.backend.dto.mypage.WrittenReviewDTO> getMyReviews(Integer customerIdx) {
+        List<Review> reviews = reviewRepository.findByCustomerIdx(customerIdx);
+        
+        // Review → DTO 변환
+        return reviews.stream().map(review -> {
+            com.sist.backend.dto.mypage.WrittenReviewDTO dto = com.sist.backend.dto.mypage.WrittenReviewDTO.builder()
+                .reviewIdx(review.getReviewIdx())
+                .reservationIdx(review.getReservIdx())
+                .contentId(review.getContentid())
+                .roomIdx(review.getRoomIdx())
+                .star(review.getStar())
+                .content(review.getContent())
+                .createdAt(review.getCreatedAt())
+                .build();
+            
+            // 호텔 정보 매핑
+            if (review.getHotelInfo() != null) {
+                com.sist.backend.dto.mypage.WrittenReviewDTO.HotelInfoDTO hotelInfo = new com.sist.backend.dto.mypage.WrittenReviewDTO.HotelInfoDTO();
+                hotelInfo.setContentId(review.getHotelInfo().getContentId());
+                hotelInfo.setTitle(review.getHotelInfo().getTitle());
+                hotelInfo.setAdress(review.getHotelInfo().getAdress());
+                hotelInfo.setTel(review.getHotelInfo().getTel());
+                dto.setHotelInfo(hotelInfo);
+                dto.setHotelName(review.getHotelInfo().getTitle());
+            }
+            
+            return dto;
+        }).toList();
     }
 }
 

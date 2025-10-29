@@ -25,5 +25,16 @@ public class WrittenReviewDTO {
     private Integer helpfulCount;
     private String date;
     private LocalDateTime createdAt;
+    
+    // 호텔 정보 객체를 위한 필드 추가
+    private HotelInfoDTO hotelInfo;
+    
+    @Data
+    public static class HotelInfoDTO {
+        private String contentId;
+        private String title;
+        private String adress;
+        private String tel;
+    }
 }
 

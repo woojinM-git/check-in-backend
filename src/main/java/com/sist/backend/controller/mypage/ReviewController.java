@@ -96,7 +96,7 @@ public class ReviewController {
                     "message", "인증 정보가 유효하지 않습니다."));
             }
             
-            List<Review> reviews = reviewService.getMyReviews(customerIdx);
+            List<com.sist.backend.dto.mypage.WrittenReviewDTO> reviews = reviewService.getMyReviews(customerIdx);
             
             return ResponseEntity.ok(Map.of("reviews", reviews));
             
