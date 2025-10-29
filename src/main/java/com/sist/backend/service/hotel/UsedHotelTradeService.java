@@ -87,6 +87,7 @@ public class UsedHotelTradeService {
             // 3. UsedItem 상태 업데이트 (거래 중으로 변경)
             Optional<UsedItem> usedItem = usedItemRepository.findById(usedItemIdx);
             if (usedItem.isPresent()) {
+                // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
                 usedItem.get().setStatus(1); // 거래중 상태
                 usedItemRepository.save(usedItem.get());
             }
@@ -120,7 +121,8 @@ public class UsedHotelTradeService {
         // UsedItem 상태도 업데이트
         Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
         if (usedItem.isPresent()) {
-            usedItem.get().setStatus(2); // 거래완료 상태
+            // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
+            usedItem.get().setStatus(2); // 거래완료(판매완료) 상태
             usedItemRepository.save(usedItem.get());
         }
         
@@ -156,6 +158,7 @@ public class UsedHotelTradeService {
             // UsedItem 상태 복원
             Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
             if (usedItem.isPresent()) {
+                // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
                 usedItem.get().setStatus(0); // 판매중 상태로 복원
                 usedItemRepository.save(usedItem.get());
                 log.info("UsedItem 상태 복원: {} -> 판매중", trade.getUserItemIdx());
@@ -186,6 +189,7 @@ public class UsedHotelTradeService {
         // UsedItem 상태 복원
         Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
         if (usedItem.isPresent()) {
+            // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
             usedItem.get().setStatus(0); // 판매중 상태로 복원
             usedItemRepository.save(usedItem.get());
         }
