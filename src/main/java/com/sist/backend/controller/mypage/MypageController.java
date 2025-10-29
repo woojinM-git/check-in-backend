@@ -104,8 +104,6 @@ public class MypageController {
                     "message", "인증 정보가 유효하지 않습니다."));
             }
             
-            System.out.println("👤 작성 가능한 리뷰 조회 - customerIdx: " + customerIdx);
-            
             // 작성 가능한 리뷰 목록 조회
             List<WritableReviewDTO> writableReviews = myPageService.getWritableReviews(customerIdx);
             
