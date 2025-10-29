@@ -102,6 +102,7 @@ public class CustomerController {
             CustomerDto customerDto = CustomerDto.builder()
                 .customerIdx(customerEntity.getCustomerIdx())
                 .id(customerEntity.getId())
+                .name(customerEntity.getName()) // 실명 추가
                 .nickname(customerEntity.getNickname())
                 .email(customerEntity.getEmail())
                 .phone(customerEntity.getPhone())
