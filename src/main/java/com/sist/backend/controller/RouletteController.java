@@ -1,18 +1,27 @@
 package com.sist.backend.controller;
 
 import com.sist.backend.dto.RouletteResultDto;
+import com.sist.backend.entity.Customer;
+import com.sist.backend.entity.PointLedger;
+import com.sist.backend.jwt.JwtProvider;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.PointLedgerRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 @Slf4j
@@ -21,6 +30,10 @@ import java.util.Random;
 @RequiredArgsConstructor
 @Tag(name = "룰렛 게임", description = "룰렛 게임 결과 생성 API")
 public class RouletteController {
+
+    private final JwtProvider jwtProvider;
+    private final CustomerRepository customerRepository;
+    private final PointLedgerRepository pointLedgerRepository;
 
     // 룰렛 금액 배열 (인덱스 순서대로)
     private static final int[] PRIZES = {100, 200, 500, 1000, 5000};
@@ -103,6 +116,141 @@ public class RouletteController {
             errorResponse.put("success", false);
             errorResponse.put("message", "룰렛 게임 중 오류가 발생했습니다.");
             return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/add-point")
+    @Operation(summary = "룰렛 당첨 포인트 지급", description = "룰렛 당첨 금액을 포인트로 지급합니다")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "포인트 지급 성공"),
+        @ApiResponse(responseCode = "401", description = "인증이 필요합니다"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    @Transactional
+    public ResponseEntity<Map<String, Object>> addPoint(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+        try {
+            // 1. JWT에서 customerIdx 추출
+            Integer customerIdx = getCustomerIdxFromToken(httpRequest);
+            if (customerIdx == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "인증이 필요합니다.");
+                return ResponseEntity.status(401).body(errorResponse);
+            }
+
+            // 2. 당첨 금액 추출
+            Object prizeObj = request.get("prize");
+            if (prizeObj == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "당첨 금액이 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            int prize = prizeObj instanceof Integer ? (Integer) prizeObj : Integer.parseInt(prizeObj.toString());
+
+            // 3. 고객 정보 조회
+            Optional<Customer> customerOpt = customerRepository.findByCustomerIdx(customerIdx);
+            if (customerOpt.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "고객 정보를 찾을 수 없습니다.");
+                return ResponseEntity.status(404).body(errorResponse);
+            }
+
+            Customer customer = customerOpt.get();
+
+            // 4. 포인트 추가
+            int currentPoint = customer.getPoint() != null ? customer.getPoint() : 0;
+            customer.setPoint(currentPoint + prize);
+            customerRepository.save(customer);
+
+            log.info("룰렛 포인트 지급: customerIdx={}, prize={}, 현재 포인트={}", customerIdx, prize, customer.getPoint());
+
+            // 5. PointLedger에 기록
+            try {
+                PointLedger pointLedger = PointLedger.builder()
+                        .customerIdx(customerIdx)
+                        .amount(prize)
+                        .type("적립")
+                        .memo("룰렛뽑기")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                pointLedgerRepository.save(pointLedger);
+                log.info("PointLedger 기록 완료: customerIdx={}, amount={}, type=적립", customerIdx, prize);
+            } catch (Exception e) {
+                log.error("PointLedger 기록 실패: {}", e.getMessage(), e);
+                // PointLedger 기록 실패해도 포인트 지급은 완료된 것으로 처리
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", String.format("%d 포인트가 지급되었습니다.", prize));
+            response.put("prize", prize);
+            response.put("totalPoint", customer.getPoint());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("포인트 지급 오류 발생", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "포인트 지급 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * JWT 토큰에서 customerIdx 추출
+     */
+    private Integer getCustomerIdxFromToken(HttpServletRequest request) {
+        try {
+            // 쿠키에서 accessToken 가져오기
+            Cookie[] cookies = request.getCookies();
+            String accessToken = null;
+
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if ("accessToken".equals(cookie.getName())) {
+                        accessToken = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+
+            if (accessToken == null) {
+                return null;
+            }
+
+            // JWT 토큰 검증
+            if (!jwtProvider.verify(accessToken)) {
+                return null;
+            }
+
+            // JWT에서 customerIdx 추출
+            Map<String, Object> claims = jwtProvider.getClaims(accessToken);
+            Object customerIdxObj = claims.get("customerIdx");
+            
+            if (customerIdxObj == null) {
+                return null;
+            }
+
+            if (customerIdxObj instanceof Integer) {
+                return (Integer) customerIdxObj;
+            } else if (customerIdxObj instanceof String) {
+                try {
+                    return Integer.parseInt((String) customerIdxObj);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.error("JWT 토큰 처리 오류", e);
+            return null;
         }
     }
 
