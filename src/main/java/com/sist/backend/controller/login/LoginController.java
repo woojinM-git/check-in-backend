@@ -34,6 +34,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/api/login")
 @Tag(name="로그인/회원가입", description="로그인/회원가입 관련 API")
 public class LoginController {
+    
     
 
     @Autowired
@@ -87,7 +89,9 @@ public class LoginController {
                     if(customer.isPresent()){
                         Customer customer_entity = customer.get();
                         Map<String, Object> accesspayload = new HashMap<>();
+                        
                         accesspayload.put("id", customer_entity.getId());
+                        accesspayload.put("customerIdx", customer_entity.getCustomerIdx());
                         accesspayload.put("nickname", customer_entity.getNickname());
                         accesspayload.put("cash", customer_entity.getCash());
                         accesspayload.put("point", customer_entity.getPoint());
@@ -336,7 +340,7 @@ public class LoginController {
         Map<String, Object> result = new HashMap<>();
         String inputemail = customerAdminSignupDTO.getEmail(); 
         if(customerService.findByEmailAndStatus(inputemail,0).isPresent()){
-            result.put("message","가입 이력이 존재하는 이메일입니다.");
+            result.put("message","현재 사용 중인 이메일입니다.");
             result.put("status","fail");
             return ResponseEntity.ok(result);
         }
@@ -397,6 +401,16 @@ public class LoginController {
         }
         
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary="로그아웃", description="쿠키 삭제")
+    public ResponseEntity<Map<String, Object>> logout(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
+        Map<String, Object> result = new HashMap<>();
+        return ResponseEntity.ok(result);
+    }
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        
     }
 
 
