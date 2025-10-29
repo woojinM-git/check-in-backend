@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.entity.UsedItem;
@@ -116,4 +117,12 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
      * 
      * 토스페이 사용
      */
+
+    /*
+     * checkin 날짜가 오늘 날짜와 같거나 이전인 양도매물 조회 (판매중인 매물만)
+     */
+    @Query("SELECT u FROM UsedItem u " +
+        "JOIN FETCH u.roomReservation r " +
+        "WHERE u.status = 0 AND r.checkinDate <= :today")
+    List<UsedItem> findExpiredUsedItems(@Param("today") LocalDate today);
 }

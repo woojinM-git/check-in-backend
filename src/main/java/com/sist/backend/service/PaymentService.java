@@ -11,11 +11,17 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.dto.PaymentResponseDto;
 import com.sist.backend.entity.Customer;
+import com.sist.backend.entity.Dining;
+import com.sist.backend.entity.DiningPayment;
+import com.sist.backend.entity.DiningReservation;
 import com.sist.backend.entity.Room;
 import com.sist.backend.entity.RoomId;
 import com.sist.backend.entity.RoomPayment;
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.DiningPaymentRepository;
+import com.sist.backend.repository.DiningRepository;
+import com.sist.backend.repository.DiningReservationRepository;
 import com.sist.backend.repository.RoomPaymentRepository;
 import com.sist.backend.repository.RoomReservationRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
@@ -31,6 +37,9 @@ public class PaymentService {
 
     private final RoomPaymentRepository roomPaymentRepository;
     private final RoomReservationRepository roomReservationRepository;
+    private final DiningPaymentRepository diningPaymentRepository;
+    private final DiningReservationRepository diningReservationRepository;
+    private final DiningRepository diningRepository;
     private final TossPaymentsService tossPaymentsService;
     private final MailService mailService;
     private final QRCodeGenerator qrCodeGenerator;
@@ -79,9 +88,11 @@ public class PaymentService {
             // 3단계: DB 저장 (모두 성공해야 함, 하나라도 실패하면 롤백)
             RoomPayment savedPayment = savePayment(request);
 
-            // 4단계: 호텔 예약 정보 저장 (호텔 예약만)
+            // 4단계: 예약 정보 저장 (타입별 처리)
             if ("hotel_reservation".equals(request.getType()) && request.getContentId() != null) {
                 saveRoomReservation(request, savedPayment.getOrderIdx());
+            } else if ("dining_reservation".equals(request.getType()) && request.getDiningIdx() != null) {
+                saveDiningReservation(request, savedPayment.getOrderIdx());
             }
 
             // 5단계: Customer 테이블 업데이트 (캐시/포인트 차감)
@@ -198,6 +209,57 @@ public class PaymentService {
 
         roomReservationRepository.save(reservation);
         log.info("예약 정보 저장 완료: reservIdx={}", reservation.getReservIdx());
+    }
+
+    /**
+     * 다이닝 예약 저장
+     */
+    private void saveDiningReservation(PaymentRequestDto request, Integer orderIdx) {
+        // Dining 존재 여부 확인
+        Dining dining = diningRepository.findById(request.getDiningIdx())
+                .orElseThrow(() -> new RuntimeException(
+                        String.format("다이닝 정보를 찾을 수 없습니다: diningIdx=%d", request.getDiningIdx())
+                ));
+
+        log.info("다이닝 정보 확인 완료: diningIdx={}, name={}", dining.getDiningIdx(), dining.getName());
+
+        // 다이닝 결제 정보 저장
+        DiningPayment diningPayment = DiningPayment.builder()
+                .diningIdx(request.getDiningIdx())
+                .customerIdx(request.getCustomerIdx())
+                .couponIdx(0) // TODO: 쿠폰 시스템 연동
+                .price(request.getAmount())
+                .status(1) // 결제 완료
+                .paymentKey(request.getPaymentKey())
+                .pointUsed(request.getPointsUsed() != null ? request.getPointsUsed() : 0)
+                .method(request.getMethod() != null ? request.getMethod() : "card")
+                .receiptUrl("https://api.tosspayments.com/v1/payments/" + request.getPaymentKey() + "/receipt")
+                .createdAt(LocalDateTime.now())
+                .approvedAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        DiningPayment savedPayment = diningPaymentRepository.save(diningPayment);
+        log.info("다이닝 결제 정보 저장 완료: diningpayIdx={}", savedPayment.getDiningpayIdx());
+
+        // 다이닝 예약 정보 저장
+        DiningReservation reservation = DiningReservation.builder()
+                .diningIdx(request.getDiningIdx())
+                .customerIdx(request.getCustomerIdx())
+                .diningpayIdx(savedPayment.getDiningpayIdx())
+                .reservationDate(request.getDiningDate() != null ? LocalDate.parse(request.getDiningDate()) : null)
+                .reservationTime(request.getDiningTime() != null ? java.time.LocalTime.parse(request.getDiningTime()) : null)
+                .guest(request.getGuests())
+                .totalPrice(request.getTotalPrice() != null ? request.getTotalPrice() : request.getAmount())
+                .status(1) // 예약 확정
+                .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                .specialRequest(request.getSpecialRequests())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        diningReservationRepository.save(reservation);
+        log.info("다이닝 예약 정보 저장 완료: diningResrIdx={}", reservation.getDiningResrIdx());
     }
 
     public PaymentResponseDto getPaymentInfo(String orderId) {

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.sist.backend.entity.Coupon;
 import com.sist.backend.entity.Customer;
@@ -100,7 +101,7 @@ public class AdminManagementController {
     }
 
     @RequestMapping("/roomReservationList")
-    @Operation(summary = "최근 예약 현황", description = "최근 예약 현황을 보여줍니다.")
+    @Operation(summary = "예약 목록 조회", description = "호텔의 모든 예약 목록을 조회합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -109,10 +110,21 @@ public class AdminManagementController {
     public ResponseEntity<Page<RoomReservationDto>> recentReservations(
         @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
         @RequestParam(value = "page", defaultValue = "0") int page, 
-        @Parameter(description = "페이지당 데이터 개수", example = "5") 
-        @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "페이지당 데이터 개수", example = "10") 
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request){
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654");
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findByStatusDto(contentid, pageable));
     }
@@ -129,8 +141,8 @@ public class AdminManagementController {
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "업체 ID", example = "1034361")
+        @RequestParam(value = "contentid", defaultValue = "1034361") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findCheckinPendingWithDetails(contentid, pageable));
     }
@@ -147,23 +159,10 @@ public class AdminManagementController {
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "업체 ID", example = "1034361")
+        @RequestParam(value = "contentid", defaultValue = "1034361") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
-    }
-
-    @RequestMapping("/roomList")
-    @Operation(summary = "방 목록", description = "방 목록을 보여줍니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-        @ApiResponse(responseCode = "500", description = "서버 오류")
-    })
-    public ResponseEntity<List<Room>> findByContentIdAdmin(
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
-        return ResponseEntity.ok(roomService.findByContentIdAdmin(contentid));
     }
 
     @RequestMapping("/couponIssue")
@@ -200,6 +199,112 @@ public class AdminManagementController {
         return ResponseEntity.ok(map);
     }
     
+    @GetMapping("/roomList")
+    @Operation(summary = "객실 현황 조회", description = "특정 날짜 기준 객실 현황을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getRoomStatus(
+        @Parameter(description = "조회 날짜", example = "2024-01-01")
+        @RequestParam(value = "date", required = false) String dateStr,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 날짜 처리 (없으면 오늘 날짜)
+        LocalDate targetDate = (dateStr != null && !dateStr.isEmpty()) 
+            ? LocalDate.parse(dateStr) 
+            : LocalDate.now();
+        
+        // 객실 리스트 조회
+        List<Room> rooms = roomService.findByContentIdAdmin(contentid);
+        
+        // 해당 날짜 예약 조회
+        List<RoomReservationDto> dateReservations = roomReservationService.findByDateRangeWithDetails(contentid, targetDate, targetDate);
+        
+        // 각 객실의 상태 설정
+        List<Map<String, Object>> roomStatusList = rooms.stream().map(room -> {
+            Map<String, Object> roomStatus = new HashMap<>();
+            
+            // 객실 기본 정보
+            roomStatus.put("roomIdx", room.getRoomIdx());
+            roomStatus.put("contentId", room.getContentId());
+            roomStatus.put("name", room.getName());
+            roomStatus.put("capacity", room.getCapacity());
+            roomStatus.put("basePrice", room.getBasePrice());
+            roomStatus.put("status", room.getStatus()); // 객실 기본 상태
+            
+            // 해당 날짜 이 객실의 예약 찾기
+            Optional<RoomReservationDto> reservationOpt = dateReservations.stream()
+                .filter(reservation -> reservation.getRoomIdx().equals(room.getRoomIdx()))
+                .findFirst();
+            
+            if (reservationOpt.isPresent()) {
+                RoomReservationDto reservation = reservationOpt.get();
+                roomStatus.put("reservationStatus", "예약");
+                roomStatus.put("hasReservation", true);
+                
+                // 체크인/체크아웃 날짜 확인
+                LocalDate checkin = reservation.getCheckinDate();
+                LocalDate checkout = reservation.getCheckoutDate();
+                
+                if (checkin.equals(targetDate) && checkout.equals(targetDate)) {
+                    roomStatus.put("reservationStatus", "체크인/체크아웃");
+                } else if (checkin.equals(targetDate)) {
+                    roomStatus.put("reservationStatus", "체크인");
+                } else if (checkout.equals(targetDate)) {
+                    roomStatus.put("reservationStatus", "체크아웃");
+                } else if (checkin.isBefore(targetDate) && checkout.isAfter(targetDate)) {
+                    roomStatus.put("reservationStatus", "사용중");
+                }
+                
+                // 고객 정보
+                if (reservation.getCustomer() != null) {
+                    roomStatus.put("customerName", reservation.getCustomer().getName());
+                }
+            } else {
+                roomStatus.put("reservationStatus", "빈 객실");
+                roomStatus.put("hasReservation", false);
+            }
+            
+            return roomStatus;
+        }).collect(Collectors.toList());
+        
+        // 빈 객실 카운트 계산
+        long availableRoomCount = roomStatusList.stream()
+            .filter(room -> !((Boolean) room.getOrDefault("hasReservation", false)))
+            .count();
+        
+        map.put("success", true);
+        map.put("rooms", roomStatusList);
+        map.put("targetDate", targetDate.toString());
+        map.put("availableRoomCount", availableRoomCount);
+        map.put("totalRoomCount", roomStatusList.size());
+        
+        return ResponseEntity.ok(map);
+    }
+
     @GetMapping("/calendar")
     @Operation(summary = "예약 달력 조회", description = "달력 형식으로 예약을 조회합니다.")
     @ApiResponses(value = {
