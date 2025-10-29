@@ -41,15 +41,46 @@ public class HotelQueryService {
                 .map(this::mapHotel);
     }
 
-    // 객실 목록 조회 (JPA) - 이름(name)으로 부분검색 가능
-    public List<RoomResponse> getRooms(String contentId, String name) {
+    // 객실 목록 조회 - 날짜가 제공되면 예약 가능성 포함하여 조회
+    public List<RoomAvailabilityResponse> getRooms(String contentId, String name, LocalDate checkinDate, LocalDate checkoutDate) {
+        // 날짜가 제공되면 예약 가능성 조회
+        if (checkinDate != null && checkoutDate != null) {
+            return getRoomAvailability(contentId, checkinDate, checkoutDate);
+        }
+
+        // 날짜가 없으면 기존 방식 (간단한 변환 필요)
         List<Room> rooms;
         if (name == null || name.isBlank()) {
             rooms = roomRepository.findByContentId(contentId);
         } else {
             rooms = roomRepository.findByContentIdAndNameContainingIgnoreCase(contentId, name);
         }
-        return rooms.stream().map(this::mapRoom).collect(Collectors.toList());
+
+        // Room을 RoomAvailabilityResponse로 변환 (예약 가능성 없이)
+        return rooms.stream().map(room -> {
+            // status에 따른 메시지 설정
+            String availabilityMessage;
+            if (room.getStatus() == 0) {
+                availabilityMessage = "숙소 측 요청으로 사용 불가능한 방입니다";
+            } else {
+                availabilityMessage = "예약 가능한 방입니다";
+            }
+
+            return RoomAvailabilityResponse.builder()
+                    .roomIdx(room.getRoomIdx())
+                    .contentId(room.getContentId())
+                    .name(room.getName())
+                    .capacity(room.getCapacity())
+                    .basePrice(room.getBasePrice())
+                    .refundable(room.getRefundable())
+                    .breakfastIncluded(room.getBreakfastIncluded())
+                    .smoking(room.getSmoking())
+                    .imageUrl(room.getImageUrl())
+                    .status(room.getStatus())
+                    .availabilityMessage(availabilityMessage)
+                    .roomCount(room.getRoomCount())
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     // 객실 고급 검색 (MyBatis) - 동적 조건(이름/최소/최대 수용인원)

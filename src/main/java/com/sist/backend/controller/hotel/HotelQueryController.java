@@ -1,15 +1,8 @@
 package com.sist.backend.controller.hotel;
 
-import com.sist.backend.dto.hotel.HotelImageResponse;
-import com.sist.backend.dto.hotel.HotelResponse;
-import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
-import com.sist.backend.dto.hotel.RoomResponse;
-import com.sist.backend.service.hotel.HotelQueryService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDate;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,8 +10,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.List;
+import com.sist.backend.dto.hotel.HotelImageResponse;
+import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
+import com.sist.backend.dto.hotel.RoomResponse;
+import com.sist.backend.service.hotel.HotelQueryService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/hotels")
@@ -43,18 +44,20 @@ public class HotelQueryController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Swagger: 객실 목록 조회 API 문서 (name 파라미터로 부분검색)
-    @Operation(summary = "호텔 객실 목록 조회", description = "contentId로 객실 목록을 조회합니다. name으로 부분 검색 가능")
+    // Swagger: 객실 목록 조회 API 문서 (날짜 기반 예약 가능성 조회 포함)
+    @Operation(summary = "호텔 객실 목록 조회", description = "contentId로 객실 목록을 조회합니다. name으로 부분 검색 가능. 날짜가 제공되면 예약 가능성 정보가 포함됩니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 성공"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     @GetMapping("/{contentId}/rooms")
-    public ResponseEntity<List<RoomResponse>> getRooms(
+    public ResponseEntity<List<RoomAvailabilityResponse>> getRooms(
             @PathVariable(name = "contentId") String contentId,
-            @RequestParam(value = "name", required = false) String name
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "checkinDate", required = false) LocalDate checkinDate,
+            @RequestParam(value = "checkoutDate", required = false) LocalDate checkoutDate
     ) {
-        return ResponseEntity.ok(hotelQueryService.getRooms(contentId, name));
+        return ResponseEntity.ok(hotelQueryService.getRooms(contentId, name, checkinDate, checkoutDate));
     }
 
     // Swagger: MyBatis 기반 고급 검색 API 문서

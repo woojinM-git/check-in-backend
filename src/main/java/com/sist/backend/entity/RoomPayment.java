@@ -1,7 +1,6 @@
 package com.sist.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.sist.backend.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -65,11 +64,6 @@ public class RoomPayment {
     @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
 
-
-    //결제 상태 enum추가 enus 패키지에서 관리
-    @Enumerated(EnumType.STRING)
-    @Column(name = "paymentStatus", nullable = false, length = 20)
-    private PaymentStatus paymentStatus = PaymentStatus.결제대기;
 
     // 양방향 관계
     @OneToMany(mappedBy = "roomPayment", fetch = FetchType.LAZY)
