@@ -16,9 +16,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
+import com.sist.backend.entity.Admin;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.service.admin.AdminService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -33,11 +36,12 @@ import lombok.extern.slf4j.Slf4j;
 public class JwtFilter extends OncePerRequestFilter {
     
 
-    @Autowired
-    private JwtProvider jwtProvider;
+    
+    private final JwtProvider jwtProvider;
 
-    @Autowired
-    private CustomerService customerService;
+    private final AdminService adminService;
+    private final CustomerService customerService;
+
     
     
     @Override
@@ -67,6 +71,7 @@ public class JwtFilter extends OncePerRequestFilter {
             }catch(AuthenticationFailedException e){
                 log.error("AccessToken 검증 실패", e);
                 sendUnauthorizedResponse(response, "AccessToken 검증 실패");
+                return;
             }
         }
         
@@ -82,38 +87,87 @@ public class JwtFilter extends OncePerRequestFilter {
         if(jwtProvider.verify(refreshToken)){
             // refreshToken 유효할 때
             // accessToken 재발급
-            log.info("RefreshToken 유효, 검증 후 accessToken 재발급 시작");
-            Object tokenID = jwtProvider.getClaims(refreshToken).get("tokenID");
-            Object customerIdx = jwtProvider.getClaims(refreshToken).get("customerIdx");
-            Optional<Customer> customer = customerService.findByCustomerIdx(Integer.parseInt(customerIdx.toString()));
-            
-            if(customer.isPresent()){
-                // tokenID가 일치하는 Customer가 존재할 경우
-                log.info("Customer 조회 성공");
-                Customer customer_entity = customer.get();
-
-                if(customer_entity.getRefToken().equals(tokenID.toString())){
-                    // accessToken 재발급
-                    log.info("TokenID 일치, accessToken 재발급 시작");
-                    Map<String, Object> accesspayload = new HashMap<>();
-                    accesspayload.put("id", customer_entity.getId());
-                    accesspayload.put("nickname", customer_entity.getNickname());
-                    accesspayload.put("cash", customer_entity.getCash());
-                    accesspayload.put("point", customer_entity.getPoint());
-                    String accessToken = jwtProvider.getToken(accesspayload, 3600);
-                    response.setHeader("accessToken", accessToken);
-                }else{
-                    log.info("TokenID 불일치");
-                    throw new AuthenticationFailedException("TokenID 불일치");
+            Object role = jwtProvider.getClaims(refreshToken).get("role");
+            String roleString = null;
+            if(role != null){
+                roleString = role.toString();
+                if(roleString.equals("customer")){
+                    log.info("customer RefreshToken 유효, 검증 후 accessToken 재발급 시작");
+                    Object tokenID = jwtProvider.getClaims(refreshToken).get("tokenID");
+                    Object customerIdx = jwtProvider.getClaims(refreshToken).get("customerIdx");
+                    Optional<Customer> customer =null;
+                    if(customerIdx != null){
+                        customer = customerService.findByCustomerIdxAndStatus(Integer.parseInt(customerIdx.toString()), 0);
+                        if(customer.isPresent()){
+                            // tokenID가 일치하는 Customer가 존재할 경우
+                            log.info("Customer 조회 성공");
+                            Customer customer_entity = customer.get();
+    
+                            if(customer_entity.getRefToken().equals(tokenID.toString())){
+                                // accessToken 재발급
+                                log.info("TokenID 일치, accessToken 재발급 시작");
+                                Map<String, Object> accesspayload = new HashMap<>();
+                                accesspayload.put("id", customer_entity.getId());
+                                accesspayload.put("nickname", customer_entity.getNickname());
+                                accesspayload.put("cash", customer_entity.getCash());
+                                accesspayload.put("point", customer_entity.getPoint());
+                                accesspayload.put("role", "customer");
+                                accesspayload.put("customerIdx", customer_entity.getCustomerIdx());
+                                String newAccessToken = jwtProvider.getToken(accesspayload, 3600);
+                                response.setHeader("accessToken", newAccessToken);
+    
+                                authenticateUser(newAccessToken);
+                            }else{
+                                log.info("TokenID 불일치");
+                                throw new AuthenticationFailedException("TokenID 불일치");
+                            }
+                        }else{
+                        // tokenID가 일치하는 Customer가 존재하지 않을 경우
+                        log.info("해당 tokenID와 일치하는 Customer가 존재하지 않습니다.");
+                        throw new AuthenticationFailedException("tokenID와 일치하는 customer 없음");
+                        }
+                    }
+                    
+    
+                }else if(roleString.equals("admin")){
+                    log.info("admin RefreshToken 유효, 검증 후 accessToken 재발급 시작");
+    
+                    Object tokenID = jwtProvider.getClaims(refreshToken).get("tokenID");
+                    Object adminIdx = jwtProvider.getClaims(refreshToken).get("adminIdx");
+                    Optional<Admin> admin =null;
+                    if(adminIdx != null){
+                        admin = adminService.findByAdminIdxAndStatus(Integer.parseInt(adminIdx.toString()), false);
+                        if(admin.isPresent()){
+                            // tokenID가 일치하는 Customer가 존재할 경우
+                            log.info("admin 조회 성공");
+                            Admin admin_entity = admin.get();
+        
+                            if(admin_entity.getRefToken().equals(tokenID.toString())){
+                                // accessToken 재발급
+                                log.info("TokenID 일치, accessToken 재발급 시작");
+                                Map<String, Object> accesspayload = new HashMap<>();
+                                accesspayload.put("role", "admin");
+                                accesspayload.put("adminIdx", admin_entity.getAdminIdx());
+                                String newAccessToken = jwtProvider.getToken(accesspayload, 3600);
+                                response.setHeader("accessToken", newAccessToken);
+        
+                                authenticateUser(newAccessToken);
+                            }else{
+                                log.info("TokenID 불일치");
+                                throw new AuthenticationFailedException("TokenID 불일치");
+                            }
+                        }else{
+                        // tokenID가 일치하는 Customer가 존재하지 않을 경우
+                        log.info("해당 tokenID와 일치하는 admin 존재하지 않습니다.");
+                        throw new AuthenticationFailedException("tokenID와 일치하는 admin 없음");
+                        }
+                    }
+                    
                 }
-
-
-                
-            }else{
-                // tokenID가 일치하는 Customer가 존재하지 않을 경우
-                log.info("해당 tokenID와 일치하는 Customer가 존재하지 않습니다.");
-                throw new AuthenticationFailedException("tokenID와 일치하는 customer 없음");
             }
+            
+                
+            
 
 
         }else{
@@ -142,22 +196,42 @@ public class JwtFilter extends OncePerRequestFilter {
     /**
      * 토큰에서 정보를 추출하여 Security Context에 인증 객체를 설정합니다.
      */
-    private void authenticateUser(String token) {
+    private void authenticateUser(String token) throws AuthenticationFailedException {
+        CustomerAdminSignupDTO customerAdminSignupDTO = new CustomerAdminSignupDTO();
         // 1. 토큰에서 사용자 ID 추출 (Principal)
-        Object customerIdx = jwtProvider.getClaims(token).get("customerIdx");
         Object role = jwtProvider.getClaims(token).get("role");
-        String roleString = role.toString().toUpperCase();
+        String roleString = null;
+        if(role != null){
+            roleString = role.toString();
+            if(roleString.equals("customer")){
+                Object customerIdx = jwtProvider.getClaims(token).get("customerIdx");
+                customerAdminSignupDTO.setCustomerIdx(Integer.parseInt(customerIdx.toString()));
+            }else if(roleString.equals("admin")){
+                Object adminIdx = jwtProvider.getClaims(token).get("adminIdx");
+                customerAdminSignupDTO.setAdminIdx(Integer.parseInt(adminIdx.toString()));
+            }else{
+                throw new AuthenticationFailedException("role 없음");
+            }
+        }
+        
+        
+        customerAdminSignupDTO.setRole(roleString);
+        String roleUpperString = roleString.toUpperCase();
         // 2. 권한 목록 생성 (여기서는 간단히 ROLE_USER만 설정한다고 가정)
         // 실제 구현에서는 DB에서 사용자의 실제 권한을 조회해야 합니다.
         Authentication authentication = new UsernamePasswordAuthenticationToken(
-            customerIdx, // Principal: @AuthenticationPrincipal로 가져올 Long 타입 ID
+            customerAdminSignupDTO, // Principal: @AuthenticationPrincipal로 가져올 Long 타입 ID
             null,   // Credentials: 토큰 값은 노출하지 않기 위해 null 설정
-            Collections.singleton(new SimpleGrantedAuthority("ROLE_"+roleString)) // 권한 설정
+            Collections.singleton(new SimpleGrantedAuthority("ROLE_"+roleUpperString)) // 권한 설정
         );
 
         // 3. SecurityContextHolder에 인증 정보 저장 (해당 요청 스레드에 격리)
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        log.info("사용자 인증 완료 및 Security Context 설정. User ID: {}", customerIdx);
+        if(customerAdminSignupDTO.getCustomerIdx() != null||customerAdminSignupDTO.getAdminIdx() != null){
+            log.info("사용자 인증 완료 및 Security Context 설정. Costomer IDX: {}, Admin IDX:{}", customerAdminSignupDTO.getCustomerIdx().toString(), customerAdminSignupDTO.getAdminIdx().toString());
+        }else{
+            throw new AuthenticationFailedException("customerIdx 와 adminIdx 없음");
+        }
     }
 
 
