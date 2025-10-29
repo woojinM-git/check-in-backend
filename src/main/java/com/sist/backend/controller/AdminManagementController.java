@@ -101,7 +101,7 @@ public class AdminManagementController {
     }
 
     @RequestMapping("/roomReservationList")
-    @Operation(summary = "최근 예약 현황", description = "최근 예약 현황을 보여줍니다.")
+    @Operation(summary = "예약 목록 조회", description = "호텔의 모든 예약 목록을 조회합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -110,10 +110,21 @@ public class AdminManagementController {
     public ResponseEntity<Page<RoomReservationDto>> recentReservations(
         @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
         @RequestParam(value = "page", defaultValue = "0") int page, 
-        @Parameter(description = "페이지당 데이터 개수", example = "5") 
-        @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "페이지당 데이터 개수", example = "10") 
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request){
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654");
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findByStatusDto(contentid, pageable));
     }
@@ -130,8 +141,8 @@ public class AdminManagementController {
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "업체 ID", example = "1034361")
+        @RequestParam(value = "contentid", defaultValue = "1034361") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findCheckinPendingWithDetails(contentid, pageable));
     }
@@ -148,8 +159,8 @@ public class AdminManagementController {
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "업체 ID", example = "1034361")
+        @RequestParam(value = "contentid", defaultValue = "1034361") String contentid){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
     }

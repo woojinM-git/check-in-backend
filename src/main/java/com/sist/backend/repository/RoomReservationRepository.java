@@ -54,7 +54,6 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "LEFT JOIN FETCH r.customer " +
         "WHERE r.contentid = :contentid " +
         "AND r.status = 1 " +
-        "AND r.checkinDate IS NULL " +
         "ORDER BY r.checkinDate ASC")
     Page<RoomReservation> findCheckinPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
@@ -64,8 +63,6 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "LEFT JOIN FETCH r.customer " +
         "WHERE r.contentid = :contentid " +
         "AND r.status = 1 " +
-        "AND r.checkinDate IS NOT NULL " +
-        "AND r.checkoutDate IS NULL " +
         "ORDER BY r.checkoutDate ASC")
     Page<RoomReservation> findCheckoutPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
