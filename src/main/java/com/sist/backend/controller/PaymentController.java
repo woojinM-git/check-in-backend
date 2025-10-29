@@ -44,8 +44,14 @@ public class PaymentController {
             PaymentResponseDto response = paymentService.verifyAndSavePayment(request);
 
             // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기, 실패해도 롤백 안됨)
-            if (response.getSuccess()) {
+            // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음
+            if (response.getSuccess() && response.getEmailSent() != null && !response.getEmailSent()) {
                 sendEmailAsync(request, response.getQrUrl());
+                response.setEmailSent(true); // 이메일 발송 플래그 업데이트
+            } else if (response.getSuccess() && response.getEmailSent() == null) {
+                // emailSent가 null인 경우 (기존 로직 호환성)
+                sendEmailAsync(request, response.getQrUrl());
+                response.setEmailSent(true);
             }
 
             return ResponseEntity.ok(response);
