@@ -7,4 +7,3 @@ CREATE TABLE IF NOT EXISTS reservationTime (
     outTime DATETIME DEFAULT NULL COMMENT '체크아웃 시간',
     FOREIGN KEY (orderIdx) REFERENCES roomPayment(orderIdx) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='입실, 퇴실 시간';
-

@@ -3,8 +3,11 @@ package com.sist.backend.repository;
 
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.sist.backend.entity.RoomPayment;
@@ -18,4 +21,15 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
     @Query("SELECT rp FROM RoomPayment rp WHERE rp.paymentKey = :paymentKey AND rp.status = 1")
     Optional<RoomPayment> findByPaymentKeyAndStatus(String paymentKey);
 
+    @Query("SELECT rp FROM RoomPayment rp " +
+        "LEFT JOIN FETCH rp.roomReservations rr " +
+        "LEFT JOIN FETCH rp.reservationTime rt " +
+        "WHERE rr.contentid = :contentId AND rt.inTime IS NULL")
+    Page<RoomPayment> findByOrderIdxAndInTime(@Param("contentId") String contentId, Pageable pageable);
+
+    @Query("SELECT rp FROM RoomPayment rp " +
+        "LEFT JOIN FETCH rp.roomReservations rr " +
+        "LEFT JOIN FETCH rp.reservationTime rt " +
+        "WHERE rr.contentid = :contentId AND rt.inTime IS NOT NULL AND rt.outTime IS NULL")
+    Page<RoomPayment> findByOrderIdxAndOutTime(@Param("contentId") String contentId, Pageable pageable);
 }
