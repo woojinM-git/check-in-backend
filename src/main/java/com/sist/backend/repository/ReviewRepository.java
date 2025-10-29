@@ -30,11 +30,19 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
     List<Integer> findReservationIdsByCustomerIdx(@Param("customerIdx") Integer customerIdx);
     
     /**
-     * 특정 고객의 작성 가능한 리뷰 조회 (이용완료된 예약 중 아직 리뷰를 작성하지 않은 것)
+     * 고객이 작성한 리뷰 조회
      */
     @Query("SELECT r FROM Review r " +
         "WHERE r.customerIdx = :customerIdx " +
         "ORDER BY r.createdAt DESC")
     List<Review> findByCustomerIdx(@Param("customerIdx") Integer customerIdx);
+    
+    /**
+     * 특정 예약의 리뷰 조회
+     */
+    @Query("SELECT r FROM Review r " +
+        "WHERE r.reservIdx = :reservIdx AND r.customerIdx = :customerIdx")
+    Optional<Review> findByReservIdxAndCustomerIdx(@Param("reservIdx") Integer reservIdx, 
+                                                      @Param("customerIdx") Integer customerIdx);
 }
 

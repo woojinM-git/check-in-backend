@@ -72,5 +72,12 @@ public class ReviewService {
     public List<Integer> getReviewedReservationIds(Integer customerIdx) {
         return reviewRepository.findReservationIdsByCustomerIdx(customerIdx);
     }
+    
+    /**
+     * 고객이 작성한 리뷰 목록 조회
+     */
+    public List<Review> getMyReviews(Integer customerIdx) {
+        return reviewRepository.findByCustomerIdx(customerIdx);
+    }
 }
 

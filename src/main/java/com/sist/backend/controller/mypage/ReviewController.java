@@ -1,4 +1,4 @@
-package com.sist.backend.controller;
+package com.sist.backend.controller.mypage;
 
 import com.sist.backend.entity.Review;
 import com.sist.backend.jwt.JwtProvider;
@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -75,6 +76,29 @@ public class ReviewController {
                 "hasReview", hasReview,
                 "reservationId", reservationId
             ));
+            
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 내가 작성한 리뷰 조회
+     */
+    @GetMapping("/my-reviews")
+    public ResponseEntity<?> getMyReviews(HttpServletRequest req) {
+        try {
+            Integer customerIdx = getCustomerIdxFromToken(req);
+            
+            if (customerIdx == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "인증 정보가 유효하지 않습니다."));
+            }
+            
+            List<Review> reviews = reviewService.getMyReviews(customerIdx);
+            
+            return ResponseEntity.ok(Map.of("reviews", reviews));
             
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
