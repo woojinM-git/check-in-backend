@@ -65,7 +65,7 @@ public class LoginController {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    int accessTokenExpireTime = 3600;
+    int accessTokenExpireTime = 60*60*2;
     int refreshTokenExpireTime = 604800;
 
     @GetMapping("/getaccesstoken")

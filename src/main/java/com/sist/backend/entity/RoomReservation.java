@@ -34,13 +34,11 @@ public class RoomReservation {
         @JoinColumn(name = "roomIdx", referencedColumnName = "roomIdx", insertable = false, updatable = false),
         @JoinColumn(name = "contentid", referencedColumnName = "contentId", insertable = false, updatable = false)
     })
-    @JsonIgnore
     @ToString.Exclude
     private Room room;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
-    @JsonIgnore
     @ToString.Exclude
     private Customer customer;
 

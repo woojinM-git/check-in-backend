@@ -9,6 +9,7 @@ import java.util.Optional;
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.dto.master.RejectHotelRequestDto;
+import com.sist.backend.dto.master.StopHotelDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
 import com.sist.backend.dto.master.RegistrationRequestPlusDto;
 import com.sist.backend.entity.CouponTemplate;
@@ -359,13 +360,9 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> suspendHotel(
-        @Parameter(description = "호텔 contentId", example = "1003654")
-        @PathVariable String contentId,
-        @RequestBody Map<String, Object> request) {
+        @RequestBody StopHotelDto request) {
         try {
-            String reason = (String) request.get("reason");
-            
-            hotelInfoService.suspendHotel(contentId, reason);
+            hotelInfoService.suspendHotel(request.getContentId(), request.getReason());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

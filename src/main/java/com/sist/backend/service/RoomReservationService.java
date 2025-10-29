@@ -75,4 +75,12 @@ public class RoomReservationService {
     public int updateCustomerIdxByReservIdx(Integer reservIdx, Integer customerIdx) {
         return roomReservationRepository.updateCustomerIdxByReservIdx(reservIdx, customerIdx);
     }
+
+    /* 달력용 예약 조회 - 날짜 범위로 검색 */
+    public List<RoomReservationDto> findByDateRangeWithDetails(String contentid, java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        List<RoomReservation> reservations = roomReservationRepository.findByDateRangeWithDetails(contentid, startDate, endDate);
+        return reservations.stream()
+            .map(RoomReservationDto::fromEntity)
+            .collect(Collectors.toList());
+    }
 }

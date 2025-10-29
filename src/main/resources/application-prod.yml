@@ -25,6 +25,7 @@ logging:
 
 # 프로덕션용 서버 설정
 server:
+  domain: ${SERVER_DOMAIN}
   error:
     include-stacktrace: never
     include-message: never

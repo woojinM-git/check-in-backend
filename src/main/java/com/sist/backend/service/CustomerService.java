@@ -64,8 +64,12 @@ public class CustomerService {
         return customerRepository.findByNicknameContaining(nickname);
     }
 
-    public Optional<Customer> findByEmailAndStatus(String email, Integer status){
+    // 해당 호텔을 이용한 고객 중에서 검색어로 필터링
+    public List<Customer> findByContentIdAndSearchTerm(String contentId, String searchTerm) {
+        return customerRepository.findByContentIdAndSearchTerm(contentId, searchTerm);
+    }
+
+    public Optional<Customer> findByEmailAndStatus(String email, Integer status) {
         return customerRepository.findByEmailAndStatus(email, status);
     }
-    
 }

@@ -83,7 +83,25 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         @Param("customerIdx") Integer customerIdx,
         @Param("statusList") List<Integer> statusList);
 
+    /* 달력용 예약 조회 - 날짜 범위로 검색 */
+    @Query("SELECT r FROM RoomReservation r " +
+           "LEFT JOIN FETCH r.room " +
+           "LEFT JOIN FETCH r.customer " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status = 1 " +
+           "AND ((r.checkinDate >= :startDate AND r.checkinDate <= :endDate) OR " +
+           "     (r.checkoutDate >= :startDate AND r.checkoutDate <= :endDate) OR " +
+           "     (r.checkinDate <= :startDate AND r.checkoutDate >= :endDate)) " +
+           "ORDER BY r.checkinDate ASC")
+    List<RoomReservation> findByDateRangeWithDetails(
+        @Param("contentid") String contentid,
+        @Param("startDate") java.time.LocalDate startDate,
+        @Param("endDate") java.time.LocalDate endDate);
+
     @Modifying
     @Query("UPDATE RoomReservation r SET r.customerIdx = :customerIdx WHERE r.reservIdx = :reservIdx")
     int updateCustomerIdxByReservIdx(@Param("reservIdx") Integer reservIdx, @Param("customerIdx") Integer customerIdx);
+
+    /* customerIdx와 status로 예약 목록 조회 */
+    List<RoomReservation> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
 }
