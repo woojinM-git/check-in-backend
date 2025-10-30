@@ -2,6 +2,7 @@ package com.sist.backend.repository;
 
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,4 +33,9 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
         "LEFT JOIN FETCH rp.reservationTime rt " +
         "WHERE rr.contentid = :contentId AND rt.inTime IS NOT NULL AND rt.outTime IS NULL")
     Page<RoomPayment> findByOrderIdxAndOutTime(@Param("contentId") String contentId, Pageable pageable);
+
+    @Query("SELECT DISTINCT rp FROM RoomPayment rp " +
+        "LEFT JOIN FETCH rp.roomReservations rr " +
+        "WHERE rr.contentid = :contentId")
+    List<RoomPayment> findAllByContentIdWithReservations(@Param("contentId") String contentId);
 }
