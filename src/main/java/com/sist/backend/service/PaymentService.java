@@ -44,6 +44,16 @@ public class PaymentService {
     private final CustomerRepository customerRepository;
     private final RoomRepository roomRepository;
 
+    //redis 락서비스 추가 소프트락 10분으로 걸어둠
+    private final RedisLockService redisLockService;
+
+    /**
+     * 핵심 로직
+     * 결제 검증 → 결제 저장 → 예약 저장 → 고객 잔액 업데이트까지 전체 트랜잭션 처리
+     *
+     * - @Transactional : 모든 단계가 하나라도 실패하면 전체 롤백
+     * - rollbackFor = Exception.class : RuntimeException 외 CheckedException도 롤백 대상
+     */
     @Transactional(rollbackFor = Exception.class)
     public PaymentResponseDto verifyAndSavePayment(PaymentRequestDto request) {
         log.info("결제 검증 시작: orderId={}, amount={}, type={}, contentId={}, roomId={}, customerIdx={}",
@@ -57,6 +67,7 @@ public class PaymentService {
             log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: paymentKey={}, orderIdx={}",
                     request.getPaymentKey(), existingPayment.getOrderIdx());
 
+            //기존 결제 데이터 재활용
             return PaymentResponseDto.builder()
                     .success(true)
                     .message("이미 처리된 결제입니다.")
@@ -79,23 +90,37 @@ public class PaymentService {
                     request.getAmount()
             );
 
-            // 2단계: 검증 결과 확인
+            //  검증 결과 확인
             String status = (String) tossResponse.get("status");
             if (!"DONE".equals(status)) {
                 throw new RuntimeException("TossPayments 결제 검증 실패: status=" + status);
             }
 
-            // 3단계: DB 저장 (모두 성공해야 함, 하나라도 실패하면 롤백)
+            // 2단계: DB 저장 (모두 성공해야 함, 하나라도 실패하면 롤백)
             RoomPayment savedPayment = savePayment(request);
 
-            // 4단계: 예약 정보 저장 (타입별 처리)
+            // 3단계: 예약 정보 저장 (타입별 처리)
             log.info("예약 저장 조건 확인: type={}, contentId={}, roomId={}",
                     request.getType(), request.getContentId(), request.getRoomId());
 
-            if ("hotel_reservation".equals(request.getType()) && request.getContentId() != null && request.getRoomId() != null) {
-                log.info("호텔 예약 저장 시작: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
-                reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
-                log.info("호텔 예약 저장 완료");
+            //Redis Rock은 이때 걸어야함 결제하기 버튼을 눌렀을때가 아니라
+            //검증까지 끝나고 결제 DB까지 완료 되었을때 예약 정보 저장할떄!!
+            if ("hotel_reservation".equals(request.getType())
+                    && request.getContentId() != null
+                    && request.getRoomId() != null) {
+
+                LocalDate checkinDate = LocalDate.parse(request.getCheckIn());
+                boolean locked = redisLockService.tryLock(request.getRoomId(),checkinDate,600);
+                if (!locked) {
+                    throw new IllegalStateException("해당 객실은 다른 사용자가 결제를 진행 중입니다.");
+                }
+                try {
+                    log.info("호텔 예약 저장 시작: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
+                    reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
+                    log.info("호텔 예약 저장 완료");
+                }finally {
+                    redisLockService.unlock(Long.valueOf(request.getRoomId()), checkinDate);
+                }
             } else if ("dining_reservation".equals(request.getType()) && request.getDiningIdx() != null) {
                 saveDiningReservation(request, savedPayment.getOrderIdx());
             } else {
@@ -103,11 +128,12 @@ public class PaymentService {
                         request.getType(), request.getContentId(), request.getRoomId(), request.getDiningIdx());
             }
 
-            // 5단계: Customer 테이블 업데이트 (캐시/포인트 차감)
+            // 4단계: Customer 테이블 업데이트 (캐시/포인트 차감)
             updateCustomerBalance(request);
 
             log.info("결제 및 예약 정보 저장 완료: orderIdx={}", savedPayment.getOrderIdx());
 
+            //5단계 응답 DTO 생성
             return PaymentResponseDto.builder()
                     .success(true)
                     .message("결제가 성공적으로 완료되었습니다.")
@@ -130,6 +156,7 @@ public class PaymentService {
         }
     }
 
+    //결제 테이블(roomPayment)에 결제 정보 저장
     private RoomPayment savePayment(PaymentRequestDto request) {
         RoomPayment roomPayment = RoomPayment.builder()
                 .customerIdx(request.getCustomerIdx())
@@ -151,6 +178,7 @@ public class PaymentService {
         return savedPayment;
     }
 
+    //고객 캐시/포인트 차감 및 업데이트
     private void updateCustomerBalance(PaymentRequestDto request) {
         try {
             Customer customer = customerRepository.findById(request.getCustomerIdx())
