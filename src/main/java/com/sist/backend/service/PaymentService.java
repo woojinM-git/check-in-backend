@@ -44,42 +44,51 @@ public class PaymentService {
     private final CustomerRepository customerRepository;
     private final RoomRepository roomRepository;
 
-    //redis 락서비스 추가 소프트락 10분으로 걸어둠
-    private final RedisLockService redisLockService;
-
-    /**
-     * 핵심 로직
-     * 결제 검증 → 결제 저장 → 예약 저장 → 고객 잔액 업데이트까지 전체 트랜잭션 처리
-     *
-     * - @Transactional : 모든 단계가 하나라도 실패하면 전체 롤백
-     * - rollbackFor = Exception.class : RuntimeException 외 CheckedException도 롤백 대상
-     */
     @Transactional(rollbackFor = Exception.class)
     public PaymentResponseDto verifyAndSavePayment(PaymentRequestDto request) {
         log.info("결제 검증 시작: orderId={}, amount={}, type={}, contentId={}, roomId={}, customerIdx={}",
                 request.getOrderId(), request.getAmount(), request.getType(),
                 request.getContentId(), request.getRoomId(), request.getCustomerIdx());
 
-        // 0단계: 이미 처리된 결제인지 확인 (중복 요청 방지)
-        Optional<RoomPayment> existingPaymentOpt = roomPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
-        if (existingPaymentOpt.isPresent()) {
-            RoomPayment existingPayment = existingPaymentOpt.get();
-            log.warn("이미 처리된 결제입니다. 기존 결제 정보를 반환합니다: paymentKey={}, orderIdx={}",
-                    request.getPaymentKey(), existingPayment.getOrderIdx());
+        // 0단계: 이미 처리된 결제인지 확인 (중복 요청 방지) - 타입별로 확인
+        if ("dining_reservation".equals(request.getType())) {
+            Optional<DiningPayment> existingDiningOpt = diningPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
+            if (existingDiningOpt.isPresent()) {
+                DiningPayment existing = existingDiningOpt.get();
+                log.warn("이미 처리된 다이닝 결제입니다: paymentKey={}, diningpayIdx={}", request.getPaymentKey(), existing.getDiningpayIdx());
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("이미 처리된 결제입니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(existing.getPrice())
+                        .status("DONE")
+                        .approvedAt(existing.getApprovedAt())
+                        .receiptUrl(existing.getReceiptUrl())
+                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                        .emailSent(false)
+                        .build();
+            }
+        } else {
+            Optional<RoomPayment> existingPaymentOpt = roomPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
+            if (existingPaymentOpt.isPresent()) {
+                RoomPayment existingPayment = existingPaymentOpt.get();
+                log.warn("이미 처리된 호텔 결제입니다: paymentKey={}, orderIdx={}",
+                        request.getPaymentKey(), existingPayment.getOrderIdx());
 
-            //기존 결제 데이터 재활용
-            return PaymentResponseDto.builder()
-                    .success(true)
-                    .message("이미 처리된 결제입니다.")
-                    .orderId(request.getOrderId())
-                    .paymentKey(request.getPaymentKey())
-                    .amount(existingPayment.getPrice())
-                    .status("DONE")
-                    .approvedAt(existingPayment.getApprovedAt())
-                    .receiptUrl(existingPayment.getReceiptUrl())
-                    .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                    .emailSent(false)
-                    .build();
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("이미 처리된 결제입니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(existingPayment.getPrice())
+                        .status("DONE")
+                        .approvedAt(existingPayment.getApprovedAt())
+                        .receiptUrl(existingPayment.getReceiptUrl())
+                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                        .emailSent(false)
+                        .build();
+            }
         }
 
         try {
@@ -90,62 +99,62 @@ public class PaymentService {
                     request.getAmount()
             );
 
-            //  검증 결과 확인
+            // 2단계: 검증 결과 확인
             String status = (String) tossResponse.get("status");
             if (!"DONE".equals(status)) {
                 throw new RuntimeException("TossPayments 결제 검증 실패: status=" + status);
             }
 
-            // 2단계: DB 저장 (모두 성공해야 함, 하나라도 실패하면 롤백)
-            RoomPayment savedPayment = savePayment(request);
+            // 3~4단계: 타입별로 결제/예약 저장
+            if ("hotel_reservation".equals(request.getType())) {
+                RoomPayment savedPayment = saveRoomPayment(request);
 
-            // 3단계: 예약 정보 저장 (타입별 처리)
-            log.info("예약 저장 조건 확인: type={}, contentId={}, roomId={}",
-                    request.getType(), request.getContentId(), request.getRoomId());
+                log.info("호텔 예약 저장 시작: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
+                reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
+                log.info("호텔 예약 저장 완료");
 
-            //Redis Rock은 이때 걸어야함 결제하기 버튼을 눌렀을때가 아니라
-            //검증까지 끝나고 결제 DB까지 완료 되었을때 예약 정보 저장할떄!!
-            if ("hotel_reservation".equals(request.getType())
-                    && request.getContentId() != null
-                    && request.getRoomId() != null) {
+                // 5단계: Customer 테이블 업데이트 (캐시/포인트 차감)
+                updateCustomerBalance(request);
 
-                LocalDate checkinDate = LocalDate.parse(request.getCheckIn());
-                boolean locked = redisLockService.tryLock(request.getRoomId(),checkinDate,600);
-                if (!locked) {
-                    throw new IllegalStateException("해당 객실은 다른 사용자가 결제를 진행 중입니다.");
-                }
-                try {
-                    log.info("호텔 예약 저장 시작: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
-                    reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
-                    log.info("호텔 예약 저장 완료");
-                }finally {
-                    redisLockService.unlock(Long.valueOf(request.getRoomId()), checkinDate);
-                }
-            } else if ("dining_reservation".equals(request.getType()) && request.getDiningIdx() != null) {
-                saveDiningReservation(request, savedPayment.getOrderIdx());
+                log.info("호텔 결제 및 예약 저장 완료: orderIdx={}", savedPayment.getOrderIdx());
+
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("결제가 성공적으로 완료되었습니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(request.getAmount())
+                        .status("DONE")
+                        .approvedAt(savedPayment.getApprovedAt())
+                        .receiptUrl(savedPayment.getReceiptUrl())
+                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                        .emailSent(false)
+                        .build();
+            } else if ("dining_reservation".equals(request.getType())) {
+                DiningPayment savedDining = saveDiningReservation(request);
+
+                // 5단계: Customer 테이블 업데이트 (캐시/포인트 차감)
+                updateCustomerBalance(request);
+
+                log.info("다이닝 결제 및 예약 저장 완료: diningpayIdx={}", savedDining.getDiningpayIdx());
+
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("결제가 성공적으로 완료되었습니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(request.getAmount())
+                        .status("DONE")
+                        .approvedAt(savedDining.getApprovedAt())
+                        .receiptUrl(savedDining.getReceiptUrl())
+                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                        .emailSent(false)
+                        .build();
             } else {
-                log.warn("예약 저장 조건 미충족: type={}, contentId={}, roomId={}, diningIdx={}",
+                log.warn("예약 저장 조건 미충족 또는 알 수 없는 타입: type={}, contentId={}, roomId={}, diningIdx={}",
                         request.getType(), request.getContentId(), request.getRoomId(), request.getDiningIdx());
+                throw new RuntimeException("지원하지 않는 결제 타입입니다: " + request.getType());
             }
-
-            // 4단계: Customer 테이블 업데이트 (캐시/포인트 차감)
-            updateCustomerBalance(request);
-
-            log.info("결제 및 예약 정보 저장 완료: orderIdx={}", savedPayment.getOrderIdx());
-
-            //5단계 응답 DTO 생성
-            return PaymentResponseDto.builder()
-                    .success(true)
-                    .message("결제가 성공적으로 완료되었습니다.")
-                    .orderId(request.getOrderId())
-                    .paymentKey(request.getPaymentKey())
-                    .amount(request.getAmount())
-                    .status("DONE")
-                    .approvedAt(savedPayment.getApprovedAt())
-                    .receiptUrl(savedPayment.getReceiptUrl())
-                    .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                    .emailSent(false) // 이메일은 별도 처리
-                    .build();
 
         } catch (RuntimeException e) {
             log.error("결제 처리 실패 - 트랜잭션 롤백: orderId={}", request.getOrderId(), e);
@@ -156,7 +165,6 @@ public class PaymentService {
         }
     }
 
-    //결제 테이블(roomPayment)에 결제 정보 저장
     private RoomPayment savePayment(PaymentRequestDto request) {
         RoomPayment roomPayment = RoomPayment.builder()
                 .customerIdx(request.getCustomerIdx())
@@ -216,7 +224,7 @@ public class PaymentService {
     /**
      * 다이닝 예약 저장
      */
-    private void saveDiningReservation(PaymentRequestDto request, Integer orderIdx) {
+    private DiningPayment saveDiningReservation(PaymentRequestDto request) {
         // Dining 존재 여부 확인
         Dining dining = diningRepository.findById(request.getDiningIdx())
                 .orElseThrow(() -> new RuntimeException(
@@ -262,6 +270,7 @@ public class PaymentService {
 
         diningReservationRepository.save(reservation);
         log.info("다이닝 예약 정보 저장 완료: diningResrIdx={}", reservation.getDiningResrIdx());
+        return savedPayment;
     }
 
     public PaymentResponseDto getPaymentInfo(String orderId) {
