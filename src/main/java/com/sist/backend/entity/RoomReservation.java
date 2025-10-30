@@ -78,7 +78,11 @@ public class RoomReservation {
     @Column(name = "updatedAt")
     private LocalDateTime updatedAt;
 
+    @Column(name = "orderNum", unique = true, length = 100)
+    private String orderNum;
 
+    @Column(name = "specialRequest")
+    private String specialRequest;
 
 
     // 양방향 관계
