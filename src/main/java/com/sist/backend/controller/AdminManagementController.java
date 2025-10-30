@@ -30,6 +30,8 @@ import com.sist.backend.dto.admin.CheckTimeUpdateDto;
 import com.sist.backend.dto.admin.CouponCreateDto;
 import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
+import com.sist.backend.dto.admin.RoomStatusDto;
+import com.sist.backend.dto.admin.RoomUpdateDto;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RevenueService;
@@ -668,5 +670,59 @@ public class AdminManagementController {
         }
     }
 
+    @PostMapping("/roomUpdate")
+    @Operation(summary = "객실 정보 수정", description = "객실 정보를 수정합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 수정됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateRoom(
+        @RequestBody RoomUpdateDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
 
+        Room room = roomService.updateRoom(dto.getRoomIdx(), dto.getName(), dto.getCapacity(), dto.getBasePrice());
+        map.put("success", true);
+        map.put("message", "객실 정보가 성공적으로 수정되었습니다.");
+        map.put("room", room);
+        return ResponseEntity.ok(map);
+    }
+
+    @PostMapping("/roomStatus")
+    @Operation(summary = "객실 비활성화", description = "객실을 비활성화 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 비활성화됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateRoomStatus(
+        @RequestBody RoomStatusDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+
+        Room room = roomService.updateRoomStatus(dto.getRoomIdx(), dto.getStatus());
+        map.put("success", true);
+        map.put("message", "객실 비활성화 처리가 완료되었습니다.");
+        map.put("room", room);
+        return ResponseEntity.ok(map);
+    }
 }
