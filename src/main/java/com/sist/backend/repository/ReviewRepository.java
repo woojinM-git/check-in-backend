@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface ReviewRepository extends JpaRepository<Review, Integer> {
     
     /**
-     * 특정 예약에 대해 리뷰가 존재하는지 확인
+     * 특정 예약의 리뷰 조회 (Spring Data JPA 자동 메서드명 해석)
      */
     Optional<Review> findByReservIdxAndCustomerIdx(Integer reservIdx, Integer customerIdx);
     
@@ -30,9 +30,10 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
     List<Integer> findReservationIdsByCustomerIdx(@Param("customerIdx") Integer customerIdx);
     
     /**
-     * 특정 고객의 작성 가능한 리뷰 조회 (이용완료된 예약 중 아직 리뷰를 작성하지 않은 것)
+     * 고객이 작성한 리뷰 조회 (호텔 정보 포함)
      */
     @Query("SELECT r FROM Review r " +
+        "LEFT JOIN FETCH r.hotelInfo h " +
         "WHERE r.customerIdx = :customerIdx " +
         "ORDER BY r.createdAt DESC")
     List<Review> findByCustomerIdx(@Param("customerIdx") Integer customerIdx);

@@ -31,7 +31,7 @@ public class Review {
     
     @Column(name = "contentid", nullable = false, length = 50)
     private String contentid;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
     @JsonIgnore

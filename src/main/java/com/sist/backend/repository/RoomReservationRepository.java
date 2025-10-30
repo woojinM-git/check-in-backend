@@ -48,24 +48,21 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         "AND r.status = 1")
     Page<RoomReservation> findByStatusDto(@Param("contentid") String contentid, Pageable pageable);
 
-    /* 체크인 대기 목록 조회 (checkin 컬럼이 NULL인 경우) */
+    /* 체크인 대기 목록 조회 (inTime 컬럼이 NULL인 경우) */
     @Query("SELECT r FROM RoomReservation r " +
         "LEFT JOIN FETCH r.room " +
         "LEFT JOIN FETCH r.customer " +
         "WHERE r.contentid = :contentid " +
         "AND r.status = 1 " +
-        "AND r.checkinDate IS NULL " +
         "ORDER BY r.checkinDate ASC")
     Page<RoomReservation> findCheckinPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
-    /* 체크아웃 대기 목록 조회 (checkin은 완료되고 checkout이 NULL인 경우) */
+    /* 체크아웃 대기 목록 조회 (outTime 컬럼이 NULL인 경우) */
     @Query("SELECT r FROM RoomReservation r " +
         "LEFT JOIN FETCH r.room " +
         "LEFT JOIN FETCH r.customer " +
         "WHERE r.contentid = :contentid " +
         "AND r.status = 1 " +
-        "AND r.checkinDate IS NOT NULL " +
-        "AND r.checkoutDate IS NULL " +
         "ORDER BY r.checkoutDate ASC")
     Page<RoomReservation> findCheckoutPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
@@ -83,15 +80,13 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
         @Param("customerIdx") Integer customerIdx,
         @Param("statusList") List<Integer> statusList);
 
-    /* 달력용 예약 조회 - 날짜 범위로 검색 */
+    /* 달력용 예약 조회 - 체크인 날짜 기준으로 검색 */
     @Query("SELECT r FROM RoomReservation r " +
            "LEFT JOIN FETCH r.room " +
            "LEFT JOIN FETCH r.customer " +
            "WHERE r.contentid = :contentid " +
            "AND r.status = 1 " +
-           "AND ((r.checkinDate >= :startDate AND r.checkinDate <= :endDate) OR " +
-           "     (r.checkoutDate >= :startDate AND r.checkoutDate <= :endDate) OR " +
-           "     (r.checkinDate <= :startDate AND r.checkoutDate >= :endDate)) " +
+           "AND r.checkinDate >= :startDate AND r.checkinDate <= :endDate " +
            "ORDER BY r.checkinDate ASC")
     List<RoomReservation> findByDateRangeWithDetails(
         @Param("contentid") String contentid,
