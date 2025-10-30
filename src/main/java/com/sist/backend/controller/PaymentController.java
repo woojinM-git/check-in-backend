@@ -46,9 +46,9 @@ public class PaymentController {
             // 1단계: 결제 검증 및 DB 저장 (트랜잭션으로 보호)
             PaymentResponseDto response = paymentService.verifyAndSavePayment(request);
 
-            // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기, 실패해도 롤백 안됨)
-            // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음
-            if (response.getSuccess()) {
+            // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기)
+            // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음 (service가 emailSent=true일 때만 발송)
+            if (Boolean.TRUE.equals(response.getSuccess()) && Boolean.TRUE.equals(response.getEmailSent())) {
                 sendEmailAsync(request, response.getQrUrl());
             }
 

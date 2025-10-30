@@ -1,6 +1,7 @@
 package com.sist.backend.repository;
 
-import com.sist.backend.entity.RoomReservation;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.sist.backend.entity.RoomReservation;
 
 @Repository
 public interface RoomReservationRepository extends JpaRepository<RoomReservation, Integer> {
@@ -89,9 +90,9 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
            "AND r.checkinDate >= :startDate AND r.checkinDate <= :endDate " +
            "ORDER BY r.checkinDate ASC")
     List<RoomReservation> findByDateRangeWithDetails(
-        @Param("contentid") String contentid,
-        @Param("startDate") java.time.LocalDate startDate,
-        @Param("endDate") java.time.LocalDate endDate);
+            @Param("contentid") String contentid,
+            @Param("startDate") java.time.LocalDate startDate,
+            @Param("endDate") java.time.LocalDate endDate);
 
     @Modifying
     @Query("UPDATE RoomReservation r SET r.customerIdx = :customerIdx WHERE r.reservIdx = :reservIdx")
@@ -99,4 +100,14 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     /* customerIdx와 status로 예약 목록 조회 */
     List<RoomReservation> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
+
+    /**
+     * 같은 객실/콘텐츠/체크인 조합으로 활성 예약이 존재하는지 여부
+     */
+    @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM RoomReservation r "
+            + "WHERE r.roomIdx = :roomIdx AND r.contentid = :contentId AND r.checkinDate = :checkinDate "
+            + "AND r.status IN (1)")
+    boolean existsActiveReservation(@Param("roomIdx") Integer roomIdx,
+            @Param("contentId") String contentId,
+            @Param("checkinDate") java.time.LocalDate checkinDate);
 }

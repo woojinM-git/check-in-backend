@@ -86,7 +86,7 @@ public class PaymentService {
                         .approvedAt(existingPayment.getApprovedAt())
                         .receiptUrl(existingPayment.getReceiptUrl())
                         .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                        .emailSent(false)
+                        .emailSent(false) // 이미 처리됨: 컨트롤러에서 이메일 재발송 금지
                         .build();
             }
         }
@@ -107,6 +107,17 @@ public class PaymentService {
 
             // 3~4단계: 타입별로 결제/예약 저장
             if ("hotel_reservation".equals(request.getType())) {
+                // 3-사전검증: 이미 같은 객실/날짜로 확정된 예약이 있는지 확인 (트랜잭션 내 보장)
+                if (request.getRoomId() == null || request.getContentId() == null || request.getCheckIn() == null) {
+                    throw new RuntimeException("필수 파라미터 누락(roomId/contentId/checkIn)");
+                }
+                LocalDate checkinDate = LocalDate.parse(request.getCheckIn());
+                boolean exists = roomReservationRepository.existsActiveReservation(
+                        request.getRoomId(), request.getContentId(), checkinDate);
+                if (exists) {
+                    throw new RuntimeException("이미 다른 인원이 결제/예약을 완료한 객실입니다.");
+                }
+                //결제 저장
                 RoomPayment savedPayment = saveRoomPayment(request);
 
                 log.info("호텔 예약 저장 시작: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
@@ -128,7 +139,7 @@ public class PaymentService {
                         .approvedAt(savedPayment.getApprovedAt())
                         .receiptUrl(savedPayment.getReceiptUrl())
                         .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                        .emailSent(false)
+                        .emailSent(true) // 신규 처리됨: 컨트롤러에서 이메일 발송 허용
                         .build();
             } else if ("dining_reservation".equals(request.getType())) {
                 DiningPayment savedDining = saveDiningReservation(request);
@@ -148,7 +159,7 @@ public class PaymentService {
                         .approvedAt(savedDining.getApprovedAt())
                         .receiptUrl(savedDining.getReceiptUrl())
                         .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                        .emailSent(false)
+                        .emailSent(true) // 신규 처리됨: 컨트롤러에서 이메일 발송 허용
                         .build();
             } else {
                 log.warn("예약 저장 조건 미충족 또는 알 수 없는 타입: type={}, contentId={}, roomId={}, diningIdx={}",
@@ -165,7 +176,7 @@ public class PaymentService {
         }
     }
 
-    private RoomPayment savePayment(PaymentRequestDto request) {
+    private RoomPayment saveRoomPayment(PaymentRequestDto request) {
         RoomPayment roomPayment = RoomPayment.builder()
                 .customerIdx(request.getCustomerIdx())
                 .couponIdx(0) // TODO: 실제 쿠폰 시스템 연동 필요

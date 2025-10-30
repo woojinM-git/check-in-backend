@@ -18,15 +18,15 @@ public class RedisLockService {
     /**
      * 특정 객실+날짜 조합에 락을 건다.
      *
-     * @param roomIdx 객실 식별자
+     * @param roomId 객실 식별자
      * @param checkin 체크인 날짜
      * @param ttlSec 락 유지시간 (초)
      * @return 락 획득 성공 여부
      */
 
     //객실 단위 SoftRock TTL적용 10분으로
-    public boolean tryLock(long roomIdx, LocalDate checkin,long ttlSec){
-        String key = buildLockKey(roomIdx,checkin);
+    public boolean tryLock(int roomId, LocalDate checkin,long ttlSec){
+        String key = buildLockKey(roomId,checkin);
         Boolean success = redisTemplate.opsForValue()
                 .setIfAbsent(key,"locked",ttlSec, TimeUnit.SECONDS);
         //성공일때
@@ -38,14 +38,14 @@ public class RedisLockService {
             return false;
         }
     }
-    public void unlock(Long roomIdx,LocalDate checkin){
-        String key = buildLockKey(roomIdx,checkin);
+    public void unlock(int roomId,LocalDate checkin){
+        String key = buildLockKey(roomId,checkin);
         redisTemplate.delete(key);
         log.info("락 해제 완료 : key={} ",key);
     }
     //RedisKey생성규칙
     //ex) Lock:hotel:100234:2025-10-30
-    private String buildLockKey(Long roomIdx, LocalDate checkin){
-        return String.format("lock:room:%d:%s",roomIdx,checkin.toString());
+    private String buildLockKey(int roomId, LocalDate checkin){
+        return String.format("lock:room:%d:%s",roomId,checkin.toString());
     }
 }
