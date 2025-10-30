@@ -1,6 +1,7 @@
 package com.sist.backend.service;
 
 import com.sist.backend.entity.Review;
+import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.ReviewRepository;
 import com.sist.backend.repository.RoomReservationRepository;
@@ -92,14 +93,35 @@ public class ReviewService {
                 .build();
             
             // 호텔 정보 매핑
-            if (review.getHotelInfo() != null) {
+            HotelInfo hotelInfoEntity = review.getHotelInfo();
+            if (hotelInfoEntity != null) {
                 com.sist.backend.dto.mypage.WrittenReviewDTO.HotelInfoDTO hotelInfo = new com.sist.backend.dto.mypage.WrittenReviewDTO.HotelInfoDTO();
-                hotelInfo.setContentId(review.getHotelInfo().getContentId());
-                hotelInfo.setTitle(review.getHotelInfo().getTitle());
-                hotelInfo.setAdress(review.getHotelInfo().getAdress());
-                hotelInfo.setTel(review.getHotelInfo().getTel());
+                hotelInfo.setContentId(hotelInfoEntity.getContentId());
+                hotelInfo.setTitle(hotelInfoEntity.getTitle());
+                hotelInfo.setAdress(hotelInfoEntity.getAdress());
+                hotelInfo.setTel(hotelInfoEntity.getTel());
                 dto.setHotelInfo(hotelInfo);
-                dto.setHotelName(review.getHotelInfo().getTitle());
+                dto.setHotelName(hotelInfoEntity.getTitle());
+                // region: adress 첫 단어 우선, area.areaName 있으면 대체
+                String region = null;
+                if (hotelInfoEntity.getArea() != null && hotelInfoEntity.getArea().getAreaName() != null) {
+                    region = hotelInfoEntity.getArea().getAreaName();
+                } else if (hotelInfoEntity.getAdress() != null && !hotelInfoEntity.getAdress().isBlank()) {
+                    String[] tokens = hotelInfoEntity.getAdress().trim().split("\\s+");
+                    region = tokens.length > 0 ? tokens[0] : null;
+                }
+                dto.setRegion(region);
+                // 썸네일: imageUrl 있으면 사용, 없으면 프록시 경로
+                String thumbnail = (hotelInfoEntity.getImageUrl() != null && !hotelInfoEntity.getImageUrl().isBlank())
+                    ? hotelInfoEntity.getImageUrl()
+                    : ("/api/hotels/" + hotelInfoEntity.getContentId() + "/thumbnail");
+                dto.setThumbnailUrl(thumbnail);
+            }
+
+            // 예약 날짜 매핑: roomReservation 에서 가져옴
+            if (review.getRoomReservation() != null) {
+                dto.setCheckInDate(review.getRoomReservation().getCheckinDate());
+                dto.setCheckOutDate(review.getRoomReservation().getCheckoutDate());
             }
             
             return dto;
