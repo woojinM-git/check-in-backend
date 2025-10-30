@@ -12,6 +12,7 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.service.ReservationTimeService;
 import com.sist.backend.util.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
@@ -25,7 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import com.sist.backend.dto.admin.CheckTimeUpdateDto;
 import com.sist.backend.dto.admin.CouponCreateDto;
+import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
@@ -47,6 +50,7 @@ public class AdminManagementController {
 
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
+    private final ReservationTimeService reservationTimeService;
     private final RoomService roomService;
     private final CouponTemplateService couponTemplateService;
     private final CustomerService customerService;
@@ -101,7 +105,7 @@ public class AdminManagementController {
     }
 
     @RequestMapping("/roomReservationList")
-    @Operation(summary = "최근 예약 현황", description = "최근 예약 현황을 보여줍니다.")
+    @Operation(summary = "예약 목록 조회", description = "호텔의 모든 예약 목록을 조회합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -110,10 +114,21 @@ public class AdminManagementController {
     public ResponseEntity<Page<RoomReservationDto>> recentReservations(
         @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
         @RequestParam(value = "page", defaultValue = "0") int page, 
-        @Parameter(description = "페이지당 데이터 개수", example = "5") 
-        @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "페이지당 데이터 개수", example = "10") 
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request){
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654");
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(roomReservationService.findByStatusDto(contentid, pageable));
     }
@@ -125,15 +140,67 @@ public class AdminManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Page<RoomReservationDto>> findCheckinPendingWithDetails(
+    public ResponseEntity<Page<RoomPaymentDto>> findContentIdByAdminIdx(
         @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(roomReservationService.findCheckinPendingWithDetails(contentid, pageable));
+
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654");
+
+        return ResponseEntity.ok(roomPaymentService.findByOrderIdxAndInTime(contentid, pageable));
+    }
+
+    @PostMapping("/checkin")
+    @Operation(summary = "체크인 처리", description = "체크인을 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 처리됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> checkin(
+        @RequestBody CheckTimeUpdateDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest httpRequest){
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        try {
+            // DTO에 현재 시간 설정 (프론트엔드에서 전달하지 않은 경우를 대비)
+            if (dto.getInTime() == null) {
+                dto.setInTime(java.time.LocalDateTime.now());
+            }
+            
+            // DTO를 사용하여 저장 (없으면 생성, 있으면 업데이트)
+            reservationTimeService.checkin(dto);
+            
+            map.put("success", true);
+            map.put("message", "체크인 처리가 완료되었습니다.");
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "체크인 처리 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        }
+
+        return ResponseEntity.ok(map);
     }
 
     @RequestMapping("/checkoutPendingList")
@@ -143,15 +210,67 @@ public class AdminManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Page<RoomReservationDto>> findCheckoutPendingWithDetails(
+    public ResponseEntity<Page<RoomPaymentDto>> findByOrderIdxAndOutTime(
         @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
         @RequestParam(value = "page", defaultValue = "0") int page, 
         @Parameter(description = "페이지당 데이터 개수", example = "5") 
         @RequestParam(value = "size", defaultValue = "5") int size,
-        @Parameter(description = "업체 ID", example = "1003654")
-        @RequestParam(value = "contentid", defaultValue = "1003654") String contentid){
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request){
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
+
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse("1003654");
+
+        return ResponseEntity.ok(roomPaymentService.findByOrderIdxAndOutTime(contentid, pageable));
+    }
+
+    @PostMapping("/checkout")
+    @Operation(summary = "체크아웃 처리", description = "체크아웃을 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 처리됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> checkout(
+        @RequestBody CheckTimeUpdateDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest httpRequest){
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        try {
+            // DTO에 현재 시간 설정 (프론트엔드에서 전달하지 않은 경우를 대비)
+            if (dto.getOutTime() == null) {
+                dto.setOutTime(java.time.LocalDateTime.now());
+            }
+            
+            // DTO를 사용하여 저장 (없으면 생성, 있으면 업데이트)
+            reservationTimeService.checkout(dto);
+            
+            map.put("success", true);
+            map.put("message", "체크아웃 처리가 완료되었습니다.");
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "체크아웃 처리 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        }
+
+        return ResponseEntity.ok(map);
     }
 
     @RequestMapping("/couponIssue")

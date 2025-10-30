@@ -3,11 +3,14 @@ package com.sist.backend.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.entity.UsedItem;
@@ -15,6 +18,7 @@ import com.sist.backend.repository.UsedItemRepository;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UsedTradeService {
 
     final private UsedItemRepository usedItemRepository;
@@ -88,7 +92,8 @@ public class UsedTradeService {
         usedItem.setReservIdx(reservIdx);
         usedItem.setPrice(price);
         usedItem.setComment(comment);
-        usedItem.setStatus(0); // 0: 등록됨
+        // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
+        usedItem.setStatus(0); // 판매중 상태로 등록
         
         return usedItemRepository.save(usedItem);
     }
@@ -118,5 +123,31 @@ public class UsedTradeService {
         // updatedAt은 @PreUpdate로 자동 갱신됨
         
         return usedItemRepository.save(usedItem);
+    }
+
+    /**
+     * checkin 날짜가 오늘 날짜와 같거나 이전인 양도매물 만료 처리
+     * @return 만료 처리된 매물 개수
+     */
+    @Transactional
+    public int expireUsedItems() {
+        LocalDate today = LocalDate.now();
+        List<UsedItem> expiredItems = usedItemRepository.findExpiredUsedItems(today);
+        
+        if (expiredItems.isEmpty()) {
+            log.info("만료 처리할 양도매물이 없습니다.");
+            return 0;
+        }
+        
+        int expiredCount = 0;
+        for (UsedItem item : expiredItems) {
+            // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
+            item.setStatus(3); // 만료 상태로 변경
+            usedItemRepository.save(item);
+            expiredCount++;
+        }
+        
+        log.info("만료 처리 완료: {}개의 양도매물이 만료되었습니다.", expiredCount);
+        return expiredCount;
     }
 }
