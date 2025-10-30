@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.dto.PaymentResponseDto;
 import com.sist.backend.service.MailService;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.entity.Customer;
 import com.sist.backend.service.PaymentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +32,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final MailService mailService;
+    private final CustomerRepository customerRepository;
 
     @PostMapping("/confirm")
     @Operation(summary = "결제 확인", description = "토스페이먼츠 결제를 확인하고 데이터베이스에 저장합니다.")
@@ -45,13 +48,8 @@ public class PaymentController {
 
             // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기, 실패해도 롤백 안됨)
             // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음
-            if (response.getSuccess() && response.getEmailSent() != null && !response.getEmailSent()) {
+            if (response.getSuccess()) {
                 sendEmailAsync(request, response.getQrUrl());
-                response.setEmailSent(true); // 이메일 발송 플래그 업데이트
-            } else if (response.getSuccess() && response.getEmailSent() == null) {
-                // emailSent가 null인 경우 (기존 로직 호환성)
-                sendEmailAsync(request, response.getQrUrl());
-                response.setEmailSent(true);
             }
 
             return ResponseEntity.ok(response);
@@ -68,6 +66,21 @@ public class PaymentController {
     @Async
     protected void sendEmailAsync(PaymentRequestDto request, String qrUrl) {
         try {
+            // 고객 이메일/이름/전화가 비어있으면 DB에서 보강
+            if ((request.getCustomerEmail() == null || request.getCustomerEmail().isEmpty())
+                    && request.getCustomerIdx() != null) {
+                customerRepository.findById(request.getCustomerIdx()).ifPresent((Customer c) -> {
+                    if (request.getCustomerEmail() == null) {
+                        request.setCustomerEmail(c.getEmail());
+                    }
+                    if (request.getCustomerName() == null) {
+                        request.setCustomerName(c.getName());
+                    }
+                    if (request.getCustomerPhone() == null) {
+                        request.setCustomerPhone(c.getPhone());
+                    }
+                });
+            }
             boolean emailSent = false;
             if ("hotel_reservation".equals(request.getType())) {
                 emailSent = mailService.sendHotelReservationEmail(request, qrUrl);
