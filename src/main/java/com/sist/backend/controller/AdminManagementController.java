@@ -32,9 +32,11 @@ import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
+import com.sist.backend.service.RevenueService;
 import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.RoomService;
 import com.sist.backend.service.hotel.HotelInfoService;
+import com.sist.backend.dto.admin.RevenueSummaryDto;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,6 +52,7 @@ public class AdminManagementController {
 
     private final RoomReservationService roomReservationService;
     private final RoomPaymentService roomPaymentService;
+    private final RevenueService revenueService;
     private final ReservationTimeService reservationTimeService;
     private final RoomService roomService;
     private final CouponTemplateService couponTemplateService;
@@ -68,17 +71,13 @@ public class AdminManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public Map<String, Object> dashboard(
+    public ResponseEntity<com.sist.backend.dto.admin.DashboardDto> dashboard(
         @Parameter(description = "HTTP 요청", hidden = true) 
         HttpServletRequest request){
-        Map<String, Object> map = new HashMap<>();
-        
         // JWT에서 adminIdx 추출
         Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
         if (adminIdx == null) {
-            map.put("success", false);
-            map.put("message", "인증 정보가 유효하지 않습니다.");
-            return map;
+            return ResponseEntity.badRequest().build();
         }
         
         // adminIdx로 contentId 조회
@@ -87,21 +86,92 @@ public class AdminManagementController {
         
         // 오늘 체크인한 사람의 수
         Integer todayCheckinCount = roomReservationService.getTodayCheckinCount();
-        map.put("todayCheckinCount", todayCheckinCount != null ? todayCheckinCount : 0);
         // 오늘 체크아웃한 사람의 수
         Integer todayCheckoutCount = roomReservationService.getTodayCheckoutCount();
-        map.put("todayCheckoutCount", todayCheckoutCount != null ? todayCheckoutCount : 0);
         // 예약 확정 사람 수
         Integer reservationCount = roomReservationService.findByStatus();
-        map.put("reservationCount", reservationCount != null ? reservationCount : 0);
         // 이번달 매출
         Long thisMonthSales = roomPaymentService.findByPrice();
-        map.put("thisMonthSales", thisMonthSales != null ? thisMonthSales : 0);
 
         /* 최근 예약 현황 조회 (5개만) - Room과 Customer 정보 포함 */
         List<RoomReservationDto> roomReservationList = roomReservationService.findByStatusWithDetails(contentid);
-        map.put("roomReservationList", roomReservationList);
-        return map;
+        com.sist.backend.dto.admin.DashboardDto.Today today = com.sist.backend.dto.admin.DashboardDto.Today.builder()
+            .checkinCount(todayCheckinCount != null ? todayCheckinCount : 0)
+            .checkoutCount(todayCheckoutCount != null ? todayCheckoutCount : 0)
+            .reservationCount(reservationCount != null ? reservationCount : 0)
+            .thisMonthSales(thisMonthSales != null ? thisMonthSales : 0)
+            .build();
+
+        com.sist.backend.dto.admin.DashboardDto dto = com.sist.backend.dto.admin.DashboardDto.builder()
+            .today(today)
+            .recentReservations(roomReservationList)
+            .build();
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/revenueSummary")
+    @Operation(summary = "매출 요약", description = "오늘 매출/건수, 월별 매출, 객실명별 매출을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<RevenueSummaryDto> getRevenueSummary(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+
+        // JWT에서 adminIdx 추출
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        RevenueSummaryDto dto = revenueService.getRevenueSummary(contentid);
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/revenueDaily")
+    @Operation(summary = "일별 매출", description = "지정 구간의 일별 매출/건수를 조회합니다. start,end는 YYYY-MM-DD")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<List<com.sist.backend.dto.admin.DailyRevenueDto>> getDailyRevenue(
+        @Parameter(description = "시작일(YYYY-MM-DD)") @RequestParam("start") String start,
+        @Parameter(description = "종료일(YYYY-MM-DD)") @RequestParam("end") String end,
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request
+    ) {
+        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        java.time.LocalDate s;
+        java.time.LocalDate e;
+        try {
+            s = java.time.LocalDate.parse(start);
+            e = java.time.LocalDate.parse(end);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (e.isBefore(s)) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<com.sist.backend.dto.admin.DailyRevenueDto> rows = revenueService.getDailyRevenue(contentid, s, e);
+        return ResponseEntity.ok(rows);
     }
 
     @RequestMapping("/roomReservationList")
