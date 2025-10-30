@@ -72,4 +72,7 @@ public class CustomerService {
     public Optional<Customer> findByEmailAndStatus(String email, Integer status) {
         return customerRepository.findByEmailAndStatus(email, status);
     }
+    public Optional<Customer> findByCustomerIdxAndStatus(Integer customerIdx, Integer status) {
+        return customerRepository.findByCustomerIdxAndStatus(customerIdx, status);
+    }
 }

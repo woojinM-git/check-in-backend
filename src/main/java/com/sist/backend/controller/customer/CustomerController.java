@@ -1,6 +1,7 @@
 package com.sist.backend.controller.customer;
 
 import com.sist.backend.dto.customer.CustomerDto;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.jwt.JwtProvider;
@@ -10,6 +11,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.Cookie;
@@ -37,29 +40,34 @@ public class CustomerController {
     })
     public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
         try {
-            // 1. 쿠키에서 accessToken 가져오기
-            Cookie[] cookies = request.getCookies();
-            String accessToken = null;
+            // // 1. 쿠키에서 accessToken 가져오기
+            // Cookie[] cookies = request.getCookies();
+            // String accessToken = null;
             
-            if (cookies != null) {
-                for (Cookie cookie : cookies) {
-                    if ("accessToken".equals(cookie.getName())) {
-                        accessToken = cookie.getValue();
-                        break;
-                    }
-                }
-            }
+            // if (cookies != null) {
+            //     for (Cookie cookie : cookies) {
+            //         if ("accessToken".equals(cookie.getName())) {
+            //             accessToken = cookie.getValue();
+            //             break;
+            //         }
+            //     }
+            // }
             
-            if (accessToken == null) {
-                return ResponseEntity.status(401).body(Map.of(
-                    "message", "인증이 필요합니다."
-                ));
-            }
+            // if (accessToken == null) {
+            //     return ResponseEntity.status(401).body(Map.of(
+            //         "message", "인증이 필요합니다."
+            //     ));
+            // }
             
-            // 2. JWT에서 사용자 정보 추출
-            Map<String, Object> claims = jwtProvider.getClaims(accessToken);
-            Object customerIdxObj = claims.get("customerIdx");
+            // // 2. JWT에서 사용자 정보 추출
+            // Map<String, Object> claims = jwtProvider.getClaims(accessToken);
+            // Object customerIdxObj = claims.get("customerIdx");
+            // Integer customerIdx = null;
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Object customerIdxObj = principal.getCustomerIdx();
             Integer customerIdx = null;
+
             
             if (customerIdxObj != null) {
                 if (customerIdxObj instanceof String) {
@@ -73,7 +81,7 @@ public class CustomerController {
                 }
             } else {
                 // customerIdx가 없으면 id로 조회
-                String userId = (String) claims.get("id");
+                String userId = (String) principal.getId();
                 if (userId != null) {
                     Optional<Customer> customer = customerService.findByIdAndStatus(userId, 0);
                     if (customer.isPresent()) {

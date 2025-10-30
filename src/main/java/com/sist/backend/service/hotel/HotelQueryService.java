@@ -30,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class HotelQueryService {
 
+    //용준 사용 호텔 디테일 창에서 객실 정보 편의시설 정보 이미지등
+    //불러 올때 사용
     private final HotelInfoRepository hotelInfoRepository;
     private final RoomRepository roomRepository;
     private final RoomAdvancedMapper roomAdvancedMapper;
