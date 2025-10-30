@@ -81,10 +81,9 @@ public class SecurityJavaConfig {
             // 5. 요청별 접근 권한 설정
             .authorizeHttpRequests(auth -> auth
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
-                .requestMatchers("/api/login/logout").authenticated()
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()
-                
+
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")

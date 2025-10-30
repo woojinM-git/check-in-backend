@@ -50,7 +50,7 @@ public class JwtFilter extends OncePerRequestFilter {
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        
+        System.out.println("필터 요청: "+request.getRequestURI());
         // 1. 이미 인증된 사용자인지 확인 (SecurityContext에 Authentication 객체가 있다면 재인증 불필요)
         if (SecurityContextHolder.getContext().getAuthentication() != null &&
             SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
@@ -58,21 +58,18 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
         
-        String accessToken = request.getHeader("accessToken");
-        
         // 헤더에서 토큰을 찾지 못했을 때 쿠키에서 토큰 확인
-        if(accessToken == null) {
-            System.out.println("getHeader accessToken 없음");
-            jakarta.servlet.http.Cookie[] cookies = request.getCookies();
-            if(cookies != null) {
-                for(jakarta.servlet.http.Cookie cookie : cookies) {
-                    if("accessToken".equals(cookie.getName())) {
-                        accessToken = cookie.getValue();
-                        break;
-                    }
+        String accessToken = null;
+        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        if(cookies != null) {
+            for(jakarta.servlet.http.Cookie cookie : cookies) {
+                if("accessToken".equals(cookie.getName())) {
+                    accessToken = cookie.getValue();
+                    break;
                 }
             }
         }
+        
 
         if(accessToken != null){
 
@@ -101,20 +98,20 @@ public class JwtFilter extends OncePerRequestFilter {
 
 
     public void handleExpiredRefreshToken(HttpServletRequest request, HttpServletResponse response) throws AuthenticationFailedException {
-        String refreshToken = request.getHeader("refreshToken");
+        String refreshToken = null;
         
         // 헤더에서 토큰을 찾지 못했을 때 쿠키에서 토큰 확인
-        if(refreshToken == null) {
-            jakarta.servlet.http.Cookie[] cookies = request.getCookies();
-            if(cookies != null) {
-                for(jakarta.servlet.http.Cookie cookie : cookies) {
-                    if("refreshToken".equals(cookie.getName())) {
-                        refreshToken = cookie.getValue();
-                        break;
-                    }
+        
+        jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        if(cookies != null) {
+            for(jakarta.servlet.http.Cookie cookie : cookies) {
+                if("refreshToken".equals(cookie.getName())) {
+                    refreshToken = cookie.getValue();
+                    break;
                 }
             }
         }
+        
         
         if(refreshToken != null && jwtProvider.verify(refreshToken)){
             // refreshToken 유효할 때
@@ -135,6 +132,8 @@ public class JwtFilter extends OncePerRequestFilter {
                             // tokenID가 일치하는 Customer가 존재할 경우
                             System.out.println("Customer 조회 성공");
                             Customer customer_entity = customer.get();
+                            System.out.println("customer_entity.getRefToken(): " + customer_entity.getRefToken());
+                            System.out.println("tokenID: " + tokenID);
     
                             if(customer_entity.getRefToken().equals(tokenID.toString())){
                                 // accessToken + refreshToken 재발급 (RTR)
