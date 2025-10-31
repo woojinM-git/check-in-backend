@@ -107,6 +107,35 @@ public class ReviewController {
     }
 
     /**
+     * 리뷰 수정 (내용만 수정 가능, 별점 수정 불가)
+     */
+    @PutMapping("/{reviewId}")
+    public ResponseEntity<?> updateReview(
+            @PathVariable Integer reviewId,
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest req) {
+        try {
+            Integer customerIdx = getCustomerIdxFromToken(req);
+            if (customerIdx == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "인증 정보가 유효하지 않습니다."));
+            }
+
+            String content = (String) request.get("content");
+            // 별점은 수정 불가: 서비스에 전달하지 않음
+            Review updated = reviewService.updateReview(reviewId, customerIdx, content);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "리뷰가 수정되었습니다.",
+                "reviewIdx", updated.getReviewIdx()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", e.getMessage()));
+        }
+    }
+
+    /**
      * SecurityContext에서 인증된 사용자의 customerIdx를 반환
      * JwtFilter에서 이미 JWT를 검증하고 SecurityContext에 저장함
      * @param request HTTP 요청 (현재는 사용하지 않지만 일관성을 위해 유지)

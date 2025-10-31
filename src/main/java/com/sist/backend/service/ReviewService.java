@@ -127,5 +127,26 @@ public class ReviewService {
             return dto;
         }).toList();
     }
+
+    /**
+     * 리뷰 수정 (내용만 수정, 별점은 수정 불가)
+     */
+    @Transactional
+    public Review updateReview(Integer reviewIdx, Integer customerIdx, String newContent) {
+        Review review = reviewRepository.findById(reviewIdx)
+            .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+
+        if (!review.getCustomerIdx().equals(customerIdx)) {
+            throw new RuntimeException("본인이 작성한 리뷰만 수정할 수 있습니다.");
+        }
+
+        if (newContent == null || newContent.trim().isEmpty()) {
+            throw new RuntimeException("리뷰 내용을 입력해주세요.");
+        }
+
+        review.setContent(newContent.trim());
+
+        return reviewRepository.save(review);
+    }
 }
 
