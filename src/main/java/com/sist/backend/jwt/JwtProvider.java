@@ -14,8 +14,10 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class JwtProvider {
     @Value("${jwt.secret}")
     private String secretKeyCode;
@@ -63,7 +65,7 @@ public class JwtProvider {
         try{
             Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(token);
         }catch(Exception e){
-            e.printStackTrace();
+            log.error("JwtProvider.verify() 예외 발생", e);
             //유효기간이 만료되면 예외 발생됨
             value = false;
         }

@@ -72,6 +72,9 @@ public class Customer {
     @Column(name = "refToken")
     private String refToken;
 
+    @Column(name = "refTokenUpdatedAt")
+    private LocalDateTime refTokenUpdatedAt;
+
     @Column(name ="provider")
     private Integer provider;
     
