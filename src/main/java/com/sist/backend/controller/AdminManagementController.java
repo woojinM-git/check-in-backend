@@ -13,11 +13,12 @@ import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.ReservationTimeService;
-import com.sist.backend.util.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +33,7 @@ import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
 import com.sist.backend.dto.admin.RoomStatusDto;
 import com.sist.backend.dto.admin.RoomUpdateDto;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RevenueService;
@@ -61,7 +63,6 @@ public class AdminManagementController {
     private final CustomerService customerService;
     private final CouponService couponService;
     private final HotelInfoService hotelInfoService;
-    private final JwtUtils jwtUtils;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -77,7 +78,9 @@ public class AdminManagementController {
         @Parameter(description = "HTTP 요청", hidden = true) 
         HttpServletRequest request){
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -122,8 +125,9 @@ public class AdminManagementController {
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
 
-        // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -148,9 +152,10 @@ public class AdminManagementController {
     public ResponseEntity<List<com.sist.backend.dto.admin.DailyRevenueDto>> getDailyRevenue(
         @Parameter(description = "시작일(YYYY-MM-DD)") @RequestParam("start") String start,
         @Parameter(description = "종료일(YYYY-MM-DD)") @RequestParam("end") String end,
-        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request
-    ) {
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -192,7 +197,9 @@ public class AdminManagementController {
         HttpServletRequest request){
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -222,7 +229,9 @@ public class AdminManagementController {
         Pageable pageable = Pageable.ofSize(size).withPage(page);
 
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -248,7 +257,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -292,7 +303,9 @@ public class AdminManagementController {
         Pageable pageable = Pageable.ofSize(size).withPage(page);
 
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -318,7 +331,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -363,7 +378,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -395,7 +412,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -503,7 +522,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -548,7 +569,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -590,7 +613,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -635,7 +660,9 @@ public class AdminManagementController {
 
         Map<String, Object> map = new HashMap<>();
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -684,7 +711,9 @@ public class AdminManagementController {
         
         Map<String, Object> map = new HashMap<>();
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -712,7 +741,9 @@ public class AdminManagementController {
         
         Map<String, Object> map = new HashMap<>();
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
