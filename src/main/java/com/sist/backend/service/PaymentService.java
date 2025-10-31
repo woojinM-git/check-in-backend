@@ -43,6 +43,7 @@ public class PaymentService {
     private final QRCodeGenerator qrCodeGenerator;
     private final CustomerRepository customerRepository;
     private final RoomRepository roomRepository;
+    private final ReservationLockService reservationLockService;
 
     @Transactional(rollbackFor = Exception.class)
     public PaymentResponseDto verifyAndSavePayment(PaymentRequestDto request) {
@@ -126,6 +127,19 @@ public class PaymentService {
 
                 // 5단계: Customer 테이블 업데이트 (캐시/포인트 차감)
                 updateCustomerBalance(request);
+
+                // 6단계: 예약 락 해제 (결제 성공 시)
+                try {
+                    reservationLockService.releaseLock(
+                            request.getContentId(),
+                            request.getRoomId(),
+                            request.getCustomerIdx()
+                    );
+                    log.info("예약 락 해제 완료: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
+                } catch (Exception e) {
+                    log.warn("예약 락 해제 실패 (무시): {}", e.getMessage());
+                    // 락 해제 실패는 무시 (TTL로 자동 만료됨)
+                }
 
                 log.info("호텔 결제 및 예약 저장 완료: orderIdx={}", savedPayment.getOrderIdx());
 

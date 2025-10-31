@@ -91,11 +91,14 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/dining/detail").permitAll()
 
 
+                .requestMatchers("/api/**").permitAll()
+                // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
+                .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
+                .requestMatchers("/api/reservations/unlock").permitAll() // beforeunload에서 인증 없이 호출 가능
 
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-
                 // 그 외 모든 요청은 인증 필요 (AccessToken 필수)
                 .anyRequest().authenticated()
             )
