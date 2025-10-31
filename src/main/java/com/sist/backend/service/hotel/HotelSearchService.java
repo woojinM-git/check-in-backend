@@ -41,8 +41,99 @@ public class HotelSearchService {
         return hotels;
     }
 
+    /**
+     * 제목으로 호텔 검색 (가격 정보 포함)
+     * @param title 검색할 호텔 제목
+     * @return HotelcardResponse 리스트 (가격 정보 포함)
+     */
+    public List<HotelcardResponse> findByTitleWithPrice(String title){
+        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(title);
+        
+        return hotels.stream().map(hotel -> {
+            // 해당 호텔의 객실 가격 범위 조회
+            List<BigDecimal> prices = roomRepository.findBasePricesByContentId(hotel.getContentId());
+            
+            BigDecimal minPrice = null;
+            BigDecimal maxPrice = null;
+            
+            if (!prices.isEmpty()) {
+                minPrice = prices.stream().min(BigDecimal::compareTo).orElse(null);
+                maxPrice = prices.stream().max(BigDecimal::compareTo).orElse(null);
+            }
+            
+            // 호텔 위치 정보 조회
+            BigDecimal mapX = hotelLocationRepository.findAll().stream()
+                .filter(loc -> hotel.getContentId().equals(loc.getContentId()))
+                .findFirst()
+                .map(location -> location.getMapX())
+                .orElse(null);
+            BigDecimal mapY = hotelLocationRepository.findAll().stream()
+                .filter(loc -> hotel.getContentId().equals(loc.getContentId()))
+                .findFirst()
+                .map(location -> location.getMapY())
+                .orElse(null);
+            
+            return HotelcardResponse.builder()
+                    .contentId(hotel.getContentId())
+                    .title(hotel.getTitle())
+                    .adress(hotel.getAdress())
+                    .imageUrl(hotel.getImageUrl())
+                    .areaCode(hotel.getAreaCode())
+                    .minPrice(minPrice)
+                    .maxPrice(maxPrice)
+                    .mapX(mapX)
+                    .mapY(mapY)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
     public List<HotelInfo> findAll(){
         return hotelSearchRepository.findAll();
+    }
+
+    /**
+     * 모든 호텔 조회 (가격 정보 포함)
+     * @return HotelcardResponse 리스트 (가격 정보 포함)
+     */
+    public List<HotelcardResponse> findAllWithPrice(){
+        List<HotelInfo> hotels = hotelSearchRepository.findAll();
+        
+        return hotels.stream().map(hotel -> {
+            // 해당 호텔의 객실 가격 범위 조회
+            List<BigDecimal> prices = roomRepository.findBasePricesByContentId(hotel.getContentId());
+            
+            BigDecimal minPrice = null;
+            BigDecimal maxPrice = null;
+            
+            if (!prices.isEmpty()) {
+                minPrice = prices.stream().min(BigDecimal::compareTo).orElse(null);
+                maxPrice = prices.stream().max(BigDecimal::compareTo).orElse(null);
+            }
+            
+            // 호텔 위치 정보 조회
+            BigDecimal mapX = hotelLocationRepository.findAll().stream()
+                .filter(loc -> hotel.getContentId().equals(loc.getContentId()))
+                .findFirst()
+                .map(location -> location.getMapX())
+                .orElse(null);
+            BigDecimal mapY = hotelLocationRepository.findAll().stream()
+                .filter(loc -> hotel.getContentId().equals(loc.getContentId()))
+                .findFirst()
+                .map(location -> location.getMapY())
+                .orElse(null);
+            
+            return HotelcardResponse.builder()
+                    .contentId(hotel.getContentId())
+                    .title(hotel.getTitle())
+                    .adress(hotel.getAdress())
+                    .imageUrl(hotel.getImageUrl())
+                    .areaCode(hotel.getAreaCode())
+                    .minPrice(minPrice)
+                    .maxPrice(maxPrice)
+                    .mapX(mapX)
+                    .mapY(mapY)
+                    .build();
+        }).collect(Collectors.toList());
     }
     
     public List<HotelcardResponse> findAllPopularHotels() {

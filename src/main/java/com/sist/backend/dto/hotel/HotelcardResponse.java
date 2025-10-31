@@ -20,4 +20,6 @@ public class HotelcardResponse {
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
     private Double distance; // 다트게임에서 사용할 거리 정보 (킬로미터)
+    private BigDecimal mapX; // 경도 (지도용)
+    private BigDecimal mapY; // 위도 (지도용)
 }
