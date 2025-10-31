@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class RoomReservationService {
-    
+    // ********* 이건 예약 조회 통계용 서비스 ************
     private final RoomReservationRepository roomReservationRepository;
 
     /* 오늘 체크인한 사람의 수 조회 */
