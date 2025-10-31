@@ -110,4 +110,40 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     boolean existsActiveReservation(@Param("roomIdx") Integer roomIdx,
             @Param("contentId") String contentId,
             @Param("checkinDate") java.time.LocalDate checkinDate);
+
+    /* 특정 호텔을 이용한 기록이 있는 고객 수 */
+    @Query("SELECT COUNT(DISTINCT r.customerIdx) FROM RoomReservation r " +
+           "WHERE r.contentid = :contentid AND r.status = 1")
+    Long countDistinctCustomersByContentId(@Param("contentid") String contentid);
+
+    /* 이번 달 새로 이용을 시작한 고객 수 */
+    @Query("SELECT COUNT(DISTINCT r.customerIdx) FROM RoomReservation r " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status = 1 " +
+           "AND YEAR(r.checkinDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(r.checkinDate) = MONTH(CURRENT_DATE) " +
+           "AND r.checkinDate = (SELECT MIN(r2.checkinDate) FROM RoomReservation r2 " +
+           "                      WHERE r2.customerIdx = r.customerIdx " +
+           "                      AND r2.contentid = :contentid " +
+           "                      AND r2.status = 1)")
+    Long countNewCustomersThisMonth(@Param("contentid") String contentid);
+
+    /* 특정 호텔을 이용한 고객별 체크인 날짜 목록 */
+    @Query("SELECT DISTINCT r.checkinDate FROM RoomReservation r " +
+           "WHERE r.customerIdx = :customerIdx " +
+           "AND r.contentid = :contentid " +
+           "AND r.status = 1 " +
+           "ORDER BY r.checkinDate ASC")
+    List<java.time.LocalDate> findCheckinDatesByCustomerAndContentId(
+            @Param("customerIdx") Integer customerIdx,
+            @Param("contentid") String contentid);
+
+    /* 특정 호텔을 이용한 고객의 최근 방문 날짜 */
+    @Query("SELECT MAX(r.checkinDate) FROM RoomReservation r " +
+           "WHERE r.customerIdx = :customerIdx " +
+           "AND r.contentid = :contentid " +
+           "AND r.status = 1")
+    java.time.LocalDate findLastVisitDateByCustomerAndContentId(
+            @Param("customerIdx") Integer customerIdx,
+            @Param("contentid") String contentid);
 }

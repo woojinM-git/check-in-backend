@@ -41,6 +41,8 @@ import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.RoomService;
 import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.dto.admin.RevenueSummaryDto;
+import com.sist.backend.dto.admin.CustomerStatsDto;
+import com.sist.backend.dto.admin.CustomerListDto;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -754,6 +756,86 @@ public class AdminManagementController {
         map.put("success", true);
         map.put("message", "객실 비활성화 처리가 완료되었습니다.");
         map.put("room", room);
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerStats")
+    @Operation(summary = "고객 통계 조회", description = "특정 호텔의 고객 통계를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<CustomerStatsDto> getCustomerStats(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // 통계 계산
+        Long totalCustomers = roomReservationService.countDistinctCustomersByContentId(contentid);
+        Long newCustomersThisMonth = roomReservationService.countNewCustomersThisMonth(contentid);
+        Double averagePaymentAmount = roomPaymentService.findAveragePaymentByContentId(contentid);
+        
+        CustomerStatsDto stats = new CustomerStatsDto();
+        stats.setTotalCustomers(totalCustomers != null ? totalCustomers : 0L);
+        stats.setNewCustomersThisMonth(newCustomersThisMonth != null ? newCustomersThisMonth : 0L);
+        stats.setAveragePaymentAmount(averagePaymentAmount != null ? averagePaymentAmount : 0.0);
+        
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/customers")
+    @Operation(summary = "고객 목록 조회", description = "특정 호텔을 이용한 고객 목록을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getCustomers(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 고객 목록 조회
+        List<CustomerListDto> customers = customerService.findCustomersByContentId(contentid);
+        
+        map.put("success", true);
+        map.put("customers", customers);
+        
         return ResponseEntity.ok(map);
     }
 }

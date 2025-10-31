@@ -83,4 +83,14 @@ public class RoomReservationService {
             .map(RoomReservationDto::fromEntity)
             .collect(Collectors.toList());
     }
+
+    /* 특정 호텔을 이용한 기록이 있는 고객 수 */
+    public Long countDistinctCustomersByContentId(String contentid) {
+        return roomReservationRepository.countDistinctCustomersByContentId(contentid);
+    }
+
+    /* 이번 달 새로 이용을 시작한 고객 수 */
+    public Long countNewCustomersThisMonth(String contentid) {
+        return roomReservationRepository.countNewCustomersThisMonth(contentid);
+    }
 }

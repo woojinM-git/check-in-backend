@@ -191,6 +191,8 @@ public class JwtFilter extends OncePerRequestFilter {
                             // tokenID가 일치하는 Customer가 존재할 경우
                             System.out.println("admin 조회 성공");
                             Admin admin_entity = admin.get();
+                            System.out.println("admin_entity.getRefToken(): " + admin_entity.getRefToken());
+                            System.out.println("tokenID: " + tokenID);
         
                             if(admin_entity.getRefToken().equals(tokenID.toString())){
                                 // accessToken + refreshToken 재발급 (RTR)
