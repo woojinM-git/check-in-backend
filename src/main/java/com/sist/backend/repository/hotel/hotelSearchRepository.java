@@ -23,7 +23,6 @@ public interface hotelSearchRepository extends JpaRepository<HotelInfo, String> 
     "FROM hotelInfo h " +
     "WHERE MATCH(h.title) AGAINST(:searchWord IN NATURAL LANGUAGE MODE) " +
     "ORDER BY score DESC "+
-    "LIMIT 10"+
     ") hotel",
     nativeQuery = true)
     List<HotelInfo> findByTitle(@Param("searchWord") String searchWord);
