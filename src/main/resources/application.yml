@@ -53,7 +53,7 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expire-time: 5
+  access-token-expire-time: 1800
   refresh-token-expire-time: 604800
 
 # CORS 설정
