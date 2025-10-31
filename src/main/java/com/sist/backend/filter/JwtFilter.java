@@ -99,9 +99,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
     public void handleExpiredRefreshToken(HttpServletRequest request, HttpServletResponse response) throws AuthenticationFailedException {
         String refreshToken = null;
-        
+
         // 헤더에서 토큰을 찾지 못했을 때 쿠키에서 토큰 확인
-        
         jakarta.servlet.http.Cookie[] cookies = request.getCookies();
         if(cookies != null) {
             for(jakarta.servlet.http.Cookie cookie : cookies) {
