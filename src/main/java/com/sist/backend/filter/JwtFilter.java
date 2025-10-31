@@ -48,6 +48,19 @@ public class JwtFilter extends OncePerRequestFilter {
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
     
+    /**
+     * 필터를 적용하지 않을 경로 설정
+     * SpringDoc OpenAPI 문서 경로는 인증 없이 접근 가능하도록 필터에서 제외
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api-docs") 
+            || path.startsWith("/swagger-ui") 
+            || path.startsWith("/v3/api-docs")
+            || path.equals("/swagger-ui.html");
+    }
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         System.out.println("필터 요청: "+request.getRequestURI());
