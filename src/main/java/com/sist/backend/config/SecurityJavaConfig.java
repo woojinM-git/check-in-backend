@@ -31,8 +31,7 @@ public class SecurityJavaConfig {
     private final JwtFilter jwtFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    
-    
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -46,7 +45,7 @@ public class SecurityJavaConfig {
             .csrf(csrf -> csrf.disable());
         return http.build();
          */
-        /* 
+ /* 
         // JWT 구현 후 사용할 설정
         http.csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(
@@ -57,14 +56,14 @@ public class SecurityJavaConfig {
                     .permitAll().anyRequest().authenticated()   
         );
         return http.build();
-        */
+         */
 
         http
             // 1. CSRF, formLogin, httpBasic 비활성화 (JWT 사용으로 세션 기반 인증 비활성화)
             .csrf(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
-            
+
             // 2. CORS 설정 (아래 corsConfigurationSource 빈을 사용)
             .cors(c -> c.configurationSource(corsConfigurationSource()))
 
@@ -89,17 +88,13 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/dining/list").permitAll()
                 .requestMatchers("/api/dining/search").permitAll()
                 .requestMatchers("/api/dining/detail").permitAll()
-
-
-                .requestMatchers("/api/**").permitAll()
-                // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
+                // 예약 락 API: lock 은 인증 필요, unlock 은 허용
+                .requestMatchers("/api/reservations/unlock").permitAll()
                 .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
-                .requestMatchers("/api/reservations/unlock").permitAll() // beforeunload에서 인증 없이 호출 가능
-
-                // customer 권한만 허용 (ROLE_CUSTOMER)
+                // 인증 필요한 도메인 API
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-                // 그 외 모든 요청은 인증 필요 (AccessToken 필수)
+                // 그 외 모든 요청은 인증 필요
                 .anyRequest().authenticated()
             )
 
