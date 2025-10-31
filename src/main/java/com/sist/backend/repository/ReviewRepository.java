@@ -30,10 +30,12 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
     List<Integer> findReservationIdsByCustomerIdx(@Param("customerIdx") Integer customerIdx);
     
     /**
-     * 고객이 작성한 리뷰 조회 (호텔 정보 포함)
+     * 고객이 작성한 리뷰 조회 (호텔/예약 정보 포함) - N+1 방지
      */
-    @Query("SELECT r FROM Review r " +
-        "LEFT JOIN FETCH r.hotelInfo h " +
+    @Query("SELECT DISTINCT r FROM Review r " +
+        "JOIN FETCH r.roomReservation rr " +
+        "JOIN FETCH r.hotelInfo h " +
+        "LEFT JOIN FETCH h.area a " +
         "WHERE r.customerIdx = :customerIdx " +
         "ORDER BY r.createdAt DESC")
     List<Review> findByCustomerIdx(@Param("customerIdx") Integer customerIdx);
