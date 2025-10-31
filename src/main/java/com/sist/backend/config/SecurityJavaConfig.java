@@ -82,11 +82,6 @@ public class SecurityJavaConfig {
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
                 
-                // 시스템 경로 (인증 없이 접근 허용)
-                .requestMatchers("/error").permitAll() // Spring Boot 기본 에러 페이지
-                .requestMatchers("/health").permitAll() // 헬스체크
-                .requestMatchers("/actuator/**").permitAll() // Spring Boot Actuator
-                
                 // 인증이 필요한 경로를 먼저 명시 (더 구체적인 경로 우선)
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
