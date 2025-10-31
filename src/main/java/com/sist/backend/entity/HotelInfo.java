@@ -77,7 +77,6 @@ public class HotelInfo {
     private List<HotelImage> hotelImages = new ArrayList<>();
     
     @OneToOne(mappedBy = "hotelInfo", fetch = FetchType.LAZY)
-    @JsonIgnore
     @ToString.Exclude
     private HotelLocation hotelLocation;
     

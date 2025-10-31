@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RoomRepository extends JpaRepository<Room, RoomId> {
@@ -26,4 +27,7 @@ public interface RoomRepository extends JpaRepository<Room, RoomId> {
     @Query("SELECT r FROM Room r " +
         "WHERE r.contentId = :contentId")
     List<Room> findByContentIdAdmin(@Param("contentId") String contentId);
+
+    // roomIdx 단일 키로 조회 (복합키이지만 roomIdx로 단일 조회가 필요한 서비스용)
+    Optional<Room> findByRoomIdx(Integer roomIdx);
 }

@@ -48,6 +48,19 @@ public class JwtFilter extends OncePerRequestFilter {
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
     
+    /**
+     * 필터를 적용하지 않을 경로 설정
+     * SpringDoc OpenAPI 문서 경로는 인증 없이 접근 가능하도록 필터에서 제외
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api-docs") 
+            || path.startsWith("/swagger-ui") 
+            || path.startsWith("/v3/api-docs")
+            || path.equals("/swagger-ui.html");
+    }
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         System.out.println("필터 요청: "+request.getRequestURI());
@@ -99,9 +112,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
     public void handleExpiredRefreshToken(HttpServletRequest request, HttpServletResponse response) throws AuthenticationFailedException {
         String refreshToken = null;
-        
+
         // 헤더에서 토큰을 찾지 못했을 때 쿠키에서 토큰 확인
-        
         jakarta.servlet.http.Cookie[] cookies = request.getCookies();
         if(cookies != null) {
             for(jakarta.servlet.http.Cookie cookie : cookies) {
@@ -192,6 +204,8 @@ public class JwtFilter extends OncePerRequestFilter {
                             // tokenID가 일치하는 Customer가 존재할 경우
                             System.out.println("admin 조회 성공");
                             Admin admin_entity = admin.get();
+                            System.out.println("admin_entity.getRefToken(): " + admin_entity.getRefToken());
+                            System.out.println("tokenID: " + tokenID);
         
                             if(admin_entity.getRefToken().equals(tokenID.toString())){
                                 // accessToken + refreshToken 재발급 (RTR)

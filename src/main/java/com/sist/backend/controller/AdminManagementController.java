@@ -13,11 +13,12 @@ import com.sist.backend.service.CouponService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.ReservationTimeService;
-import com.sist.backend.util.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,9 @@ import com.sist.backend.dto.admin.CheckTimeUpdateDto;
 import com.sist.backend.dto.admin.CouponCreateDto;
 import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
+import com.sist.backend.dto.admin.RoomStatusDto;
+import com.sist.backend.dto.admin.RoomUpdateDto;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Room;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RevenueService;
@@ -37,6 +41,10 @@ import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.RoomService;
 import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.dto.admin.RevenueSummaryDto;
+import com.sist.backend.dto.admin.CustomerStatsDto;
+import com.sist.backend.dto.admin.CustomerListDto;
+import com.sist.backend.dto.admin.CustomerHistoryDto;
+import com.sist.backend.dto.admin.CustomerHistoryStatsDto;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -59,7 +67,7 @@ public class AdminManagementController {
     private final CustomerService customerService;
     private final CouponService couponService;
     private final HotelInfoService hotelInfoService;
-    private final JwtUtils jwtUtils;
+    private final com.sist.backend.service.ReviewService reviewService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -75,7 +83,9 @@ public class AdminManagementController {
         @Parameter(description = "HTTP 요청", hidden = true) 
         HttpServletRequest request){
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -120,8 +130,9 @@ public class AdminManagementController {
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
 
-        // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -146,9 +157,10 @@ public class AdminManagementController {
     public ResponseEntity<List<com.sist.backend.dto.admin.DailyRevenueDto>> getDailyRevenue(
         @Parameter(description = "시작일(YYYY-MM-DD)") @RequestParam("start") String start,
         @Parameter(description = "종료일(YYYY-MM-DD)") @RequestParam("end") String end,
-        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request
-    ) {
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -190,7 +202,9 @@ public class AdminManagementController {
         HttpServletRequest request){
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -220,7 +234,9 @@ public class AdminManagementController {
         Pageable pageable = Pageable.ofSize(size).withPage(page);
 
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -246,7 +262,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -290,7 +308,9 @@ public class AdminManagementController {
         Pageable pageable = Pageable.ofSize(size).withPage(page);
 
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -316,7 +336,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(httpRequest);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -361,7 +383,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -393,7 +417,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -501,7 +527,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -546,7 +574,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -588,7 +618,9 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -633,7 +665,9 @@ public class AdminManagementController {
 
         Map<String, Object> map = new HashMap<>();
         // JWT에서 adminIdx 추출
-        Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
         if (adminIdx == null) {
             map.put("success", false);
             map.put("message", "인증 정보가 유효하지 않습니다.");
@@ -668,5 +702,228 @@ public class AdminManagementController {
         }
     }
 
+    @PostMapping("/roomUpdate")
+    @Operation(summary = "객실 정보 수정", description = "객실 정보를 수정합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 수정됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateRoom(
+        @RequestBody RoomUpdateDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
 
+        Room room = roomService.updateRoom(dto.getRoomIdx(), dto.getName(), dto.getCapacity(), dto.getBasePrice());
+        map.put("success", true);
+        map.put("message", "객실 정보가 성공적으로 수정되었습니다.");
+        map.put("room", room);
+        return ResponseEntity.ok(map);
+    }
+
+    @PostMapping("/roomStatus")
+    @Operation(summary = "객실 비활성화", description = "객실을 비활성화 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 비활성화됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateRoomStatus(
+        @RequestBody RoomStatusDto dto,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+
+        Room room = roomService.updateRoomStatus(dto.getRoomIdx(), dto.getStatus());
+        map.put("success", true);
+        map.put("message", "객실 비활성화 처리가 완료되었습니다.");
+        map.put("room", room);
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerStats")
+    @Operation(summary = "고객 통계 조회", description = "특정 호텔의 고객 통계를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<CustomerStatsDto> getCustomerStats(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // 통계 계산
+        Long totalCustomers = roomReservationService.countDistinctCustomersByContentId(contentid);
+        Long newCustomersThisMonth = roomReservationService.countNewCustomersThisMonth(contentid);
+        Double averagePaymentAmount = roomPaymentService.findAveragePaymentByContentId(contentid);
+        
+        CustomerStatsDto stats = new CustomerStatsDto();
+        stats.setTotalCustomers(totalCustomers != null ? totalCustomers : 0L);
+        stats.setNewCustomersThisMonth(newCustomersThisMonth != null ? newCustomersThisMonth : 0L);
+        stats.setAveragePaymentAmount(averagePaymentAmount != null ? averagePaymentAmount : 0.0);
+        
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/customers")
+    @Operation(summary = "고객 목록 조회", description = "특정 호텔을 이용한 고객 목록을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getCustomers(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 고객 목록 조회
+        List<CustomerListDto> customers = customerService.findCustomersByContentId(contentid);
+        
+        map.put("success", true);
+        map.put("customers", customers);
+        
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerHistory")
+    @Operation(summary = "고객 이용 이력 조회", description = "특정 호텔의 고객 이용 이력과 리뷰를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getCustomerHistory(
+        @Parameter(description = "고객 ID 검색어", example = "user123")
+        @RequestParam(value = "customerId", required = false) String customerId,
+        @Parameter(description = "상태 필터 (null: 전체, 2: 취소, 4: 완료)", example = "4")
+        @RequestParam(value = "status", required = false) Integer statusFilter,
+        @Parameter(description = "평점 필터 (null: 전체, 1-5: 해당 평점)", example = "5")
+        @RequestParam(value = "rating", required = false) Integer ratingFilter,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 고객 이용 이력 조회
+        List<CustomerHistoryDto> history = roomReservationService.findCustomerHistory(
+            contentid, customerId, statusFilter, ratingFilter);
+        
+        map.put("success", true);
+        map.put("history", history);
+        
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerHistoryStats")
+    @Operation(summary = "고객 이용 이력 통계 조회", description = "특정 호텔의 평균 평점과 피드백 갯수를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<CustomerHistoryStatsDto> getCustomerHistoryStats(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // 통계 계산
+        java.math.BigDecimal averageRating = reviewService.getAverageRatingByContentId(contentid);
+        Long feedbackCount = reviewService.getFeedbackCountByContentId(contentid);
+        
+        CustomerHistoryStatsDto stats = new CustomerHistoryStatsDto();
+        stats.setAverageRating(averageRating != null ? averageRating : java.math.BigDecimal.ZERO);
+        stats.setFeedbackCount(feedbackCount != null ? feedbackCount : 0L);
+        
+        return ResponseEntity.ok(stats);
+    }
 }

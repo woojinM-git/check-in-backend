@@ -38,4 +38,10 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
         "LEFT JOIN FETCH rp.roomReservations rr " +
         "WHERE rr.contentid = :contentId")
     List<RoomPayment> findAllByContentIdWithReservations(@Param("contentId") String contentId);
+
+    /* 특정 호텔의 평균 결제 금액 */
+    @Query("SELECT AVG(rp.price) FROM RoomPayment rp " +
+           "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx " +
+           "WHERE rr.contentid = :contentid AND rp.status = 1")
+    Double findAveragePaymentByContentId(@Param("contentid") String contentid);
 }

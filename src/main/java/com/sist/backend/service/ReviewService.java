@@ -129,6 +129,20 @@ public class ReviewService {
     }
 
     /**
+     * 특정 호텔의 평균 평점
+     */
+    public BigDecimal getAverageRatingByContentId(String contentid) {
+        return reviewRepository.findAverageRatingByContentId(contentid);
+    }
+
+    /**
+     * 특정 호텔의 피드백 갯수
+     */
+    public Long getFeedbackCountByContentId(String contentid) {
+        return reviewRepository.countFeedbackByContentId(contentid);
+    }
+
+    /**
      * 리뷰 수정 (내용만 수정, 별점은 수정 불가)
      */
     @Transactional
