@@ -3,6 +3,7 @@ package com.sist.backend.service.hotel;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.dto.hotel.HotelcardResponse;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
+import com.sist.backend.repository.hotel.HotelLocationRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
 
 import java.math.BigDecimal;
@@ -24,9 +25,20 @@ public class HotelSearchService {
     private final HotelInfoRepository hotelInfoRepository;
     private final hotelSearchRepository hotelSearchRepository;
     private final RoomRepository roomRepository;
+    private final HotelLocationRepository hotelLocationRepository;
 
     public List<HotelInfo> findByTitle(String title){
-        return hotelSearchRepository.findByTitle(title);
+        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(title);
+        
+        // 각 호텔에 hotelLocation 정보 추가
+        for (HotelInfo hotel : hotels) {
+            hotelLocationRepository.findAll().stream()
+                .filter(loc -> hotel.getContentId().equals(loc.getContentId()))
+                .findFirst()
+                .ifPresent(hotel::setHotelLocation);
+        }
+        
+        return hotels;
     }
 
     public List<HotelInfo> findAll(){
