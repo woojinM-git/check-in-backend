@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -81,6 +80,17 @@ public class SecurityJavaConfig {
             // 5. 요청별 접근 권한 설정
             .authorizeHttpRequests(auth -> auth
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
+                .requestMatchers("/api/login/**").permitAll()
+                .requestMatchers("/api/hotel/**").permitAll()
+                .requestMatchers("/api/hotels/**").permitAll()
+                .requestMatchers("/api/used/list").permitAll()
+                .requestMatchers("/api/used/search").permitAll()
+                .requestMatchers("/api/used/detail").permitAll()
+                .requestMatchers("/api/dining/list").permitAll()
+                .requestMatchers("/api/dining/search").permitAll()
+                .requestMatchers("/api/dining/detail").permitAll()
+
+
                 .requestMatchers("/api/**").permitAll()
                 // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
                 .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
@@ -111,7 +121,7 @@ public class SecurityJavaConfig {
         configuration.setMaxAge(3600L); // 캐시 유효 시간
 
         // 'Authorization' 및 'accessToken', 'RefreshToken' 헤더를 클라이언트가 접근할 수 있도록 노출
-        configuration.setExposedHeaders(List.of("Authorization", "accessToken", "RefreshToken"));
+        configuration.setExposedHeaders(List.of("Authorization", "accessToken", "RefreshToken")); 
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // 모든 경로에 대해 적용
