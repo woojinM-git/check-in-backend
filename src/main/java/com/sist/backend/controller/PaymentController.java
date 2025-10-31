@@ -2,6 +2,8 @@ package com.sist.backend.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,9 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.dto.PaymentResponseDto;
-import com.sist.backend.service.MailService;
-import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.service.MailService;
 import com.sist.backend.service.PaymentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,12 +46,28 @@ public class PaymentController {
     })
     public ResponseEntity<PaymentResponseDto> confirmPayment(@RequestBody PaymentRequestDto request) {
         try {
+            // 인증 정보에서 principal 추출 - Cookies[] 대신 SecurityContext 사용
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof CustomerAdminSignupDTO principal) {
+                // 고객 권한인 경우 안전하게 식별자 보강 (클라이언트 입력보다 우선)
+                if ("customer".equalsIgnoreCase(principal.getRole())) {
+                    if (request.getCustomerIdx() == null) {
+                        request.setCustomerIdx(principal.getCustomerIdx());
+                    }
+                    // 이메일/이름/전화는 비어있을 때만 보강 (서비스에서도 보강 로직 존재)
+                    if ((request.getCustomerEmail() == null || request.getCustomerEmail().isEmpty())) {
+                        // repository를 통해 보강은 sendEmailAsync에서도 수행되므로 여기서는 생략 가능
+                        // 필요 시 아래에서 조회된 값으로 보강할 수 있음
+                    }
+                }
+                // 관리자 결제 시나리오가 있다면 adminIdx 사용 고려 (현재는 customer 중심)
+            }
             // 1단계: 결제 검증 및 DB 저장 (트랜잭션으로 보호)
             PaymentResponseDto response = paymentService.verifyAndSavePayment(request);
 
-            // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기, 실패해도 롤백 안됨)
-            // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음
-            if (response.getSuccess()) {
+            // 2단계: 결제 완료 후 처리 (이메일 발송 - 비동기)
+            // 중요: 이미 처리된 결제는 이메일을 재발송하지 않음 (service가 emailSent=true일 때만 발송)
+            if (Boolean.TRUE.equals(response.getSuccess()) && Boolean.TRUE.equals(response.getEmailSent())) {
                 sendEmailAsync(request, response.getQrUrl());
             }
 

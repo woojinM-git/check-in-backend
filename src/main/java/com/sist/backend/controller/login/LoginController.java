@@ -12,6 +12,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +36,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/api/login")
 @Tag(name="로그인/회원가입", description="로그인/회원가입 관련 API")
 public class LoginController {
+    
     
 
     @Autowired
@@ -63,8 +67,11 @@ public class LoginController {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    int accessTokenExpireTime = 60*60*2;
-    int refreshTokenExpireTime = 604800;
+    @Value("${jwt.access-token-expire-time}")
+    private int accessTokenExpireTime;
+
+    @Value("${jwt.refresh-token-expire-time}")
+    private int refreshTokenExpireTime;
 
     @GetMapping("/getaccesstoken")
     @Operation(summary="액세스 토큰 발급", description="액세스 토큰 발급")
@@ -87,7 +94,9 @@ public class LoginController {
                     if(customer.isPresent()){
                         Customer customer_entity = customer.get();
                         Map<String, Object> accesspayload = new HashMap<>();
+                        
                         accesspayload.put("id", customer_entity.getId());
+                        accesspayload.put("customerIdx", customer_entity.getCustomerIdx());
                         accesspayload.put("nickname", customer_entity.getNickname());
                         accesspayload.put("cash", customer_entity.getCash());
                         accesspayload.put("point", customer_entity.getPoint());
@@ -151,14 +160,16 @@ public class LoginController {
                     accessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime);
 
 
+
                     refreshpayload.put("id",customer_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
                     refreshpayload.put("role", customerAdminSignupDTO.getRole());
+                    refreshpayload.put("customerIdx", customer_exist_entity.getCustomerIdx());
 
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
 
 
-                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax",accessToken);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
@@ -197,11 +208,13 @@ public class LoginController {
                     refreshpayload.put("id",admin_exist_entity.getId());
                     refreshpayload.put("tokenID",uuid);
                     refreshpayload.put("role", customerAdminSignupDTO.getRole());
+                    refreshpayload.put("adminIdx", admin_exist_entity.getAdminIdx());
+                    
 
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
 
 
-                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",accessToken,accessTokenExpireTime);
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax",accessToken);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
@@ -336,7 +349,7 @@ public class LoginController {
         Map<String, Object> result = new HashMap<>();
         String inputemail = customerAdminSignupDTO.getEmail(); 
         if(customerService.findByEmailAndStatus(inputemail,0).isPresent()){
-            result.put("message","가입 이력이 존재하는 이메일입니다.");
+            result.put("message","현재 사용 중인 이메일입니다.");
             result.put("status","fail");
             return ResponseEntity.ok(result);
         }
@@ -398,6 +411,44 @@ public class LoginController {
         
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/logout")
+    @Operation(summary="로그아웃", description="쿠키 삭제")
+    public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response) {
+        Map<String, Object> result = new HashMap<>();
+
+        Authentication Authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) Authentication.getPrincipal();
+        System.out.println("principal: "+principal);
+        if(principal.getRole().equals("customer")){
+            System.out.println("customer 로그아웃");
+            Optional<Customer> customer = customerService.findByCustomerIdxAndStatus(principal.getCustomerIdx(),0);
+            if(customer.isPresent()){
+                customer.get().setRefToken(null);
+                customerService.save(customer.get());
+            }
+        }else if(principal.getRole().equals("admin")){
+            System.out.println("admin 로그아웃");
+            Optional<Admin> admin = adminService.findByAdminIdxAndStatus(principal.getAdminIdx(),false);
+            if(admin.isPresent()){
+                admin.get().setRefToken(null);
+                adminService.save(admin.get());
+            }
+        }
+        // 쿠키 삭제: 기존과 동일한 Path/Domain/SameSite/Secure 조합 유지
+        String delAccess = "accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
+        String delRefresh = "refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
+
+        // 필요 시 Domain, Secure도 기존과 동일하게 추가
+        // String delAccess = "accessToken=; Max-Age=0; Path=/; Domain=your.domain; HttpOnly; SameSite=None; Secure";
+        // String delRefresh = "refreshToken=; Max-Age=0; Path=/; Domain=your.domain; HttpOnly; SameSite=None; Secure";
+
+        response.setHeader("Set-Cookie", delAccess);
+        response.addHeader("Set-Cookie", delRefresh);
+
+        return ResponseEntity.ok(result);
+    }
+
 
 
     

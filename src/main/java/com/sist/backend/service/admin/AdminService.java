@@ -24,4 +24,7 @@ public class AdminService {
     public Optional<Admin> findByIdAndStatus(String id, boolean status){
         return adminRepository.findByIdAndStatus(id, status);
     }
+    public Optional<Admin> findByAdminIdxAndStatus(Integer adminIdx, boolean status){
+        return adminRepository.findByAdminIdxAndStatus(adminIdx, status);
+    }
 }
