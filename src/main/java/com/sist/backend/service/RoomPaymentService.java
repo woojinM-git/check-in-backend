@@ -39,4 +39,9 @@ public class RoomPaymentService {
         Page<RoomPayment> roomPayments = roomPaymentRepository.findByOrderIdxAndOutTime(contentId, pageable);
         return roomPayments.map(RoomPaymentDto::fromEntity);
     }
+
+    // 특정 호텔의 평균 결제 금액
+    public Double findAveragePaymentByContentId(String contentid) {
+        return roomPaymentRepository.findAveragePaymentByContentId(contentid);
+    }
 }
