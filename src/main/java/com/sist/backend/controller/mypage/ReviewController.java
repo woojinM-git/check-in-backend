@@ -1,12 +1,13 @@
 package com.sist.backend.controller.mypage;
 
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Review;
-import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.ReviewService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,7 +19,6 @@ import java.util.Map;
 public class ReviewController {
 
     private final ReviewService reviewService;
-    private final JwtProvider jwtProvider;
 
     /**
      * 리뷰 작성
@@ -107,60 +107,30 @@ public class ReviewController {
     }
 
     /**
-     * HTTP 요청의 Authorization 헤더 또는 쿠키에서 JWT 토큰을 추출하고 사용자 ID를 반환
+     * SecurityContext에서 인증된 사용자의 customerIdx를 반환
+     * JwtFilter에서 이미 JWT를 검증하고 SecurityContext에 저장함
+     * @param request HTTP 요청 (현재는 사용하지 않지만 일관성을 위해 유지)
+     * @return customerIdx (사용자 고유 ID)
      */
     private Integer getCustomerIdxFromToken(HttpServletRequest request) {
         try {
-            String accessToken = null;
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("🔍 [ReviewController] Authentication 객체: " + authentication);
             
-            // 1. Authorization 헤더에서 Bearer 토큰 확인
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                accessToken = authHeader.substring(7);
-            }
-            
-            // 2. 쿠키에서 확인
-            if (accessToken == null) {
-                Cookie[] cookies = request.getCookies();
-                if (cookies != null) {
-                    for (Cookie cookie : cookies) {
-                        if ("accessToken".equals(cookie.getName())) {
-                            accessToken = cookie.getValue();
-                            break;
-                        }
-                    }
+            if (authentication != null) {
+                Object principal = authentication.getPrincipal();
+                System.out.println("🔍 [ReviewController] Principal 타입: " + principal.getClass().getName());
+                
+                if (principal instanceof CustomerAdminSignupDTO) {
+                    CustomerAdminSignupDTO dto = (CustomerAdminSignupDTO) principal;
+                    System.out.println("✅ [ReviewController] customerIdx 추출 성공: " + dto.getCustomerIdx());
+                    return dto.getCustomerIdx();
                 }
             }
-
-            if (accessToken == null) {
-                return null;
-            }
-
-            // 3. JWT 토큰 검증
-            if (!jwtProvider.verify(accessToken)) {
-                return null;
-            }
-
-            // 4. JWT에서 customerIdx 추출
-            Map<String, Object> claims = jwtProvider.getClaims(accessToken);
-            Object customerIdxObj = claims.get("customerIdx");
-            Integer customerIdx = null;
-            
-            if (customerIdxObj != null) {
-                if (customerIdxObj instanceof Integer) {
-                    customerIdx = (Integer) customerIdxObj;
-                } else if (customerIdxObj instanceof String) {
-                    try {
-                        customerIdx = Integer.parseInt((String) customerIdxObj);
-                    } catch (NumberFormatException e) {
-                        return null;
-                    }
-                }
-            }
-
-            return customerIdx;
-
+            return null;
         } catch (Exception e) {
+            System.out.println("❌ [ReviewController] 오류: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
