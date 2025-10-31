@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,5 +40,34 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
         "WHERE r.customerIdx = :customerIdx " +
         "ORDER BY r.createdAt DESC")
     List<Review> findByCustomerIdx(@Param("customerIdx") Integer customerIdx);
+
+    /**
+     * 특정 호텔의 예약별 가장 최근 리뷰 조회
+     */
+    @Query("SELECT r FROM Review r " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.reservIdx = :reservIdx " +
+           "ORDER BY r.createdAt DESC")
+    List<Review> findLatestByContentIdAndReservIdx(
+            @Param("contentid") String contentid,
+            @Param("reservIdx") Integer reservIdx);
+
+    /**
+     * 특정 호텔의 평균 평점
+     */
+    @Query("SELECT AVG(r.star) FROM Review r " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status = false " +
+           "AND r.hide = false")
+    BigDecimal findAverageRatingByContentId(@Param("contentid") String contentid);
+
+    /**
+     * 특정 호텔의 피드백 갯수 (리뷰가 작성된 예약 수)
+     */
+    @Query("SELECT COUNT(DISTINCT r.reservIdx) FROM Review r " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status = false " +
+           "AND r.hide = false")
+    Long countFeedbackByContentId(@Param("contentid") String contentid);
 }
 

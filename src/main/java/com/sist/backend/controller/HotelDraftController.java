@@ -10,8 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.sist.backend.dto.hotel.HotelDraftDto;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.RegistrationRequest;
-import com.sist.backend.util.JwtUtils;
 import com.sist.backend.repository.RegistrationRequestRepository;
 import com.sist.backend.service.HotelDraftService;
 
@@ -21,6 +21,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/api/hotel")
@@ -29,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 public class HotelDraftController {
     
     private final HotelDraftService hotelDraftService;
-    private final JwtUtils jwtUtils;
     private final RegistrationRequestRepository registrationRequestRepository;
     
     // 임시저장 데이터 저장
@@ -46,7 +47,9 @@ public class HotelDraftController {
             HttpServletRequest request) {
         try {
             // JWT에서 adminIdx 추출
-            Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
             if (adminIdx == null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
@@ -87,7 +90,9 @@ public class HotelDraftController {
     public ResponseEntity<Map<String, Object>> getDraft(HttpServletRequest request) {
         try {
             // JWT에서 adminIdx 추출
-            Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
             if (adminIdx == null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
@@ -132,7 +137,9 @@ public class HotelDraftController {
        
        try {
            // JWT에서 adminIdx 추출
-           Integer adminIdx = jwtUtils.getAdminIdxFromRequest(request);
+           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+           CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+           Integer adminIdx = principal.getAdminIdx();
            if (adminIdx == null) {
                Map<String, Object> response = new HashMap<>();
                response.put("success", false);
