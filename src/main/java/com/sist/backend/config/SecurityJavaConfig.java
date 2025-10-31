@@ -79,6 +79,12 @@ public class SecurityJavaConfig {
 
             // 5. 요청별 접근 권한 설정
             .authorizeHttpRequests(auth -> auth
+                // SpringDoc OpenAPI 문서 경로 (인증 없이 접근 허용)
+                .requestMatchers("/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui.html").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
+                
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()

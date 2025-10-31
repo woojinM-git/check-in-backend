@@ -5,14 +5,16 @@ import java.util.Map;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
 import com.sist.backend.dto.mypage.WritableReviewDTO;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
-import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.mypage.MyPageService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +28,6 @@ public class MypageController {
 
     private final MyPageService myPageService;
     private final CustomerService customerService;
-    private final JwtProvider jwtProvider;
 
     /* 
      * 마이페이지 예약 내역 조회 API
@@ -149,83 +150,36 @@ public class MypageController {
     }
 
     /**
-     * HTTP 요청의 Authorization 헤더 또는 쿠키에서 JWT 토큰을 추출하고 사용자 ID를 반환
-     * @param request HTTP 요청
+     * SecurityContext에서 인증된 사용자의 customerIdx를 반환
+     * JwtFilter에서 이미 JWT를 검증하고 SecurityContext에 저장함
+     * @param request HTTP 요청 (현재는 사용하지 않지만 일관성을 위해 유지)
      * @return customerIdx (사용자 고유 ID)
      */
     private Integer getCustomerIdxFromToken(HttpServletRequest request) {
         try {
-            String accessToken = null;
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("🔍 [MypageController] Authentication 객체: " + authentication);
             
-            // 1. Authorization 헤더에서 Bearer 토큰 확인
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                accessToken = authHeader.substring(7); // "Bearer " 제거
-                System.out.println("🔑 Authorization 헤더에서 토큰 추출: " + accessToken.substring(0, Math.min(20, accessToken.length())) + "...");
-            }
-            
-            // 2. Authorization 헤더에 토큰이 없으면 쿠키에서 확인
-            if (accessToken == null) {
-                Cookie[] cookies = request.getCookies();
-                if (cookies != null) {
-                    for (Cookie cookie : cookies) {
-                        if ("accessToken".equals(cookie.getName())) {
-                            accessToken = cookie.getValue();
-                            System.out.println("🍪 쿠키에서 토큰 추출: " + accessToken.substring(0, Math.min(20, accessToken.length())) + "...");
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (accessToken == null) {
-                System.out.println("❌ 토큰을 찾을 수 없습니다.");
-                return null;
-            }
-
-            // 3. JWT 토큰 검증
-            if (!jwtProvider.verify(accessToken)) {
-                System.out.println("❌ 토큰 검증 실패");
-                return null;
-            }
-
-            // 4. JWT에서 customerIdx 추출
-            Map<String, Object> claims = jwtProvider.getClaims(accessToken);
-            Object customerIdxObj = claims.get("customerIdx");
-            Integer customerIdx = null;
-            
-            if (customerIdxObj != null) {
-                // customerIdx가 있으면 바로 사용
-                if (customerIdxObj instanceof Integer) {
-                    customerIdx = (Integer) customerIdxObj;
-                } else if (customerIdxObj instanceof String) {
-                    try {
-                        customerIdx = Integer.parseInt((String) customerIdxObj);
-                    } catch (NumberFormatException e) {
-                        System.err.println("customerIdx 파싱 오류: " + e.getMessage());
-                    }
+            if (authentication != null) {
+                Object principal = authentication.getPrincipal();
+                System.out.println("🔍 [MypageController] Principal 타입: " + principal.getClass().getName());
+                System.out.println("🔍 [MypageController] Principal 값: " + principal);
+                
+                if (principal instanceof CustomerAdminSignupDTO) {
+                    CustomerAdminSignupDTO dto = (CustomerAdminSignupDTO) principal;
+                    System.out.println("✅ [MypageController] customerIdx 추출 성공: " + dto.getCustomerIdx());
+                    return dto.getCustomerIdx();
+                } else {
+                    System.out.println("❌ [MypageController] Principal이 CustomerAdminSignupDTO가 아닙니다.");
                 }
             } else {
-                // customerIdx가 없으면 id로 조회
-                String userId = (String) claims.get("id");
-                if (userId != null) {
-                    Customer customer = customerService.findByIdAndStatus(userId, 0).orElse(null);
-                    if (customer != null) {
-                        customerIdx = customer.getCustomerIdx();
-                    }
-                }
+                System.out.println("❌ [MypageController] Authentication이 null입니다.");
             }
-
-            if (customerIdx == null) {
-                System.out.println("❌ JWT에서 사용자 ID를 찾을 수 없습니다.");
-                return null;
-            }
-
-            System.out.println("✅ 토큰 검증 성공 - customerIdx: " + customerIdx);
-            return customerIdx;
-
+            
+            return null;
+            
         } catch (Exception e) {
-            System.out.println("❌ 토큰 처리 중 오류 발생: " + e.getMessage());
+            System.out.println("❌ [MypageController] 인증 정보 처리 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
