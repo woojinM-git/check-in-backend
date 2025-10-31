@@ -4,10 +4,12 @@ import com.sist.backend.entity.UsedTrade;
 import com.sist.backend.entity.UsedItem;
 import com.sist.backend.entity.UsedPay;
 import com.sist.backend.entity.RoomReservation;
+import com.sist.backend.entity.Customer;
 import com.sist.backend.repository.UsedTradeRepository;
 import com.sist.backend.repository.UsedItemRepository;
 import com.sist.backend.repository.UsedPayRepository;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ public class UsedHotelTradeService {
     private final UsedItemRepository usedItemRepository;
     private final UsedPayRepository usedPayRepository;
     private final RoomReservationRepository roomReservationRepository;
+    private final CustomerRepository customerRepository;
 
     /**
      * 중고 아이템 거래 가능 여부 확인
@@ -304,6 +307,25 @@ public class UsedHotelTradeService {
                 } else {
                     log.warn("예약을 찾을 수 없습니다: reservIdx={}", reservIdx);
                 }
+            }
+            
+            // 4. 판매자 캐시 적립 (결제 총액 기준)
+            try {
+                Integer sellerIdx = trade.getSellerIdx();
+                Optional<Customer> sellerOpt = customerRepository.findById(sellerIdx);
+                if (sellerOpt.isPresent()) {
+                    Customer seller = sellerOpt.get();
+                    int currentCash = seller.getCash() != null ? seller.getCash() : 0;
+                    int credit = usedPay.getTotalAmount() != null ? usedPay.getTotalAmount() : 0;
+                    seller.setCash(currentCash + credit);
+                    customerRepository.save(seller);
+                    log.info("판매자 캐시 적립: sellerIdx={}, +{} => {}", sellerIdx, credit, seller.getCash());
+                } else {
+                    log.warn("판매자 정보를 찾을 수 없습니다: sellerIdx={}", sellerIdx);
+                }
+            } catch (Exception e) {
+                log.error("판매자 캐시 적립 실패: {}", e.getMessage());
+                // 결제/거래 확정 자체는 유지. 필요 시 정책에 따라 롤백 고려
             }
             
             log.info("결제 내역 생성 및 거래 확정 완료: {} (거래: {})", savedPayment.getUsedPayIdx(), usedTradeIdx);
