@@ -138,12 +138,25 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
             @Param("customerIdx") Integer customerIdx,
             @Param("contentid") String contentid);
 
-    /* 특정 호텔을 이용한 고객의 최근 방문 날짜 */
+    /* 특정 호텔을 이용한 고객의 최근 방문 날짜 (오늘 기준 가장 가까운 과거 날짜) */
     @Query("SELECT MAX(r.checkinDate) FROM RoomReservation r " +
            "WHERE r.customerIdx = :customerIdx " +
            "AND r.contentid = :contentid " +
-           "AND r.status = 1")
+           "AND r.status = 1 " +
+           "AND r.checkinDate <= CURRENT_DATE")
     java.time.LocalDate findLastVisitDateByCustomerAndContentId(
             @Param("customerIdx") Integer customerIdx,
             @Param("contentid") String contentid);
+
+    /* 고객 이용 이력 조회 (상태 2: 취소, 4: 완료만) */
+    @Query("SELECT r FROM RoomReservation r " +
+           "LEFT JOIN FETCH r.customer c " +
+           "LEFT JOIN FETCH r.room rm " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status IN (2, 4) " +
+           "AND (:customerId IS NULL OR c.id LIKE CONCAT('%', :customerId, '%')) " +
+           "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findCustomerHistoryByContentId(
+            @Param("contentid") String contentid,
+            @Param("customerId") String customerId);
 }

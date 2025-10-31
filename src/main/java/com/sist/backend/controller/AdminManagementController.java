@@ -43,6 +43,8 @@ import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.dto.admin.RevenueSummaryDto;
 import com.sist.backend.dto.admin.CustomerStatsDto;
 import com.sist.backend.dto.admin.CustomerListDto;
+import com.sist.backend.dto.admin.CustomerHistoryDto;
+import com.sist.backend.dto.admin.CustomerHistoryStatsDto;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -65,6 +67,7 @@ public class AdminManagementController {
     private final CustomerService customerService;
     private final CouponService couponService;
     private final HotelInfoService hotelInfoService;
+    private final com.sist.backend.service.ReviewService reviewService;
 
     /* 호텔 관리자 대시보드 화면 */
     /* 오늘 체크인, 오늘 체크아웃(roomReservation), 예약 대기, 이번달 매출 */
@@ -837,5 +840,90 @@ public class AdminManagementController {
         map.put("customers", customers);
         
         return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerHistory")
+    @Operation(summary = "고객 이용 이력 조회", description = "특정 호텔의 고객 이용 이력과 리뷰를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getCustomerHistory(
+        @Parameter(description = "고객 ID 검색어", example = "user123")
+        @RequestParam(value = "customerId", required = false) String customerId,
+        @Parameter(description = "상태 필터 (null: 전체, 2: 취소, 4: 완료)", example = "4")
+        @RequestParam(value = "status", required = false) Integer statusFilter,
+        @Parameter(description = "평점 필터 (null: 전체, 1-5: 해당 평점)", example = "5")
+        @RequestParam(value = "rating", required = false) Integer ratingFilter,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 고객 이용 이력 조회
+        List<CustomerHistoryDto> history = roomReservationService.findCustomerHistory(
+            contentid, customerId, statusFilter, ratingFilter);
+        
+        map.put("success", true);
+        map.put("history", history);
+        
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/customerHistoryStats")
+    @Operation(summary = "고객 이용 이력 통계 조회", description = "특정 호텔의 평균 평점과 피드백 갯수를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<CustomerHistoryStatsDto> getCustomerHistoryStats(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // 통계 계산
+        java.math.BigDecimal averageRating = reviewService.getAverageRatingByContentId(contentid);
+        Long feedbackCount = reviewService.getFeedbackCountByContentId(contentid);
+        
+        CustomerHistoryStatsDto stats = new CustomerHistoryStatsDto();
+        stats.setAverageRating(averageRating != null ? averageRating : java.math.BigDecimal.ZERO);
+        stats.setFeedbackCount(feedbackCount != null ? feedbackCount : 0L);
+        
+        return ResponseEntity.ok(stats);
     }
 }
