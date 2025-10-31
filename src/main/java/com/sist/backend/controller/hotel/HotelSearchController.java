@@ -33,17 +33,17 @@ public class HotelSearchController {
     
     @PostMapping("/search")
     @Operation(summary="호텔 전체 검색", description="호텔 무작정 가져오기")
-    public ResponseEntity<List<HotelInfo>> searchHotels(@RequestBody HotelInfo request){
+    public ResponseEntity<List<HotelcardResponse>> searchHotels(@RequestBody HotelInfo request){
         System.out.println("==================================="+request+"========================================");
-        List<HotelInfo> hotels = hotelSearchService.findByTitle(request.getTitle());
+        List<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle());
         System.out.println("==================================="+hotels.size()+"========================================");
         return ResponseEntity.ok(hotels);
     }
 
     @PostMapping("/search/page")
-    @Operation(summary="호텔 조건 검색", description="이름, 날짜와 페이지 번호로 호텔 가져오기")
-    public ResponseEntity<List<HotelInfo>> searchHotelsByCondition(@RequestBody HotelInfo request){
-        List<HotelInfo> hotels = hotelSearchService.findAll();
+    @Operation(summary="호텔 조건 검색", description="이름, 날짜와 페이지 번호로 호텔 가져오기 (가격 정보 포함)")
+    public ResponseEntity<List<HotelcardResponse>> searchHotelsByCondition(@RequestBody HotelInfo request){
+        List<HotelcardResponse> hotels = hotelSearchService.findAllWithPrice();
         return ResponseEntity.ok(hotels); 
     }
     
