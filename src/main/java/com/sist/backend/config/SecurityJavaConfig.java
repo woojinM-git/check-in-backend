@@ -83,9 +83,14 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()
                 .requestMatchers("/api/hotels/**").permitAll()
-                // 중고거래 목록 조회 및 검색은 공개 API (인증 불필요)
                 .requestMatchers("/api/used/list").permitAll()
                 .requestMatchers("/api/used/search").permitAll()
+                .requestMatchers("/api/used/detail").permitAll()
+                .requestMatchers("/api/dining/list").permitAll()
+                .requestMatchers("/api/dining/search").permitAll()
+                .requestMatchers("/api/dining/detail").permitAll()
+
+
 
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
