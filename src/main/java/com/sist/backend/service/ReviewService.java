@@ -335,5 +335,22 @@ public class ReviewService {
             .resolvedFeedback(resolvedCount)
             .build();
     }
+    /** 
+     * 리뷰 삭제 (논리 삭제: status를 true로 설정하여 비활성화)
+     */
+    @Transactional
+    public void deleteReviewByCustomerIdx(Integer reviewIdx, Integer customerIdx) {
+        Review review = reviewRepository.findById(reviewIdx)
+            .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+        
+        if (!review.getCustomerIdx().equals(customerIdx)) {
+            throw new RuntimeException("본인이 작성한 리뷰만 삭제할 수 있습니다.");
+        }
+        
+        // 논리 삭제: status=true (비활성화), hide=true (비공개)
+        review.setStatus(true); // true: 비활성화, false: 활성
+        //review.setHide(true);   // true: 비공개, false: 공개
+        reviewRepository.save(review);
+    }
 }
 
