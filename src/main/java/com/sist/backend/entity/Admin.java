@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,9 @@ public class Admin {
 
     @Column(name = "refToken")
     private String refToken;
+
+    @Column(name = "refTokenUpdatedAt")
+    private LocalDateTime refTokenUpdatedAt;
 
     @Column(name = "phone")
     private String phone;

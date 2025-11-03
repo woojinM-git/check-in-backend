@@ -1,23 +1,36 @@
 package com.sist.backend.service;
 
+import com.sist.backend.dto.admin.FeedbackDto;
+import com.sist.backend.dto.admin.FeedbackStatsDto;
 import com.sist.backend.entity.Review;
+import com.sist.backend.entity.ReviewAnswer;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.RoomReservation;
+import com.sist.backend.entity.Customer;
+import com.sist.backend.entity.Room;
 import com.sist.backend.repository.ReviewRepository;
+import com.sist.backend.repository.ReviewAnswerRepository;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.hotel.RoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
     
     private final ReviewRepository reviewRepository;
+    private final ReviewAnswerRepository reviewAnswerRepository;
     private final RoomReservationRepository roomReservationRepository;
+    private final CustomerRepository customerRepository;
+    private final RoomRepository roomRepository;
     
     /**
      * 리뷰 작성
@@ -161,6 +174,166 @@ public class ReviewService {
         review.setContent(newContent.trim());
 
         return reviewRepository.save(review);
+    }
+    
+    /**
+     * 특정 호텔의 피드백 목록 조회 (답변 포함)
+     */
+    @Transactional(readOnly = true)
+    public List<FeedbackDto> getFeedbacksByContentId(String contentid) {
+        List<Review> reviews = reviewRepository.findByContentId(contentid);
+        
+        return reviews.stream().map(review -> {
+            FeedbackDto.FeedbackDtoBuilder builder = FeedbackDto.builder()
+                .reviewIdx(review.getReviewIdx())
+                .reservIdx(review.getReservIdx())
+                .customerIdx(review.getCustomerIdx())
+                .star(review.getStar())
+                .content(review.getContent())
+                .createdAt(review.getCreatedAt());
+            
+            // 고객 정보 조회
+            Optional<Customer> customerOpt = customerRepository.findByCustomerIdx(review.getCustomerIdx());
+            if (customerOpt.isPresent()) {
+                Customer customer = customerOpt.get();
+                builder.customerId(customer.getId())
+                       .customerName(customer.getName());
+            }
+            
+            // 예약 및 객실 정보 조회
+            Optional<RoomReservation> reservationOpt = roomReservationRepository.findById(review.getReservIdx());
+            if (reservationOpt.isPresent()) {
+                RoomReservation reservation = reservationOpt.get();
+                // RoomReservation의 room 관계를 통해 정보 가져오기
+                if (reservation.getRoom() != null) {
+                    Room room = reservation.getRoom();
+                    builder.roomNumber(String.valueOf(room.getRoomIdx()))
+                           .roomName(room.getName());
+                } else {
+                    // room 관계가 로드되지 않은 경우 직접 조회
+                    Optional<Room> roomOpt = roomRepository.findByRoomIdx(reservation.getRoomIdx());
+                    if (roomOpt.isPresent()) {
+                        Room room = roomOpt.get();
+                        if (room.getContentId().equals(reservation.getContentid())) {
+                            builder.roomNumber(String.valueOf(room.getRoomIdx()))
+                                   .roomName(room.getName());
+                        }
+                    }
+                }
+            }
+            
+            // 답변 정보 조회
+            Optional<ReviewAnswer> answerOpt = reviewAnswerRepository.findActiveByReviewIdx(review.getReviewIdx());
+            if (answerOpt.isPresent()) {
+                ReviewAnswer answer = answerOpt.get();
+                builder.reviewAnswerIdx(answer.getReviewAnswerIdx())
+                       .response(answer.getContent())
+                       .responseStatus(answer.getStatus())
+                       .responseCreatedAt(answer.getCreatedAt())
+                       .responseUpdatedAt(answer.getUpdatedAt());
+                
+                // 상태 설정 (답변이 있으면 처리중)
+                builder.status("in-progress");
+            } else {
+                // 답변이 없으면 신규
+                builder.status("new");
+            }
+            
+            // 카테고리는 기본값으로 설정 (추후 확장 가능)
+            builder.category("service");
+            
+            return builder.build();
+        }).collect(Collectors.toList());
+    }
+    
+    /**
+     * 리뷰 답변 작성
+     */
+    @Transactional
+    public ReviewAnswer createReviewAnswer(Integer reviewIdx, Integer adminIdx, String content) {
+        // 리뷰 존재 확인
+        Review review = reviewRepository.findById(reviewIdx)
+            .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+        
+        // 이미 답변이 있는지 확인 (활성 답변)
+        Optional<ReviewAnswer> existingAnswer = reviewAnswerRepository.findActiveByReviewIdx(reviewIdx);
+        if (existingAnswer.isPresent()) {
+            throw new RuntimeException("이미 답변이 작성되어 있습니다.");
+        }
+        
+        // 답변 생성
+        ReviewAnswer answer = ReviewAnswer.builder()
+            .reviewIdx(reviewIdx)
+            .adminIdx(adminIdx)
+            .content(content.trim())
+            .status(1) // 활성
+            .build();
+        
+        return reviewAnswerRepository.save(answer);
+    }
+    
+    /**
+     * 리뷰 답변 수정
+     */
+    @Transactional
+    public ReviewAnswer updateReviewAnswer(Integer reviewAnswerIdx, Integer adminIdx, String content) {
+        ReviewAnswer answer = reviewAnswerRepository.findById(reviewAnswerIdx)
+            .orElseThrow(() -> new RuntimeException("답변을 찾을 수 없습니다."));
+        
+        // 권한 확인
+        if (!answer.getAdminIdx().equals(adminIdx)) {
+            throw new RuntimeException("본인이 작성한 답변만 수정할 수 있습니다.");
+        }
+        
+        answer.setContent(content.trim());
+        
+        return reviewAnswerRepository.save(answer);
+    }
+    
+    /**
+     * 리뷰 답변 삭제 (상태 비활성화)
+     */
+    @Transactional
+    public void deleteReviewAnswer(Integer reviewAnswerIdx, Integer adminIdx) {
+        ReviewAnswer answer = reviewAnswerRepository.findById(reviewAnswerIdx)
+            .orElseThrow(() -> new RuntimeException("답변을 찾을 수 없습니다."));
+        
+        // 권한 확인
+        if (!answer.getAdminIdx().equals(adminIdx)) {
+            throw new RuntimeException("본인이 작성한 답변만 삭제할 수 있습니다.");
+        }
+        
+        answer.setStatus(0); // 비활성화
+        reviewAnswerRepository.save(answer);
+    }
+    
+    /**
+     * 피드백 통계 조회
+     */
+    @Transactional(readOnly = true)
+    public FeedbackStatsDto getFeedbackStats(String contentid) {
+        List<Review> reviews = reviewRepository.findByContentId(contentid);
+        
+        long totalCount = reviews.size();
+        long urgentCount = 0; // 긴급 카운트 (추후 로직 추가 가능)
+        long inProgressCount = 0;
+        long resolvedCount = 0;
+        
+        for (Review review : reviews) {
+            Optional<ReviewAnswer> answerOpt = reviewAnswerRepository.findActiveByReviewIdx(review.getReviewIdx());
+            if (answerOpt.isPresent()) {
+                inProgressCount++;
+            } else {
+                resolvedCount++; // 답변이 없으면 해결 필요 상태로 간주
+            }
+        }
+        
+        return FeedbackStatsDto.builder()
+            .totalFeedback(totalCount)
+            .urgentFeedback(urgentCount)
+            .inProgressFeedback(inProgressCount)
+            .resolvedFeedback(resolvedCount)
+            .build();
     }
 }
 

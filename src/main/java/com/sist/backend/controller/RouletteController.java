@@ -173,13 +173,13 @@ public class RouletteController {
             try {
                 PointLedger pointLedger = PointLedger.builder()
                         .customerIdx(customerIdx)
-                        .amount(prize)
-                        .type("적립")
+                        .point(prize)
+                        .pointType("적립")
                         .memo("룰렛뽑기")
                         .createdAt(LocalDateTime.now())
                         .build();
                 pointLedgerRepository.save(pointLedger);
-                log.info("PointLedger 기록 완료: customerIdx={}, amount={}, type=적립", customerIdx, prize);
+                log.info("PointLedger 기록 완료: customerIdx={}, point={}, pointType=적립", customerIdx, prize);
             } catch (Exception e) {
                 log.error("PointLedger 기록 실패: {}", e.getMessage(), e);
                 // PointLedger 기록 실패해도 포인트 지급은 완료된 것으로 처리

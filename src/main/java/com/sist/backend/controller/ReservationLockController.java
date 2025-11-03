@@ -72,13 +72,13 @@ public class ReservationLockController {
             }
 
             // 필수 파라미터 검증
-            if (request.getContentId() == null || request.getRoomId() == null) {
+            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null) {
                 log.warn("예약 락 생성 실패: 필수 파라미터 누락 - contentId={}, roomId={}",
                         request.getContentId(), request.getRoomId());
                 return ResponseEntity.badRequest()
                         .body(ReservationLockDto.builder()
                                 .success(false)
-                                .message("호텔 ID와 객실 ID는 필수입니다.")
+                                .message("호텔 ID, 객실 ID, 체크인 날짜는 필수입니다.")
                                 .build());
             }
 
@@ -86,7 +86,8 @@ public class ReservationLockController {
             ReservationLockDto result = reservationLockService.createLock(
                     customerIdx,
                     request.getContentId(),
-                    request.getRoomId()
+                    request.getRoomId(),
+                    request.getCheckIn()
             );
 
             if (result.getSuccess()) {
@@ -142,12 +143,12 @@ public class ReservationLockController {
             }
 
             // 필수 파라미터 검증
-            if (request.getContentId() == null || request.getRoomId() == null) {
+            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null) {
                 log.warn("예약 락 해제 실패: 필수 파라미터 누락");
                 return ResponseEntity.badRequest()
                         .body(ReservationLockDto.builder()
                                 .success(false)
-                                .message("호텔 ID와 객실 ID는 필수입니다.")
+                                .message("호텔 ID, 객실 ID, 체크인 날짜는 필수입니다.")
                                 .build());
             }
 
@@ -155,6 +156,7 @@ public class ReservationLockController {
             ReservationLockDto result = reservationLockService.releaseLock(
                     request.getContentId(),
                     request.getRoomId(),
+                    request.getCheckIn(),
                     customerIdx
             );
 
@@ -184,11 +186,12 @@ public class ReservationLockController {
     )
     public ResponseEntity<?> getLockStatus(
             @Parameter(description = "호텔 ID") @RequestParam String contentId,
-            @Parameter(description = "객실 ID") @RequestParam Integer roomId
+            @Parameter(description = "객실 ID") @RequestParam Integer roomId,
+            @Parameter(description = "체크인 날짜(yyyy-MM-dd)") @RequestParam String checkIn
     ) {
         try {
-            boolean isLocked = reservationLockService.isLocked(contentId, roomId);
-            Map<String, Object> lockInfo = reservationLockService.getLockInfo(contentId, roomId);
+            boolean isLocked = reservationLockService.isLocked(contentId, roomId, checkIn);
+            Map<String, Object> lockInfo = reservationLockService.getLockInfo(contentId, roomId, checkIn);
 
             return ResponseEntity.ok(Map.of(
                     "isLocked", isLocked,

@@ -93,7 +93,7 @@ public class SecurityJavaConfig {
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()
-                .requestMatchers("/api/hotels/**").permitAll()
+                /* .requestMatchers("/api/hotels/**").permitAll()
                 .requestMatchers("/api/used/list").permitAll()
                 .requestMatchers("/api/used/search").permitAll()
                 .requestMatchers("/api/used/detail").permitAll()
@@ -101,7 +101,7 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/dining/search").permitAll()
                 .requestMatchers("/api/dining/detail").permitAll()
                 .requestMatchers("/api/reservations/unlock").permitAll() // beforeunload에서 인증 없이 호출 가능
-                
+                 */
                 // 그 외 모든 /api 경로는 인증 없이 접근 허용
                 .requestMatchers("/api/**").permitAll()
                 

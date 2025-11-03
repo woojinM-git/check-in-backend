@@ -31,7 +31,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     @Query("SELECT r FROM RoomReservation r " +
         "WHERE r.contentid = :contentid " +
-        "AND r.status = 1")
+        "AND r.status = 1 OR r.status = 4")
     List<RoomReservation> findByStatus(@Param("contentid") String contentid);
 
     /* Room과 Customer 정보를 함께 조회하는 메서드 */
