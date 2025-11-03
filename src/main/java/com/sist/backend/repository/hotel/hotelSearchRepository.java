@@ -17,13 +17,22 @@ public interface hotelSearchRepository extends JpaRepository<HotelInfo, String> 
     List<HotelInfo> findAll();
 
     @Query(value = 
-    "SELECT hotel.contentId, hotel.title, hotel.adress, hotel.tel, hotel.hotelCategoryCode, hotel.areaCode, hotel.imageUrl, hotel.status, hotel.adminIdx "+
-    "FROM("+
-    "SELECT h.*, MATCH(h.title) AGAINST(:searchWord IN NATURAL LANGUAGE MODE) AS score " +
+    "SELECT h.contentId, h.title, h.adress, h.tel, h.hotelCategoryCode, h.areaCode, h.imageUrl, h.status, h.adminIdx " +
     "FROM hotelInfo h " +
-    "WHERE MATCH(h.title) AGAINST(:searchWord IN NATURAL LANGUAGE MODE) " +
-    "ORDER BY score DESC "+
-    ") hotel",
+    "WHERE (:searchPattern IS NOT NULL AND :searchPattern != '') " +
+    "  AND (" +
+    "    (h.title IS NOT NULL AND h.title LIKE :searchPattern) " +
+    "    OR (h.adress IS NOT NULL AND h.adress LIKE :searchPattern)" +
+    "  ) " +
+    "ORDER BY " +
+    "  CASE " +
+    "    WHEN h.title IS NOT NULL AND h.title LIKE :searchPattern " +
+    "         AND h.adress IS NOT NULL AND h.adress LIKE :searchPattern THEN 1 " +
+    "    WHEN h.title IS NOT NULL AND h.title LIKE :searchPattern THEN 2 " +
+    "    WHEN h.adress IS NOT NULL AND h.adress LIKE :searchPattern THEN 3 " +
+    "    ELSE 4 " +
+    "  END ASC, " +
+    "  h.title ASC",
     nativeQuery = true)
-    List<HotelInfo> findByTitle(@Param("searchWord") String searchWord);
+    List<HotelInfo> findByTitle(@Param("searchPattern") String searchPattern);
 }
