@@ -74,7 +74,16 @@ public class JwtProvider {
 
     //토큰에 담긴 사용자 정보(Claim)를 반환한다.
     public Map<String, Object> getClaims(String token){
-        return Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(token).getPayload();
+        if(verify(token)){
+            log.error("JwtProvider.getClaims() 토큰 유효");
+            try{
+            return Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(token).getPayload();
+            }catch(Exception e){
+                log.error("JwtProvider.getClaims() 예외 발생", e);
+                return null;
+            }
+        }
+        return null;
     }
 
     public boolean inspectiontoken(String id ,String accessToken , String refreshToken){

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -23,8 +24,11 @@ public class CorsConfig {
     /**
      * Spring Security에서 사용할 CorsConfigurationSource Bean
      * SecurityFilterChain에서 이 Bean을 사용하여 CORS를 처리합니다.
+     * 
+     * @Primary: 같은 타입의 bean이 여러 개 있을 때 이 bean을 우선적으로 선택
      */
     @Bean
+    @Primary
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         

@@ -48,6 +48,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
+    @Value("${jwt.reissue-time}")
+    private int reissueTime;
     
     /**
      * 필터를 적용하지 않을 경로 설정
@@ -168,6 +170,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                 refreshPayload.put("tokenID", newTokenId);
                                 String newRefreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime); // 7d
 
+                                log.error("일치 newRefToken: {}", newTokenId);
                                 // DB refToken 및 재발급 시간 갱신
                                 customer_entity.setRefToken(newTokenId);
                                 customer_entity.setRefTokenUpdatedAt(LocalDateTime.now());
@@ -183,7 +186,46 @@ public class JwtFilter extends OncePerRequestFilter {
                                 authenticateUser(newAccessToken);
                             }else{
                                 log.error("TokenID 불일치");
-                                throw new AuthenticationFailedException("TokenID 불일치");
+                                log.error("customer_entity.getRefTokenUpdatedAt(): {}", customer_entity.getRefTokenUpdatedAt());
+                                if(!customer_entity.getRefTokenUpdatedAt().isBefore(LocalDateTime.now().minusSeconds(reissueTime))){
+                                    log.error("TokenID 불일치, 재발급 가능 시간");
+                                    Map<String, Object> accesspayload = new HashMap<>();
+                                accesspayload.put("id", customer_entity.getId());
+                                accesspayload.put("nickname", customer_entity.getNickname());
+                                accesspayload.put("cash", customer_entity.getCash());
+                                accesspayload.put("point", customer_entity.getPoint());
+                                accesspayload.put("role", "customer");
+                                accesspayload.put("customerIdx", customer_entity.getCustomerIdx());
+
+                                String newAccessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime); // 1h
+
+                                // 새 refreshToken 발급
+                                String newTokenId = UUID.randomUUID().toString();
+                                Map<String, Object> refreshPayload = new HashMap<>();
+                                refreshPayload.put("role", "customer");
+                                refreshPayload.put("customerIdx", customer_entity.getCustomerIdx());
+                                refreshPayload.put("tokenID", newTokenId);
+                                String newRefreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime); // 7d
+                                log.error("불일치 newRefToken: {}", newTokenId);
+                                // DB refToken 및 재발급 시간 갱신
+                                customer_entity.setRefToken(newTokenId);
+                                customer_entity.setRefTokenUpdatedAt(LocalDateTime.now());
+                                customerService.save(customer_entity);
+
+                                // 쿠키로 둘 다 내려주기
+                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
+                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                                response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+
+                                // SecurityContext 갱신
+                                authenticateUser(newAccessToken);
+                                    
+                                }else{
+                                    log.error("TokenID 불일치, 재발급 불가능 시간");
+                                    throw new AuthenticationFailedException("TokenID 불일치");
+                                }
+                        
                             }
                         }else{
                         // tokenID가 일치하는 Customer가 존재하지 않을 경우
@@ -238,7 +280,37 @@ public class JwtFilter extends OncePerRequestFilter {
                                 authenticateUser(newAccessToken);
                             }else{
                                 log.error("TokenID 불일치");
-                                throw new AuthenticationFailedException("TokenID 불일치");
+                                if(!admin_entity.getRefTokenUpdatedAt().isBefore(LocalDateTime.now().minusSeconds(reissueTime))){
+                                    log.error("TokenID 불일치, 재발급 가능 시간");
+                                    Map<String, Object> accesspayload = new HashMap<>();
+                                    accesspayload.put("role", "admin");
+                                    accesspayload.put("adminIdx", admin_entity.getAdminIdx());
+                                    String newAccessToken = jwtProvider.getToken(accesspayload, accessTokenExpireTime); // 1h
+
+                                    // 새 refreshToken 발급
+                                    String newTokenId = UUID.randomUUID().toString();
+                                    Map<String, Object> refreshPayload = new HashMap<>();
+                                    refreshPayload.put("role", "admin");
+                                    refreshPayload.put("adminIdx", admin_entity.getAdminIdx());
+                                    refreshPayload.put("tokenID", newTokenId);
+                                    String newRefreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime); // 7d
+
+                                    // DB refToken 및 재발급 시간 갱신
+                                    admin_entity.setRefToken(newTokenId);
+                                    admin_entity.setRefTokenUpdatedAt(LocalDateTime.now());
+                                    adminService.save(admin_entity);
+
+                                    // 쿠키로 둘 다 내려주기
+                                    String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
+                                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                    response.setHeader("Set-Cookie", accessTokenCookieHeader);
+                                    response.addHeader("Set-Cookie", refreshTokenCookieHeader);
+            
+                                    authenticateUser(newAccessToken);
+                                }else{
+                                    log.error("TokenID 불일치, 재발급 불가능 시간");
+                                    throw new AuthenticationFailedException("TokenID 불일치");
+                                }
                             }
                         }else{
                         // tokenID가 일치하는 Customer가 존재하지 않을 경우
