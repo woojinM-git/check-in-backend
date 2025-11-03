@@ -133,6 +133,7 @@ public class PaymentService {
                     reservationLockService.releaseLock(
                             request.getContentId(),
                             request.getRoomId(),
+                            request.getCheckIn(),
                             request.getCustomerIdx()
                     );
                     log.info("예약 락 해제 완료: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
