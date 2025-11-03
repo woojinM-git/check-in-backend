@@ -146,6 +146,14 @@ public class HotelSearchService {
                 .map(location -> location.getMapY())
                 .orElse(null);
             
+            // 호텔 상세 정보 조회 (hotelDetail)
+            String foodplace = null;
+            String parkinglodging = null;
+            if (hotel.getHotelDetail() != null) {
+                foodplace = hotel.getHotelDetail().getFoodplace();
+                parkinglodging = hotel.getHotelDetail().getParkinglodging();
+            }
+            
             return HotelcardResponse.builder()
                     .contentId(hotel.getContentId())
                     .title(hotel.getTitle())
@@ -156,6 +164,8 @@ public class HotelSearchService {
                     .maxPrice(maxPrice)
                     .mapX(mapX)
                     .mapY(mapY)
+                    .foodplace(foodplace)
+                    .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -195,6 +205,14 @@ public class HotelSearchService {
                 .map(location -> location.getMapY())
                 .orElse(null);
             
+            // 호텔 상세 정보 조회 (hotelDetail)
+            String foodplace = null;
+            String parkinglodging = null;
+            if (hotel.getHotelDetail() != null) {
+                foodplace = hotel.getHotelDetail().getFoodplace();
+                parkinglodging = hotel.getHotelDetail().getParkinglodging();
+            }
+            
             return HotelcardResponse.builder()
                     .contentId(hotel.getContentId())
                     .title(hotel.getTitle())
@@ -205,10 +223,12 @@ public class HotelSearchService {
                     .maxPrice(maxPrice)
                     .mapX(mapX)
                     .mapY(mapY)
+                    .foodplace(foodplace)
+                    .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
     }
-    
+
     public List<HotelcardResponse> findAllPopularHotels() {
         Pageable pageable = PageRequest.of(0, 9);
         List<HotelInfo> hotels = hotelInfoRepository.findTop9WithCategoryAndArea(pageable);
@@ -225,6 +245,14 @@ public class HotelSearchService {
                 maxPrice = prices.stream().max(BigDecimal::compareTo).orElse(null);
             }
             
+            // 호텔 상세 정보 조회 (hotelDetail)
+            String foodplace = null;
+            String parkinglodging = null;
+            if (hotel.getHotelDetail() != null) {
+                foodplace = hotel.getHotelDetail().getFoodplace();
+                parkinglodging = hotel.getHotelDetail().getParkinglodging();
+            }
+            
             return HotelcardResponse.builder()
                     .contentId(hotel.getContentId())
                     .title(hotel.getTitle())
@@ -233,6 +261,8 @@ public class HotelSearchService {
                     .areaCode(hotel.getAreaCode())
                     .minPrice(minPrice)
                     .maxPrice(maxPrice)
+                    .foodplace(foodplace)
+                    .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -258,6 +288,14 @@ public class HotelSearchService {
                 maxPrice = prices.stream().max(BigDecimal::compareTo).orElse(null);
             }
             
+            // 호텔 상세 정보 조회 (hotelDetail)
+            String foodplace = null;
+            String parkinglodging = null;
+            if (hotel.getHotelDetail() != null) {
+                foodplace = hotel.getHotelDetail().getFoodplace();
+                parkinglodging = hotel.getHotelDetail().getParkinglodging();
+            }
+            
             return HotelcardResponse.builder()
                     .contentId(hotel.getContentId())
                     .title(hotel.getTitle())
@@ -266,6 +304,8 @@ public class HotelSearchService {
                     .areaCode(hotel.getAreaCode())
                     .minPrice(minPrice)
                     .maxPrice(maxPrice)
+                    .foodplace(foodplace)
+                    .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -309,6 +349,14 @@ public class HotelSearchService {
                 );
             }
             
+            // 호텔 상세 정보 조회 (hotelDetail)
+            String foodplace = null;
+            String parkinglodging = null;
+            if (hotel.getHotelDetail() != null) {
+                foodplace = hotel.getHotelDetail().getFoodplace();
+                parkinglodging = hotel.getHotelDetail().getParkinglodging();
+            }
+            
             return HotelcardResponse.builder()
                     .contentId(hotel.getContentId())
                     .title(hotel.getTitle())
@@ -318,6 +366,8 @@ public class HotelSearchService {
                     .minPrice(minPrice)
                     .maxPrice(maxPrice)
                     .distance(distance) // 거리 정보 추가
+                    .foodplace(foodplace)
+                    .parkinglodging(parkinglodging)
                     .build();
         }).sorted((h1, h2) -> Double.compare(h1.getDistance(), h2.getDistance())) // 거리순 정렬
           .limit(limit) // 최종 limit 적용
