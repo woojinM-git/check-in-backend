@@ -114,6 +114,7 @@ public class LoginController {
                         response.addHeader("Set-Cookie", newRefreshTokenCookieHeader);
 
                         customer_entity.setRefToken(reTokenID);
+                        customer_entity.setRefTokenUpdatedAt(LocalDateTime.now());
                         customerService.save(customer_entity);
                     }
 
@@ -176,6 +177,7 @@ public class LoginController {
                     response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
                     customer_exist_entity.setRefToken(uuid);
+                    customer_exist_entity.setRefTokenUpdatedAt(LocalDateTime.now());
                     customerService.save(customer_exist_entity);
                 }
             }else{
@@ -221,6 +223,7 @@ public class LoginController {
                     response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
                     admin_exist_entity.setRefToken(uuid);
+                    admin_exist_entity.setRefTokenUpdatedAt(LocalDateTime.now());
                     adminService.save(admin_exist_entity);
                 }
             
