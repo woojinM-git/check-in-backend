@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.sist.backend.dto.admin.CheckTimeUpdateDto;
@@ -45,6 +47,9 @@ import com.sist.backend.dto.admin.CustomerStatsDto;
 import com.sist.backend.dto.admin.CustomerListDto;
 import com.sist.backend.dto.admin.CustomerHistoryDto;
 import com.sist.backend.dto.admin.CustomerHistoryStatsDto;
+import com.sist.backend.dto.admin.FeedbackDto;
+import com.sist.backend.dto.admin.FeedbackStatsDto;
+import com.sist.backend.entity.ReviewAnswer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -925,5 +930,218 @@ public class AdminManagementController {
         stats.setFeedbackCount(feedbackCount != null ? feedbackCount : 0L);
         
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/feedback")
+    @Operation(summary = "피드백 목록 조회", description = "특정 호텔의 리뷰 피드백 목록을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getFeedbacks(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
+        // 피드백 목록 조회
+        List<FeedbackDto> feedbacks = reviewService.getFeedbacksByContentId(contentid);
+        
+        map.put("success", true);
+        map.put("feedbacks", feedbacks);
+        
+        return ResponseEntity.ok(map);
+    }
+
+    @GetMapping("/feedbackStats")
+    @Operation(summary = "피드백 통계 조회", description = "특정 호텔의 피드백 통계를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<FeedbackStatsDto> getFeedbackStats(
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // adminIdx로 contentId 조회
+        Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
+        String contentid = contentIdOpt.orElse(null);
+        if (contentid == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        // 통계 조회
+        FeedbackStatsDto stats = reviewService.getFeedbackStats(contentid);
+        
+        return ResponseEntity.ok(stats);
+    }
+
+    @PostMapping("/feedback/{reviewIdx}/answer")
+    @Operation(summary = "리뷰 답변 작성", description = "특정 리뷰에 대한 답변을 작성합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 작성됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> createReviewAnswer(
+        @Parameter(description = "리뷰 고유번호")
+        @PathVariable Integer reviewIdx,
+        @Parameter(description = "답변 내용")
+        @RequestBody Map<String, String> requestBody,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "인증 정보가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            String content = requestBody.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                map.put("success", false);
+                map.put("message", "답변 내용을 입력해주세요.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // 답변 작성
+            ReviewAnswer answer = reviewService.createReviewAnswer(reviewIdx, adminIdx, content);
+            
+            map.put("success", true);
+            map.put("message", "답변이 작성되었습니다.");
+            map.put("answer", answer);
+            
+            return ResponseEntity.ok(map);
+        } catch (RuntimeException e) {
+            map.put("success", false);
+            map.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        }
+    }
+
+    @PutMapping("/feedback/answer/{reviewAnswerIdx}")
+    @Operation(summary = "리뷰 답변 수정", description = "작성한 리뷰 답변을 수정합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 수정됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> updateReviewAnswer(
+        @Parameter(description = "답변 고유번호")
+        @PathVariable Integer reviewAnswerIdx,
+        @Parameter(description = "답변 내용")
+        @RequestBody Map<String, String> requestBody,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "인증 정보가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            String content = requestBody.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                map.put("success", false);
+                map.put("message", "답변 내용을 입력해주세요.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // 답변 수정
+            ReviewAnswer answer = reviewService.updateReviewAnswer(reviewAnswerIdx, adminIdx, content);
+            
+            map.put("success", true);
+            map.put("message", "답변이 수정되었습니다.");
+            map.put("answer", answer);
+            
+            return ResponseEntity.ok(map);
+        } catch (RuntimeException e) {
+            map.put("success", false);
+            map.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        }
+    }
+
+    @DeleteMapping("/feedback/answer/{reviewAnswerIdx}")
+    @Operation(summary = "리뷰 답변 삭제", description = "작성한 리뷰 답변을 삭제합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 삭제됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> deleteReviewAnswer(
+        @Parameter(description = "답변 고유번호")
+        @PathVariable Integer reviewAnswerIdx,
+        @Parameter(description = "HTTP 요청", hidden = true)
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "인증 정보가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // 답변 삭제
+            reviewService.deleteReviewAnswer(reviewAnswerIdx, adminIdx);
+            
+            map.put("success", true);
+            map.put("message", "답변이 삭제되었습니다.");
+            
+            return ResponseEntity.ok(map);
+        } catch (RuntimeException e) {
+            map.put("success", false);
+            map.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        }
     }
 }
