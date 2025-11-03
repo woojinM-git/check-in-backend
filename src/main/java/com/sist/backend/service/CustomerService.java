@@ -122,6 +122,7 @@ public class CustomerService {
 
                 CustomerListDto dto = new CustomerListDto();
                 dto.setCustomerIdx(customer.getCustomerIdx());
+                dto.setId(customer.getId());
                 dto.setName(customer.getName());
                 dto.setEmail(customer.getEmail());
                 dto.setPhone(customer.getPhone());
