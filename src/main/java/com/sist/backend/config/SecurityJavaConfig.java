@@ -26,10 +26,9 @@ public class SecurityJavaConfig {
     private final JwtFilter jwtFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-
     private final CorsConfigurationSource corsConfigurationSource;
-
-
+    
+    
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -43,7 +42,7 @@ public class SecurityJavaConfig {
             .csrf(csrf -> csrf.disable());
         return http.build();
          */
- /*
+        /* 
         // JWT 구현 후 사용할 설정
         http.csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(
@@ -54,7 +53,7 @@ public class SecurityJavaConfig {
                     .permitAll().anyRequest().authenticated()   
         );
         return http.build();
-         */
+        */
 
         http
             // 1. CSRF, formLogin, httpBasic 비활성화 (JWT 사용으로 세션 기반 인증 비활성화)
@@ -82,19 +81,19 @@ public class SecurityJavaConfig {
                 .requestMatchers("/swagger-ui.html").permitAll()
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
-
+                
                 // 인증이 필요한 경로를 먼저 명시 (더 구체적인 경로 우선)
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-
+                
                 // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
                 .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
-
+                
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()
-                .requestMatchers("/api/hotels/**").permitAll()
+                /* .requestMatchers("/api/hotels/**").permitAll()
                 .requestMatchers("/api/used/list").permitAll()
                 .requestMatchers("/api/used/search").permitAll()
                 .requestMatchers("/api/used/detail").permitAll()
@@ -102,10 +101,10 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/dining/search").permitAll()
                 .requestMatchers("/api/dining/detail").permitAll()
                 .requestMatchers("/api/reservations/unlock").permitAll() // beforeunload에서 인증 없이 호출 가능
-
+                 */
                 // 그 외 모든 /api 경로는 인증 없이 접근 허용
                 .requestMatchers("/api/**").permitAll()
-
+                
                 // 그 외 모든 요청은 인증 필요 (AccessToken 필수)
                 .anyRequest().authenticated()
             )

@@ -32,4 +32,5 @@ public class CustomerAdminSignupDTO {
     private String provider;
     private String status;
     private String refToken;
+    private LocalDateTime refTokenUpdatedAt;
 }
