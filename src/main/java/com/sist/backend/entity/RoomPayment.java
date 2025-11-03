@@ -46,8 +46,13 @@ public class RoomPayment {
     @Column(name = "paymentKey")
     private String paymentKey;
 
+    //포인트 사용
     @Column(name = "pointsUsed")
     private Integer pointsUsed;
+
+    //캐시 사용
+    @Column(name = "cashUsed")
+    private Integer cashUsed;
 
     @Column(name = "method")
     private String method;
