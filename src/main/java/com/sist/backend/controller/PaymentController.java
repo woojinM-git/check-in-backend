@@ -38,14 +38,38 @@ public class PaymentController {
     private final CustomerRepository customerRepository;
 
     @PostMapping("/confirm")
-    @Operation(summary = "결제 확인", description = "토스페이먼츠 결제를 확인하고 데이터베이스에 저장합니다.")
+    @Operation(
+            summary = "결제 확인 및 처리",
+            description = "토스페이먼츠 결제 검증 후 예약 생성, 포인트/캐시 차감, 적립, 등급 업데이트를 트랜잭션으로 처리합니다.\n\n"
+            + "- 특별 요청사항은 roomReservation.specialRequest에 저장 (최대 1000바이트)\n"
+            + "- 쿠폰+포인트+캐시는 총 금액의 90% 이하만 사용 가능\n"
+            + "- 실 결제 금액(카드) = 원가 - 쿠폰 - 포인트 - 캐시\n"
+            + "- 등급별 적립: Traveler(1%), Explorer(2%), VIP(3%), First Class(4%), Sky Suite(5%)\n"
+            + "- 자동 등급 업그레이드: 0 / 20만 / 80만 / 200만 / 500만원"
+    )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "결제 확인 성공"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "200", description = "결제 확인 성공 - 예약 생성, 포인트 적립, 등급 업데이트 완료"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 - 90% 제한 위반, 전액 결제 시도, 특별 요청사항 초과 등"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<PaymentResponseDto> confirmPayment(@RequestBody PaymentRequestDto request) {
         try {
+            log.info("[CONFIRM] inbound payload: type={}, orderId={}, paymentKey={}, amount={}, customerIdx={}, contentId={}, roomId={}, checkIn={}, checkOut={}, totalPrice={}, pointsUsed={}, cashUsed={}, couponIdx={}, couponDiscount={}, specialRequestsLen={}",
+                    request.getType(),
+                    request.getOrderId(),
+                    request.getPaymentKey(),
+                    request.getAmount(),
+                    request.getCustomerIdx(),
+                    request.getContentId(),
+                    request.getRoomId(),
+                    request.getCheckIn(),
+                    request.getCheckOut(),
+                    request.getTotalPrice(),
+                    request.getPointsUsed(),
+                    request.getCashUsed(),
+                    request.getCouponIdx(),
+                    request.getCouponDiscount(),
+                    request.getSpecialRequests() != null ? request.getSpecialRequests().length() : 0);
             // 인증 정보에서 principal 추출 - Cookies[] 대신 SecurityContext 사용
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.getPrincipal() instanceof CustomerAdminSignupDTO principal) {
