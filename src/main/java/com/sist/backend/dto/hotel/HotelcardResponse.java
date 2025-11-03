@@ -22,4 +22,6 @@ public class HotelcardResponse {
     private Double distance; // 다트게임에서 사용할 거리 정보 (킬로미터)
     private BigDecimal mapX; // 경도 (지도용)
     private BigDecimal mapY; // 위도 (지도용)
+    private String foodplace; // 식당 여부 (hotelDetail의 foodplace)
+    private String parkinglodging; // 주차 여부 (hotelDetail의 parkinglodging)
 }

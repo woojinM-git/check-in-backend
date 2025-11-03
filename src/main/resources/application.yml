@@ -1,5 +1,9 @@
 logging:
   system: org.springframework.boot.logging.logback.LogbackLoggingSystem
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.sist.backend.repository: DEBUG
 # 공통 설정
 spring:
   profiles:
@@ -11,6 +15,8 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-init-sql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
   jpa:
     hibernate:
       ddl-auto: validate
