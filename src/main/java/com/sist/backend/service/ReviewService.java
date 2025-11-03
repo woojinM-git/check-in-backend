@@ -349,7 +349,7 @@ public class ReviewService {
         
         // 논리 삭제: status=true (비활성화), hide=true (비공개)
         review.setStatus(true); // true: 비활성화, false: 활성
-        review.setHide(true);   // true: 비공개, false: 공개
+        //review.setHide(true);   // true: 비공개, false: 공개
         reviewRepository.save(review);
     }
 }
