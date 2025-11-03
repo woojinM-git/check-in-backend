@@ -1,8 +1,5 @@
 package com.sist.backend.config;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,9 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.sist.backend.config.handler.JwtAccessDeniedHandler;
 import com.sist.backend.config.handler.JwtAuthenticationEntryPoint;
@@ -32,6 +27,9 @@ public class SecurityJavaConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
+    private final CorsConfigurationSource corsConfigurationSource;
+
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -45,7 +43,7 @@ public class SecurityJavaConfig {
             .csrf(csrf -> csrf.disable());
         return http.build();
          */
- /* 
+ /*
         // JWT 구현 후 사용할 설정
         http.csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(
@@ -63,9 +61,9 @@ public class SecurityJavaConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
-
-            // 2. CORS 설정 (아래 corsConfigurationSource 빈을 사용)
-            .cors(c -> c.configurationSource(corsConfigurationSource()))
+            
+            // 2. CORS 설정 (CorsConfig에서 생성한 CorsConfigurationSource Bean 사용)
+            .cors(c -> c.configurationSource(corsConfigurationSource))
 
             // 3. 예외 처리 설정: 인증 실패(401) 및 인가 실패(403) 핸들러 등록
             .exceptionHandling(e -> e
@@ -77,7 +75,22 @@ public class SecurityJavaConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             // 5. 요청별 접근 권한 설정
+            // 주의: 더 구체적인 경로를 먼저 배치해야 함 (위에서 아래로 순차적으로 매칭)
             .authorizeHttpRequests(auth -> auth
+                // SpringDoc OpenAPI 문서 경로 (인증 없이 접근 허용)
+                .requestMatchers("/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui.html").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
+
+                // 인증이 필요한 경로를 먼저 명시 (더 구체적인 경로 우선)
+                // customer 권한만 허용 (ROLE_CUSTOMER)
+                .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
+                .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+
+                // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
+                .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
+
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
                 .requestMatchers("/api/login/**").permitAll()
                 .requestMatchers("/api/hotel/**").permitAll()
@@ -88,13 +101,12 @@ public class SecurityJavaConfig {
                 .requestMatchers("/api/dining/list").permitAll()
                 .requestMatchers("/api/dining/search").permitAll()
                 .requestMatchers("/api/dining/detail").permitAll()
-                // 예약 락 API: lock 은 인증 필요, unlock 은 허용
-                .requestMatchers("/api/reservations/unlock").permitAll()
-                .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
-                // 인증 필요한 도메인 API
-                .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
-                .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
-                // 그 외 모든 요청은 인증 필요
+                .requestMatchers("/api/reservations/unlock").permitAll() // beforeunload에서 인증 없이 호출 가능
+
+                // 그 외 모든 /api 경로는 인증 없이 접근 허용
+                .requestMatchers("/api/**").permitAll()
+
+                // 그 외 모든 요청은 인증 필요 (AccessToken 필수)
                 .anyRequest().authenticated()
             )
 
@@ -102,24 +114,5 @@ public class SecurityJavaConfig {
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        
-        // 실제 운영 환경에서는 * 대신 정확한 도메인을 지정하는 것이 안전합니다.
-        configuration.setAllowedOrigins(List.of("http://localhost:3333", "http://127.0.0.1:3333")); // 허용할 출처
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")); // 허용할 HTTP 메서드
-        configuration.setAllowedHeaders(List.of("*")); // 모든 헤더 허용
-        configuration.setAllowCredentials(true); // 자격 증명 (쿠키, 인증 헤더) 허용
-        configuration.setMaxAge(3600L); // 캐시 유효 시간
-
-        // 'Authorization' 및 'accessToken', 'RefreshToken' 헤더를 클라이언트가 접근할 수 있도록 노출
-        configuration.setExposedHeaders(List.of("Authorization", "accessToken", "RefreshToken")); 
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // 모든 경로에 대해 적용
-        return source;
     }
 }
