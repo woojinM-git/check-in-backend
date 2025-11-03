@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -35,6 +36,22 @@ public class SecurityJavaConfig {
     }
 
     @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+                // 정적 리소스 (css, js, images 등)
+                "/css/**", "/js/**", "/favicon.ico", "/images/**",
+                
+                // 로그인, 회원가입, 공개 API 등
+                "/auth/**", 
+                "/api/public/**",
+                "/error",
+                // 소셜 로그인 관련 경로 (콜백 등)
+                "/oauth2/**", 
+                "/login/oauth2/code/**"
+        );
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         /* 
         // 개발 단계에서는 모든 요청을 허용 (JWT 구현 전까지)
@@ -63,6 +80,8 @@ public class SecurityJavaConfig {
             
             // 2. CORS 설정 (CorsConfig에서 생성한 CorsConfigurationSource Bean 사용)
             .cors(c -> c.configurationSource(corsConfigurationSource))
+
+            
 
             // 3. 예외 처리 설정: 인증 실패(401) 및 인가 실패(403) 핸들러 등록
             .exceptionHandling(e -> e
