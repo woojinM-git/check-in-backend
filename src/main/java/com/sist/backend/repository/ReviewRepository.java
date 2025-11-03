@@ -69,5 +69,15 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
            "AND r.status = false " +
            "AND r.hide = false")
     Long countFeedbackByContentId(@Param("contentid") String contentid);
+    
+    /**
+     * 특정 호텔의 리뷰 목록 조회 (답변 포함)
+     */
+    @Query("SELECT r FROM Review r " +
+           "WHERE r.contentid = :contentid " +
+           "AND r.status = false " +
+           "AND r.hide = false " +
+           "ORDER BY r.createdAt DESC")
+    List<Review> findByContentId(@Param("contentid") String contentid);
 }
 
