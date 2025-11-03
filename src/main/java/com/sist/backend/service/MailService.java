@@ -1,6 +1,7 @@
 package com.sist.backend.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
@@ -11,6 +12,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.sist.backend.dto.PaymentRequestDto;
+import com.sist.backend.entity.EmailLog;
+import com.sist.backend.repository.EmailLogRepository;
 import com.sist.backend.util.QRCodeGenerator;
 
 import jakarta.mail.MessagingException;
@@ -28,6 +31,7 @@ public class MailService {
 
     private final JavaMailSender mailSender;
     private final QRCodeGenerator qrCodeGenerator;
+    private final EmailLogRepository emailLogRepository;
 
     @Value("${spring.mail.username}")
     private String fromEmail;
@@ -73,11 +77,23 @@ public class MailService {
             mailSender.send(message);
             log.info("호텔 예약 이메일 발송 완료: customerEmail={}, orderId={}",
                     request.getCustomerEmail(), request.getOrderId());
+
+            // EmailLog 저장
+            saveEmailLog(request.getCustomerIdx(), "hotel_reservation",
+                    "[Check-In] 결제가 완료되었습니다",
+                    request.getCustomerEmail(), htmlContent, true);
+
             return true;
 
         } catch (MessagingException e) {
             log.error("호텔 예약 이메일 발송 실패: customerEmail={}, orderId={}",
                     request.getCustomerEmail(), request.getOrderId(), e);
+
+            // EmailLog 저장 (실패)
+            saveEmailLog(request.getCustomerIdx(), "hotel_reservation",
+                    "[Check-In] 결제가 완료되었습니다",
+                    request.getCustomerEmail(), "이메일 발송 실패: " + e.getMessage(), false);
+
             return false;
         }
     }
@@ -119,11 +135,23 @@ public class MailService {
             mailSender.send(message);
             log.info("중고 호텔 구매 이메일 발송 완료: customerEmail={}, orderId={}",
                     request.getCustomerEmail(), request.getOrderId());
+
+            // EmailLog 저장
+            saveEmailLog(request.getCustomerIdx(), "used_hotel_purchase",
+                    "[Check-In] 중고 호텔 구매가 완료되었습니다",
+                    request.getCustomerEmail(), htmlContent, true);
+
             return true;
 
         } catch (MessagingException e) {
             log.error("중고 호텔 구매 이메일 발송 실패: customerEmail={}, orderId={}",
                     request.getCustomerEmail(), request.getOrderId(), e);
+
+            // EmailLog 저장 (실패)
+            saveEmailLog(request.getCustomerIdx(), "used_hotel_purchase",
+                    "[Check-In] 중고 호텔 구매가 완료되었습니다",
+                    request.getCustomerEmail(), "이메일 발송 실패: " + e.getMessage(), false);
+
             return false;
         }
     }
@@ -434,5 +462,39 @@ public class MailService {
                 request.getAmount() != null ? request.getAmount() : 0,
                 qrUrl != null ? String.format("<img src=\"%s\" alt=\"QR Code\">", qrUrl) : "<p>QR 코드 생성 중 오류가 발생했습니다.</p>"
         );
+    }
+
+    /**
+     * 이메일 발송 로그 저장
+     *
+     * @param customerIdx 고객 ID
+     * @param template 이메일 템플릿명
+     * @param subject 제목
+     * @param toEmail 수신 이메일
+     * @param payloadJson 이메일 본문 (HTML 또는 JSON)
+     * @param status 발송 성공 여부
+     */
+    private void saveEmailLog(Integer customerIdx, String template, String subject,
+            String toEmail, String payloadJson, Boolean status) {
+        try {
+            EmailLog emailLog = EmailLog.builder()
+                    .customerIdx(customerIdx)
+                    .template(template)
+                    .subject(subject)
+                    .toEmail(toEmail)
+                    .payloadJson(payloadJson != null && payloadJson.length() > 5000
+                            ? payloadJson.substring(0, 5000) + "..."
+                            : payloadJson) // TEXT 컬럼이므로 너무 길면 잘라냄
+                    .status(status)
+                    .sentAt(LocalDateTime.now())
+                    .build();
+
+            emailLogRepository.save(emailLog);
+            log.debug("이메일 로그 저장 완료: customerIdx={}, template={}, status={}",
+                    customerIdx, template, status);
+        } catch (Exception e) {
+            log.error("이메일 로그 저장 실패 (무시): customerIdx={}", customerIdx, e);
+            // 로그 저장 실패는 무시 (이메일 발송은 이미 완료됨)
+        }
     }
 }
