@@ -9,6 +9,9 @@ import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.mypage.MyPageService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 @RequestMapping("/api/mypage")
 @RequiredArgsConstructor
+@Tag(name="마이페이지", description="마이페이지 관련 API")
 public class MypageController {
 
     private final MyPageService myPageService;
@@ -36,6 +40,7 @@ public class MypageController {
 
     /* 예약 내역 조회 */
     @GetMapping("/reservations")
+    @Operation(summary="예약 내역 조회", description="예약 내역을 조회합니다.")
     public ResponseEntity<?> getReservations(
             @RequestParam(name = "status") String status,
             HttpServletRequest request) {
@@ -60,6 +65,7 @@ public class MypageController {
 
     /* 예약 상세 조회 */
     @GetMapping("/reservations/{reservationId}")
+    @Operation(summary="예약 상세 조회", description="예약 상세 정보를 조회합니다.")
     public ResponseEntity<?> getReservationDetail(
             @PathVariable Integer reservationId,
             HttpServletRequest request) {
@@ -95,6 +101,7 @@ public class MypageController {
      * 작성 가능한 리뷰 조회 (이용완료된 예약 중 아직 리뷰를 작성하지 않은 것)
      */
     @GetMapping("/writable-reviews")
+    @Operation(summary="작성 가능한 리뷰 조회", description="작성 가능한 리뷰를 조회합니다.")
     public ResponseEntity<?> getWritableReviews(HttpServletRequest request) {
         try {
             // JWT에서 사용자 정보 가져오기
@@ -120,6 +127,7 @@ public class MypageController {
 
     /* 프로필 정보 조회 */
     @GetMapping("/profile")
+    @Operation(summary="프로필 정보 조회", description="프로필 정보를 조회합니다.")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
             // JWT에서 사용자 정보 가져오기
