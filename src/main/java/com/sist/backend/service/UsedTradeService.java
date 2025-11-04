@@ -87,12 +87,29 @@ public class UsedTradeService {
      * @param comment 설명
      * @return 등록된 UsedItem
      */
+    @Transactional
     public UsedItem registerUsedItem(Integer reservIdx, Integer price, String comment) {
+        // 기존 항목이 있는지 확인
+        UsedItem existingItem = usedItemRepository.findByReservIdx(reservIdx);
+        
+        if (existingItem != null) {
+            // status가 2(거래완료) 또는 4(취소)인 경우 새로 등록 가능
+            if (existingItem.getStatus() == 2 || existingItem.getStatus() == 4) {
+                // 재판매를 위해 새로 등록 (기존 항목은 그대로 유지)
+                log.info("양도거래 재판매 등록: reservIdx={}, 기존 status={}", reservIdx, existingItem.getStatus());
+                // 기존 항목은 그대로 두고 새로 등록
+            } else {
+                // 이미 판매중(0) 또는 거래중(1) 상태인 경우 오류
+                throw new RuntimeException("이미 등록된 양도거래가 있습니다.");
+            }
+        }
+        
+        // 새로 등록
         UsedItem usedItem = new UsedItem();
         usedItem.setReservIdx(reservIdx);
         usedItem.setPrice(price);
         usedItem.setComment(comment);
-        // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료
+        // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료, 4 = 취소
         usedItem.setStatus(0); // 판매중 상태로 등록
         
         return usedItemRepository.save(usedItem);
@@ -122,6 +139,23 @@ public class UsedTradeService {
         usedItem.setComment(comment);
         // updatedAt은 @PreUpdate로 자동 갱신됨
         
+        return usedItemRepository.save(usedItem);
+    }
+
+    /**
+     * 양도거래 아이템 취소
+     * @param usedItemIdx 양도거래 아이템 ID
+     * @return 취소된 UsedItem
+     */
+    @Transactional
+    public UsedItem cancelUsedItem(Integer usedItemIdx) {
+        var usedItem = usedItemRepository.findById(usedItemIdx)
+            .orElseThrow(() -> new RuntimeException("양도거래 아이템을 찾을 수 없습니다."));
+        
+        // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료, 4 = 취소
+        usedItem.setStatus(4); // 취소 상태로 변경
+        
+        log.info("양도거래 아이템 취소: usedItemIdx={}", usedItemIdx);
         return usedItemRepository.save(usedItem);
     }
 

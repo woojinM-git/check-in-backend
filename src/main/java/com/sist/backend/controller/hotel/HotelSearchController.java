@@ -33,9 +33,12 @@ public class HotelSearchController {
     
     @PostMapping("/search")
     @Operation(summary="호텔 전체 검색", description="호텔 무작정 가져오기")
-    public ResponseEntity<List<HotelcardResponse>> searchHotels(@RequestBody HotelInfo request){
+    public ResponseEntity<List<HotelcardResponse>> searchHotels(
+            @RequestBody HotelInfo request,
+            @RequestParam(required = false) Boolean hasDining){
         System.out.println("==================================="+request+"========================================");
-        List<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle());
+        System.out.println("hasDining 파라미터: " + hasDining);
+        List<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle(), hasDining);
         System.out.println("==================================="+hotels.size()+"========================================");
         return ResponseEntity.ok(hotels);
     }

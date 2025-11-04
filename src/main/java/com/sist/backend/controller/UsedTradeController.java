@@ -93,6 +93,16 @@ public class UsedTradeController {
                 ));
             }
             
+            // status가 4(취소) 또는 2(거래완료)인 경우 등록되지 않은 것으로 간주 (재판매 가능)
+            // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료, 4 = 취소
+            if (usedItem.getStatus() == 4 || usedItem.getStatus() == 2) {
+                return ResponseEntity.ok(Map.of(
+                    "registered", false,
+                    "message", usedItem.getStatus() == 4 ? "양도거래가 취소되었습니다." : "양도거래가 완료되었습니다. 재판매가 가능합니다.",
+                    "status", usedItem.getStatus()
+                ));
+            }
+            
             return ResponseEntity.ok(Map.of(
                 "registered", true,
                 "usedItemIdx", usedItem.getUsedItemIdx(),
@@ -168,6 +178,28 @@ public class UsedTradeController {
             log.error("양도거래 아이템 수정 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(Map.of("message", "양도거래 아이템 수정 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 양도거래 아이템 취소
+     */
+    @PostMapping("/{usedItemIdx}/cancel")
+    @Operation(summary = "양도거래 아이템 취소", description = "양도거래 아이템을 취소합니다. status를 4로 변경합니다.")
+    public ResponseEntity<?> cancelUsedItem(@PathVariable Integer usedItemIdx) {
+        try {
+            var usedItem = usedTradeService.cancelUsedItem(usedItemIdx);
+
+            return ResponseEntity.ok(Map.of(
+                "message", "양도거래가 취소되었습니다.",
+                "usedItemIdx", usedItem.getUsedItemIdx(),
+                "status", usedItem.getStatus()
+            ));
+
+        } catch (Exception e) {
+            log.error("양도거래 아이템 취소 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "양도거래 아이템 취소 중 오류가 발생했습니다."));
         }
     }
 
@@ -255,13 +287,20 @@ public class UsedTradeController {
 
     /**
      * 거래 삭제 (페이지 이탈 시)
+     * navigator.sendBeacon은 POST만 지원하므로 POST도 허용
      */
     @DeleteMapping("/trade/{usedTradeIdx}/delete")
+    @PostMapping("/trade/{usedTradeIdx}/delete")
     @Operation(summary = "거래 삭제", description = "페이지 이탈 시 거래를 삭제합니다.")
-    public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
         try {
-            String reason = (String) request.getOrDefault("reason", "사용자 페이지 이탈");
-            String timestamp = (String) request.getOrDefault("timestamp", "");
+            // sendBeacon이나 DELETE 요청 모두 처리
+            String reason = (request != null && request.containsKey("reason")) 
+                ? (String) request.get("reason") 
+                : "사용자 페이지 이탈";
+            String timestamp = (request != null && request.containsKey("timestamp")) 
+                ? (String) request.get("timestamp") 
+                : "";
             
             log.info("거래 삭제 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
             
