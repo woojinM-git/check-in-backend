@@ -9,6 +9,7 @@ import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.dto.UsedSearchRequestDto;
 import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.UsedTradeService;
+import com.sist.backend.service.UsedPaymentLockService;
 import com.sist.backend.service.hotel.UsedHotelTradeService;
 import com.sist.backend.entity.UsedPay;
 import com.sist.backend.entity.UsedTrade;
@@ -35,6 +36,7 @@ public class UsedTradeController {
     private final UsedTradeService usedTradeService;
     private final UsedHotelTradeService tradeService;
     private final RoomReservationService roomReservationService;
+    private final UsedPaymentLockService paymentLockService;
 
     @GetMapping("/list")
     @Operation(summary = "양도거래 목록 조회", description = "페이징 처리된 양도거래 목록을 조회합니다.")
@@ -286,12 +288,11 @@ public class UsedTradeController {
     }
 
     /**
-     * 거래 삭제 (페이지 이탈 시)
+     * 거래 취소 (페이지 이탈 시) - status를 2로 변경
      * navigator.sendBeacon은 POST만 지원하므로 POST도 허용
      */
-    @DeleteMapping("/trade/{usedTradeIdx}/delete")
-    @PostMapping("/trade/{usedTradeIdx}/delete")
-    @Operation(summary = "거래 삭제", description = "페이지 이탈 시 거래를 삭제합니다.")
+    @RequestMapping(value = "/trade/{usedTradeIdx}/delete", method = {RequestMethod.DELETE, RequestMethod.POST})
+    @Operation(summary = "거래 취소", description = "페이지 이탈 시 거래를 취소합니다 (status를 2로 변경).")
     public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
         try {
             // sendBeacon이나 DELETE 요청 모두 처리
@@ -302,20 +303,21 @@ public class UsedTradeController {
                 ? (String) request.get("timestamp") 
                 : "";
             
-            log.info("거래 삭제 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
+            log.info("거래 취소 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
             
             tradeService.deleteTrade(usedTradeIdx, reason);
             
             return ResponseEntity.ok(Map.of(
-                "message", "거래가 삭제되었습니다.",
+                "message", "거래가 취소되었습니다.",
                 "usedTradeIdx", usedTradeIdx,
-                "deletedAt", java.time.LocalDateTime.now().toString()
+                "status", 2,
+                "updatedAt", java.time.LocalDateTime.now().toString()
             ));
             
         } catch (Exception e) {
-            log.error("거래 삭제 실패: {}", e.getMessage());
+            log.error("거래 취소 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
-                .body(Map.of("message", "거래 삭제 중 오류가 발생했습니다."));
+                .body(Map.of("message", "거래 취소 중 오류가 발생했습니다."));
         }
     }
 
@@ -417,6 +419,75 @@ public class UsedTradeController {
             log.error("판매자 거래 목록 조회 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(Map.of("message", "거래 목록 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 결제 페이지 진입 시 락 생성 (스케줄러 취소 방지)
+     */
+    @PostMapping("/trade/{usedTradeIdx}/lock")
+    @Operation(summary = "결제 페이지 진입 시 락 생성", description = "결제 페이지 진입 시 거래를 보호하기 위한 락을 생성합니다.")
+    public ResponseEntity<?> createPaymentPageLock(
+            @PathVariable Integer usedTradeIdx,
+            @RequestBody(required = false) Map<String, Object> request) {
+        try {
+            Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;
+            
+            // paymentKey 없이 usedTradeIdx만으로 락 생성 (결제 페이지 진입 시)
+            var lockResult = paymentLockService.createLock(usedTradeIdx, null, null, buyerIdx);
+            
+            if (!lockResult.getSuccess()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("message", lockResult.getMessage()));
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "결제 페이지 락이 생성되었습니다.",
+                "lockKey", lockResult.getLockKey(),
+                "usedTradeIdx", usedTradeIdx
+            ));
+            
+        } catch (Exception e) {
+            log.error("결제 페이지 락 생성 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "결제 페이지 락 생성 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 결제 페이지 이탈 시 락 해제
+     */
+    @PostMapping("/trade/{usedTradeIdx}/unlock")
+    @Operation(summary = "결제 페이지 이탈 시 락 해제", description = "결제 페이지를 떠날 때 락을 해제합니다.")
+    public ResponseEntity<?> releasePaymentPageLock(
+            @PathVariable Integer usedTradeIdx,
+            @RequestBody(required = false) Map<String, Object> request) {
+        try {
+            Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;
+            
+            // usedTradeIdx로 락 키 생성
+            String lockKey = "lock:payment:trade:" + usedTradeIdx;
+            
+            var lockResult = paymentLockService.releaseLock(lockKey, buyerIdx);
+            
+            if (!lockResult.getSuccess()) {
+                // 락이 없거나 이미 해제된 경우는 성공으로 처리 (중복 호출 방지)
+                log.debug("결제 페이지 락 해제: 이미 해제됨 또는 권한 없음 - usedTradeIdx={}", usedTradeIdx);
+                return ResponseEntity.ok(Map.of(
+                    "message", "락이 이미 해제되었거나 존재하지 않습니다.",
+                    "usedTradeIdx", usedTradeIdx
+                ));
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "결제 페이지 락이 해제되었습니다.",
+                "usedTradeIdx", usedTradeIdx
+            ));
+            
+        } catch (Exception e) {
+            log.error("결제 페이지 락 해제 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "결제 페이지 락 해제 중 오류가 발생했습니다."));
         }
     }
 
