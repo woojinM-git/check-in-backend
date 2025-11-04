@@ -31,7 +31,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.sist.backend.dto.admin.CheckTimeUpdateDto;
 import com.sist.backend.dto.admin.CouponCreateDto;
-import com.sist.backend.dto.admin.RoomPaymentDto;
 import com.sist.backend.dto.admin.RoomReservationDto;
 import com.sist.backend.dto.admin.RoomStatusDto;
 import com.sist.backend.dto.admin.RoomUpdateDto;
@@ -809,10 +808,12 @@ public class AdminManagementController {
         // 통계 계산
         java.math.BigDecimal averageRating = reviewService.getAverageRatingByContentId(contentid);
         Long feedbackCount = reviewService.getFeedbackCountByContentId(contentid);
+        Long totalHistoryCount = roomReservationService.countTotalHistoryByContentId(contentid);
         
         CustomerHistoryStatsDto stats = new CustomerHistoryStatsDto();
         stats.setAverageRating(averageRating != null ? averageRating : java.math.BigDecimal.ZERO);
         stats.setFeedbackCount(feedbackCount != null ? feedbackCount : 0L);
+        stats.setTotalHistoryCount(totalHistoryCount != null ? totalHistoryCount : 0L);
         
         return ResponseEntity.ok(stats);
     }
@@ -1056,21 +1057,21 @@ public class AdminManagementController {
         @RequestBody com.sist.backend.dto.admin.HotelEditFormDto dto,
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
-        
+
         Map<String, Object> map = new HashMap<>();
-        
+
         String contentid = getContentIdOrRedirect();
         if (contentid == null) {
             return createRedirectResponse();
         }
-        
+
         try {
             // 정규화된 테이블에 저장
             hotelInfoService.updateHotelInfo(contentid, dto);
-            
+
             map.put("success", true);
             map.put("message", "호텔 정보가 성공적으로 수정되었습니다.");
-            
+
             return ResponseEntity.ok(map);
         } catch (IllegalArgumentException e) {
             map.put("success", false);
@@ -1082,4 +1083,5 @@ public class AdminManagementController {
             return ResponseEntity.internalServerError().body(map);
         }
     }
+
 }
