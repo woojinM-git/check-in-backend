@@ -66,7 +66,9 @@ public class JwtFilter extends OncePerRequestFilter {
         return path.startsWith("/api-docs") 
             || path.startsWith("/swagger-ui") 
             || path.startsWith("/v3/api-docs")
-            || path.equals("/swagger-ui.html");
+            || path.equals("/swagger-ui.html")
+            || path.startsWith("/oauth2")  // OAuth2 경로는 Spring Security OAuth2 필터가 처리
+            || path.startsWith("/login/oauth2");  // OAuth2 콜백 경로도 제외
     }
     
     @Override
