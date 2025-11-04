@@ -66,7 +66,7 @@ public class HotelEditFormDto {
     @AllArgsConstructor
     @Builder
     public static class ImageDto {
-        private Integer id;                 // HotelImage.id
+        private Long id;                    // HotelImage.id (타임스탬프 ID 지원을 위해 Long 사용)
         private String originUrl;           // HotelImage.originUrl
         private String smallUrl;            // HotelImage.smallUrl
     }

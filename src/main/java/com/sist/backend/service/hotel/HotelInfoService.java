@@ -121,7 +121,7 @@ public class HotelInfoService {
         
         List<HotelEditFormDto.ImageDto> imageDtos = hotelImages.stream().map(image ->
             HotelEditFormDto.ImageDto.builder()
-                .id(image.getId())
+                .id(image.getId() != null ? Long.valueOf(image.getId()) : null) // Integer를 Long으로 변환
                 .originUrl(image.getOriginUrl())
                 .smallUrl(image.getSmallUrl())
                 .build()
