@@ -15,5 +15,8 @@ public class CustomerHistoryStatsDto {
     
     // 피드백 갯수 (리뷰가 작성된 예약 수)
     private Long feedbackCount;
+    
+    // 전체 이용 이력 개수 (모든 예약 수)
+    private Long totalHistoryCount;
 }
 
