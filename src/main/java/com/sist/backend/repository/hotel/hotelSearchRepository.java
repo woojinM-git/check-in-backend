@@ -24,6 +24,8 @@ public interface hotelSearchRepository extends JpaRepository<HotelInfo, String> 
     "    (h.title IS NOT NULL AND h.title LIKE :searchPattern) " +
     "    OR (h.adress IS NOT NULL AND h.adress LIKE :searchPattern)" +
     "  ) " +
+    "  AND (:hasDining IS NULL OR :hasDining = false OR " +
+    "    (:hasDining = true AND EXISTS (SELECT 1 FROM dining d WHERE d.contentid = h.contentId AND d.status = 1))) " +
     "ORDER BY " +
     "  CASE " +
     "    WHEN h.title IS NOT NULL AND h.title LIKE :searchPattern " +
@@ -34,5 +36,5 @@ public interface hotelSearchRepository extends JpaRepository<HotelInfo, String> 
     "  END ASC, " +
     "  h.title ASC",
     nativeQuery = true)
-    List<HotelInfo> findByTitle(@Param("searchPattern") String searchPattern);
+    List<HotelInfo> findByTitle(@Param("searchPattern") String searchPattern, @Param("hasDining") Boolean hasDining);
 }
