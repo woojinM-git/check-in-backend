@@ -1,7 +1,6 @@
 package com.sist.backend.repository.hotel;
 
 import com.sist.backend.entity.Room;
-import com.sist.backend.entity.RoomId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RoomRepository extends JpaRepository<Room, RoomId> {
+public interface RoomRepository extends JpaRepository<Room, Integer> {
     // contentId(호텔 기본키)로 객실 전체 조회
     List<Room> findByContentId(String contentId);
 
@@ -30,4 +29,8 @@ public interface RoomRepository extends JpaRepository<Room, RoomId> {
 
     // roomIdx 단일 키로 조회 (복합키이지만 roomIdx로 단일 조회가 필요한 서비스용)
     Optional<Room> findByRoomIdx(Integer roomIdx);
+    
+    // 특정 호텔의 최대 roomIdx 조회
+    @Query("SELECT COALESCE(MAX(r.roomIdx), 0) FROM Room r WHERE r.contentId = :contentId")
+    Integer findMaxRoomIdxByContentId(@Param("contentId") String contentId);
 }
