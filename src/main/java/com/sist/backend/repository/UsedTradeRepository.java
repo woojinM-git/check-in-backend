@@ -1,7 +1,9 @@
 package com.sist.backend.repository;
 
 import com.sist.backend.entity.UsedTrade;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -73,4 +75,14 @@ public interface UsedTradeRepository extends JpaRepository<UsedTrade, Integer> {
            "WHERE ut.ststus = 0 " + // 거래중 상태
            "AND ut.createdAt < :cutoffTime")
     List<UsedTrade> findExpiredPendingTrades(@Param("cutoffTime") LocalDateTime cutoffTime);
+
+    /**
+     * 거래 조회 (Pessimistic Lock - 결제 처리 시 사용)
+     * SELECT FOR UPDATE로 row를 잠가서 다른 트랜잭션의 수정을 방지
+     * @param usedTradeIdx 거래 ID
+     * @return 거래 정보 (락이 걸린 상태)
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT ut FROM UsedTrade ut WHERE ut.usedTradeIdx = :usedTradeIdx")
+    Optional<UsedTrade> findByIdForUpdate(@Param("usedTradeIdx") Integer usedTradeIdx);
 }

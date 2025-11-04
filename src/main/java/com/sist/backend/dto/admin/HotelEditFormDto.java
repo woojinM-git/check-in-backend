@@ -27,6 +27,9 @@ public class HotelEditFormDto {
     // 이미지 정보 (HotelImage Entity 필드명)
     private List<ImageDto> images;
     
+    // 객실 정보 (Room Entity 필드명)
+    private List<RoomDto> rooms;
+    
     // 다이닝 정보 (Dining Entity 필드명)
     private List<DiningDto> dining;
 
@@ -66,7 +69,7 @@ public class HotelEditFormDto {
     @AllArgsConstructor
     @Builder
     public static class ImageDto {
-        private Integer id;                 // HotelImage.id
+        private Long id;                    // HotelImage.id (타임스탬프 ID 지원을 위해 Long 사용)
         private String originUrl;           // HotelImage.originUrl
         private String smallUrl;            // HotelImage.smallUrl
     }
@@ -82,6 +85,30 @@ public class HotelEditFormDto {
         private String description;         // Dining.description
         private Integer basePrice;         // Dining.basePrice
         private Integer totalSeats;         // Dining.totalSeats
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class RoomDto {
+        private String name;                // Room.name
+        private Integer capacity;           // Room.capacity
+        private Integer basePrice;         // Room.basePrice
+        private Boolean refundable;        // Room.refundable
+        private Boolean breakfastIncluded; // Room.breakfastIncluded
+        private Boolean smoking;           // Room.smoking
+        private Integer roomCount;         // Room.roomCount
+        private List<RoomImageDto> images;  // RoomImage 리스트
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class RoomImageDto {
+        private String imageUrl;           // RoomImage.imageUrl
+        private Integer imageOrder;        // RoomImage.imageOrder
     }
 }
 
