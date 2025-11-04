@@ -463,7 +463,7 @@ public class PaymentService {
         DiningPayment diningPayment = DiningPayment.builder()
                 .diningIdx(request.getDiningIdx())
                 .customerIdx(request.getCustomerIdx())
-                .couponIdx(0) // TODO: 쿠폰 시스템 연동
+                .couponIdx(request.getCouponIdx() != null ? request.getCouponIdx() : 0)
                 .price(request.getAmount())
                 .status(1) // 결제 완료
                 .paymentKey(request.getPaymentKey())
