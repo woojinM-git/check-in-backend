@@ -4,12 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.entity.Room;
-import com.sist.backend.entity.RoomId;
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.RoomReservationRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
@@ -40,12 +38,18 @@ public class ReservationService {
     @Transactional
     public RoomReservation insertRoomReservation(PaymentRequestDto request, Integer orderIdx) {
         //객실 존재의 여부 확인(FK무결성 보장)
-        RoomId roomId = new RoomId(request.getRoomId(), request.getContentId());
-        Room room = roomRepository.findById(roomId)
+        Room room = roomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException(
-                String.format("객실 정보를 찾을 수 없습니다: roomIdx=%d, contentId=%s",
-                        request.getRoomId(), request.getContentId())
+                String.format("객실 정보를 찾을 수 없습니다: roomIdx=%d", request.getRoomId())
         ));
+        
+        // contentId 일치 여부 확인 (보안 검증)
+        if (!room.getContentId().equals(request.getContentId())) {
+            throw new RuntimeException(
+                String.format("객실의 호텔 정보가 일치하지 않습니다: roomIdx=%d, roomContentId=%s, requestContentId=%s",
+                    request.getRoomId(), room.getContentId(), request.getContentId())
+            );
+        }
 
         // 디버깅: specialRequest 길이와 앞부분 로깅
         String sr = request.getSpecialRequests();

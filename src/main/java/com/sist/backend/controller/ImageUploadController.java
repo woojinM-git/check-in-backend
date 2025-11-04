@@ -46,7 +46,143 @@ public class ImageUploadController {
         return ResponseEntity.ok(imageUrl);
     }
 
-    // ==================== 객실 이미지 관리 ====================
+    // ==================== 호텔 이미지 업로드 (호텔 등록 시 사용) ====================
+
+    @PostMapping("/hotel/images")
+    @Operation(summary = "호텔 이미지 업로드", description = "호텔 등록 시 호텔 이미지를 S3에 업로드합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 업로드됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> uploadHotelImages(
+        @Parameter(description = "업로드할 이미지 파일들", required = true)
+        @RequestPart("images") List<MultipartFile> images,
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // 호텔 등록 시에는 인증만 체크 (contentId 불필요)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(map);
+        }
+        
+        try {
+            // S3에 업로드하고 전체 URL 반환
+            List<Map<String, Object>> uploadedImages = new java.util.ArrayList<>();
+            String folderPath = "hotelmain/hotel"; // 호텔 메인 이미지 폴더
+            
+            for (MultipartFile image : images) {
+                String imageUrl = imageService.upload(image, folderPath, false); // 전체 URL 반환
+                
+                Map<String, Object> imageInfo = new HashMap<>();
+                imageInfo.put("id", System.currentTimeMillis() + uploadedImages.size()); // 임시 ID (타임스탬프)
+                imageInfo.put("originUrl", imageUrl);
+                imageInfo.put("smallUrl", imageUrl); // 호텔 이미지는 originUrl과 smallUrl 동일
+                
+                uploadedImages.add(imageInfo);
+            }
+            
+            map.put("success", true);
+            map.put("message", "이미지가 성공적으로 업로드되었습니다.");
+            map.put("images", uploadedImages);
+            
+            return ResponseEntity.ok(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "이미지 업로드 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
+
+    // ==================== 호텔 등록용 객실 이미지 업로드 (roomIdx 없이) ====================
+
+    @PostMapping("/hotel/room/images")
+    @Operation(summary = "호텔 등록 시 객실 이미지 업로드", description = "호텔 등록 시 객실 이미지를 S3에 업로드합니다. (roomIdx 없이)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 업로드됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> uploadHotelRoomImages(
+        @Parameter(description = "업로드할 이미지 파일들", required = true)
+        @RequestPart("images") List<MultipartFile> images,
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // 호텔 등록 시에는 인증만 체크 (contentId 불필요)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(map);
+        }
+        
+        try {
+            // 이미지 파일 검증
+            if (images == null || images.isEmpty()) {
+                map.put("success", false);
+                map.put("message", "업로드할 이미지가 없습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // S3에 업로드하고 파일명만 반환 (객실 이미지는 파일명만 저장)
+            List<Map<String, Object>> uploadedImages = new java.util.ArrayList<>();
+            String folderPath = "hotelroom"; // 객실 이미지 폴더
+            
+            for (MultipartFile image : images) {
+                // 파일이 비어있는지 확인
+                if (image == null || image.isEmpty()) {
+                    continue;
+                }
+                
+                String imageFileName = imageService.upload(image, folderPath, true); // 파일명만 반환
+                
+                Map<String, Object> imageInfo = new HashMap<>();
+                imageInfo.put("id", System.currentTimeMillis() + uploadedImages.size()); // 임시 ID (타임스탬프)
+                imageInfo.put("imageUrl", imageFileName); // 파일명만 저장
+                imageInfo.put("imageOrder", uploadedImages.size() + 1); // 순서
+                
+                uploadedImages.add(imageInfo);
+            }
+            
+            if (uploadedImages.isEmpty()) {
+                map.put("success", false);
+                map.put("message", "업로드할 수 있는 이미지가 없습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            map.put("success", true);
+            map.put("message", "이미지가 성공적으로 업로드되었습니다.");
+            map.put("images", uploadedImages);
+            
+            return ResponseEntity.ok(map);
+        } catch (IllegalArgumentException e) {
+            map.put("success", false);
+            map.put("message", "잘못된 요청: " + e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        } catch (com.sist.backend.exception.S3UploadException e) {
+            map.put("success", false);
+            map.put("message", "이미지 업로드 실패: " + e.getMessage());
+            e.printStackTrace(); // 스택 트레이스 출력
+            return ResponseEntity.internalServerError().body(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "이미지 업로드 중 오류가 발생했습니다: " + e.getMessage());
+            e.printStackTrace(); // 스택 트레이스 출력
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
 
     @PostMapping("/admin/room/{roomIdx}/images")
     @Operation(summary = "객실 이미지 업로드", description = "특정 객실에 이미지를 업로드합니다. (최대 10개)")

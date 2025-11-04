@@ -15,14 +15,13 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@IdClass(RoomId.class)
 public class Room {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "roomIdx")
     private Integer roomIdx;
     
-    @Id
     @Column(name = "contentId", length = 50)
     private String contentId;
     
