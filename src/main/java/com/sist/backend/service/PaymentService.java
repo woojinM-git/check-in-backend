@@ -243,8 +243,13 @@ public class PaymentService {
                         .emailSent(true) // 신규 처리됨: 컨트롤러에서 이메일 발송 허용
                         .build();
             } else if ("dining_reservation".equals(request.getType())) {
-                // 다이닝: 결제/예약 저장만 수행 (쿠폰/차감/적립/등급 업데이트 제외)
+                // 다이닝: 결제/예약 저장 수행
                 DiningPayment savedDining = saveDiningReservation(request);
+
+                // 쿠폰 처리 (사용 완료 상태 업데이트)
+                if (request.getCouponIdx() != null && request.getCouponIdx() > 0) {
+                    processCoupon(request.getCouponIdx());
+                }
 
                 log.info("다이닝 결제 및 예약 저장 완료: diningpayIdx={}", savedDining.getDiningpayIdx());
 
@@ -463,7 +468,7 @@ public class PaymentService {
         DiningPayment diningPayment = DiningPayment.builder()
                 .diningIdx(request.getDiningIdx())
                 .customerIdx(request.getCustomerIdx())
-                .couponIdx(0) // TODO: 쿠폰 시스템 연동
+                .couponIdx(request.getCouponIdx() != null ? request.getCouponIdx() : 0)
                 .price(request.getAmount())
                 .status(1) // 결제 완료
                 .paymentKey(request.getPaymentKey())
