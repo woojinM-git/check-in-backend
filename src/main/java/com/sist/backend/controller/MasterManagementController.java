@@ -159,6 +159,8 @@ public class MasterManagementController {
             @RequestParam(value = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "5") 
             @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "검색어 (호텔명, 사업자명, 위치)", example = "서울") 
+            @RequestParam(value = "search", required = false) String search,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
         if (authCheck != null) {
@@ -166,7 +168,7 @@ public class MasterManagementController {
         }
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(pageable));
+        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(search, pageable));
     }
 
     /* 승인요청을 한 호텔들 */
