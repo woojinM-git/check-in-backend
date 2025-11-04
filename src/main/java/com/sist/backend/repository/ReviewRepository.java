@@ -19,25 +19,26 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
     Optional<Review> findByReservIdxAndCustomerIdx(Integer reservIdx, Integer customerIdx);
     
     /**
-     * 특정 예약에 대해 리뷰가 존재하는지 확인 (boolean)
+     * 특정 예약에 대해 리뷰가 존재하는지 확인 (boolean) (삭제되지 않은 리뷰만)
      */
-    @Query("SELECT COUNT(r) > 0 FROM Review r WHERE r.reservIdx = :reservIdx AND r.customerIdx = :customerIdx")
+    @Query("SELECT COUNT(r) > 0 FROM Review r WHERE r.reservIdx = :reservIdx AND r.customerIdx = :customerIdx AND r.status = false")
     boolean existsByReservIdxAndCustomerIdx(@Param("reservIdx") Integer reservIdx, @Param("customerIdx") Integer customerIdx);
     
     /**
-     * 고객이 이미 작성한 리뷰의 예약 ID 목록 조회
+     * 고객이 이미 작성한 리뷰의 예약 ID 목록 조회 (삭제되지 않은 리뷰만)
      */
-    @Query("SELECT r.reservIdx FROM Review r WHERE r.customerIdx = :customerIdx")
+    @Query("SELECT r.reservIdx FROM Review r WHERE r.customerIdx = :customerIdx AND r.status = false")
     List<Integer> findReservationIdsByCustomerIdx(@Param("customerIdx") Integer customerIdx);
     
     /**
-     * 고객이 작성한 리뷰 조회 (호텔/예약 정보 포함) - N+1 방지
+     * 고객이 작성한 리뷰 조회 (호텔/예약 정보 포함) - N+1 방지 (삭제되지 않은 리뷰만)
      */
     @Query("SELECT DISTINCT r FROM Review r " +
         "JOIN FETCH r.roomReservation rr " +
         "JOIN FETCH r.hotelInfo h " +
         "LEFT JOIN FETCH h.area a " +
         "WHERE r.customerIdx = :customerIdx " +
+        "AND r.status = false " +
         "ORDER BY r.createdAt DESC")
     List<Review> findByCustomerIdx(@Param("customerIdx") Integer customerIdx);
 

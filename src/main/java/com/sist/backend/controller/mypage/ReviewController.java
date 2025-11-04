@@ -3,6 +3,9 @@ package com.sist.backend.controller.mypage;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Review;
 import com.sist.backend.service.ReviewService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/reviews")
 @RequiredArgsConstructor
+@Tag(name="리뷰", description="리뷰 관련 API")
 public class ReviewController {
 
     private final ReviewService reviewService;
@@ -24,6 +28,7 @@ public class ReviewController {
      * 리뷰 작성
      */
     @PostMapping("")
+    @Operation(summary="리뷰 작성", description="리뷰를 작성합니다.")
     public ResponseEntity<?> createReview(
             @RequestBody Map<String, Object> request,
             HttpServletRequest req) {
@@ -59,6 +64,7 @@ public class ReviewController {
      * 리뷰 작성 여부 확인
      */
     @GetMapping("/check/{reservationId}")
+    @Operation(summary="리뷰 작성 여부 확인", description="리뷰 작성 여부를 확인합니다.")
     public ResponseEntity<?> checkReviewExists(
             @PathVariable Integer reservationId,
             HttpServletRequest req) {
@@ -87,6 +93,7 @@ public class ReviewController {
      * 내가 작성한 리뷰 조회
      */
     @GetMapping("/my-reviews")
+    @Operation(summary="내가 작성한 리뷰 조회", description="내가 작성한 리뷰를 조회회합니다.")
     public ResponseEntity<?> getMyReviews(HttpServletRequest req) {
         try {
             Integer customerIdx = getCustomerIdxFromToken(req);
@@ -107,9 +114,33 @@ public class ReviewController {
     }
 
     /**
+     * 리뷰 삭제
+     */
+    @DeleteMapping("/{reviewId}")
+    @Operation(summary="리뷰 삭제", description="리뷰를 삭제합니다.")
+    public ResponseEntity<?> deleteReview(
+        @PathVariable Integer reviewId, HttpServletRequest req) {
+        try {
+            Integer customerIdx = getCustomerIdxFromToken(req);
+            if (customerIdx == null) {
+                return ResponseEntity.status(401)
+                .body(Map.of(
+                    "message", "인증 정보가 유효하지 않습니다."));
+            }
+            reviewService.deleteReviewByCustomerIdx(reviewId, customerIdx);
+            return ResponseEntity.ok(Map.of("message", "리뷰가 삭제되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", e.getMessage()));
+        }
+    }
+
+
+    /**
      * 리뷰 수정 (내용만 수정 가능, 별점 수정 불가)
      */
     @PutMapping("/{reviewId}")
+    @Operation(summary="리뷰 수정", description="리뷰를 수정합니다.")
     public ResponseEntity<?> updateReview(
             @PathVariable Integer reviewId,
             @RequestBody Map<String, Object> request,
