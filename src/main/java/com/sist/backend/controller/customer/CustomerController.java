@@ -325,11 +325,16 @@ public class CustomerController {
             }
             
             System.out.println("비밀번호 변경 요청 - customerIdx: " + customerIdx);
+            System.out.println("요청 데이터: " + data);
             
             // 3. 요청 데이터 검증
             String currentPassword = data.get("currentPassword");
             String newPassword = data.get("newPassword");
             String confirmPassword = data.get("confirmPassword");
+            
+            System.out.println("현재 비밀번호: " + (currentPassword != null ? "입력됨" : "null"));
+            System.out.println("새 비밀번호: " + (newPassword != null ? "입력됨 (길이: " + newPassword.length() + ")" : "null"));
+            System.out.println("확인 비밀번호: " + (confirmPassword != null ? "입력됨 (길이: " + confirmPassword.length() + ")" : "null"));
             
             if (currentPassword == null || currentPassword.trim().isEmpty()) {
                 return ResponseEntity.status(400).body(Map.of(
@@ -352,6 +357,14 @@ public class CustomerController {
             if (!newPassword.equals(confirmPassword)) {
                 return ResponseEntity.status(400).body(Map.of(
                     "message", "새 비밀번호가 일치하지 않습니다."
+                ));
+            }
+            
+            // 3-1. BCrypt 해시 패턴 검증 (암호화된 비밀번호 복사/붙여넣기 방지)
+            if (newPassword.startsWith("$2a$") || newPassword.startsWith("$2b$") || newPassword.startsWith("$2y$") || newPassword.startsWith("$2x$")) {
+                System.err.println("비밀번호 변경 실패: 암호화된 비밀번호는 사용할 수 없습니다.");
+                return ResponseEntity.status(400).body(Map.of(
+                    "message", "암호화된 비밀번호는 사용할 수 없습니다. 새로운 비밀번호를 입력해주세요."
                 ));
             }
             
@@ -382,9 +395,11 @@ public class CustomerController {
             }
             
             // 6. 새 비밀번호와 현재 비밀번호가 같은지 확인
+            // (현재 비밀번호 검증이 통과된 후이므로, 새 비밀번호와 현재 비밀번호를 직접 비교)
             if (passwordEncoder.matches(newPassword, customerEntity.getPassword())) {
+                System.err.println("비밀번호 변경 실패: 새 비밀번호가 현재 비밀번호와 동일함 - customerIdx: " + customerIdx);
                 return ResponseEntity.status(400).body(Map.of(
-                    "message", "새 비밀번호는 현재 비밀번호와 달라야 합니다."
+                    "message", "새 비밀번호는 현재 비밀번호와 같을 수 없습니다."
                 ));
             }
             
