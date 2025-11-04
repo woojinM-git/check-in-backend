@@ -175,4 +175,9 @@ public class RoomReservationService {
             .filter(dto -> dto != null)
             .collect(Collectors.toList());
     }
+
+    /* 특정 호텔의 전체 이용 이력 개수 조회 */
+    public Long countTotalHistoryByContentId(String contentid) {
+        return roomReservationRepository.countTotalHistoryByContentId(contentid);
+    }
 }

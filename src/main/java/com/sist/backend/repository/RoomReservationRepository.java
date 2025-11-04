@@ -153,10 +153,15 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
            "LEFT JOIN FETCH r.customer c " +
            "LEFT JOIN FETCH r.room rm " +
            "WHERE r.contentid = :contentid " +
-           "AND r.status IN (2, 4) " +
+           "AND r.status IN (1, 4) " +
            "AND (:customerId IS NULL OR c.id LIKE CONCAT('%', :customerId, '%')) " +
            "ORDER BY r.checkinDate DESC")
     List<RoomReservation> findCustomerHistoryByContentId(
             @Param("contentid") String contentid,
             @Param("customerId") String customerId);
+
+    /* 특정 호텔의 전체 이용 이력 개수 (모든 예약 수) */
+    @Query("SELECT COUNT(r) FROM RoomReservation r " +
+           "WHERE r.contentid = :contentid")
+    Long countTotalHistoryByContentId(@Param("contentid") String contentid);
 }
