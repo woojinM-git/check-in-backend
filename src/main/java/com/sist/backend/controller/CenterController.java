@@ -72,7 +72,7 @@ public class CenterController {
     })
     public ResponseEntity<Center> getCenterById(
             @Parameter(description = "고객센터 글 번호")
-            @PathVariable Integer centerIdx) {
+            @PathVariable(name = "centerIdx") Integer centerIdx) {
         
         try {
             Center center = centerService.getCenterById(centerIdx);
@@ -94,7 +94,7 @@ public class CenterController {
     })
     public ResponseEntity<Center> updateCenter(
             @Parameter(description = "고객센터 글 번호")
-            @PathVariable Integer centerIdx,
+            @PathVariable(name = "centerIdx") Integer centerIdx,
             @RequestBody Center center) {
         
         try {
@@ -117,7 +117,7 @@ public class CenterController {
     })
     public ResponseEntity<Void> deleteCenter(
             @Parameter(description = "고객센터 글 번호")
-            @PathVariable Integer centerIdx) {
+            @PathVariable(name = "centerIdx") Integer centerIdx) {
         
         try {
             centerService.deleteCenter(centerIdx);
