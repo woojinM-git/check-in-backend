@@ -281,13 +281,19 @@ public class HotelInfoService {
             hotelInfo.setTitle(dto.getHotelInfo().getTitle());
             hotelInfo.setAdress(dto.getHotelInfo().getAdress());
             hotelInfo.setTel(dto.getHotelInfo().getTel());
-            hotelInfo.setAreaCode(dto.getArea().getAreaCode());
+            hotelInfo.setImageUrl(dto.getHotelInfo().getImageUrl()); // 대표 이미지 URL 설정
+            // areaCode 설정 (area가 null이면 null 또는 빈 문자열로 설정)
+            if (dto.getArea() != null && dto.getArea().getAreaCode() != null) {
+                hotelInfo.setAreaCode(dto.getArea().getAreaCode());
+            } else {
+                hotelInfo.setAreaCode(null); // area가 없으면 null로 설정
+            }
             hotelInfo.setHotelCategoryCode("B02010100"); // 기본값: 호텔
             hotelInfo.setStatus(0); // 승인 완료 상태
             hotelInfoRepository.save(hotelInfo);
-            log.info("✅ HotelInfo 저장 완료: contentId={}, title={}", contentId, hotelInfo.getTitle());
+            log.info("✅ HotelInfo 저장 완료: contentId={}, title={}, imageUrl={}", contentId, hotelInfo.getTitle(), hotelInfo.getImageUrl());
             
-            // 4. HotelDetail 생성 및 저장
+               // 4. HotelDetail 생성 및 저장
             HotelDetail hotelDetail = new HotelDetail();
             hotelDetail.setContentid(contentId);
             if (dto.getHotelDetail() != null) {
@@ -296,8 +302,14 @@ public class HotelInfoService {
                 hotelDetail.setScalelodging(dto.getHotelDetail().getScalelodging());
                 hotelDetail.setParkinglodging(dto.getHotelDetail().getParkinglodging());
             }
+            // roomcount는 객실 총 개수로 설정 (dto.getRooms()의 크기)
+            if (dto.getRooms() != null && !dto.getRooms().isEmpty()) {
+                hotelDetail.setRoomcount(String.valueOf(dto.getRooms().size()));
+            } else {
+                hotelDetail.setRoomcount("0");
+            }
             hotelDetailRepository.save(hotelDetail);
-            log.info("✅ HotelDetail 저장 완료: contentId={}", contentId);
+            log.info("✅ HotelDetail 저장 완료: contentId={}, roomcount={}", contentId, hotelDetail.getRoomcount());
             
             // 5. Room 생성 및 저장
             if (dto.getRooms() != null && !dto.getRooms().isEmpty()) {
@@ -308,15 +320,20 @@ public class HotelInfoService {
                     room.setName(roomDto.getName());
                     room.setCapacity(roomDto.getCapacity());
                     room.setBasePrice(roomDto.getBasePrice());
-                    room.setRefundable(roomDto.getRefundable());
+                    // refundable: Boolean이지만 DB에는 int로 저장됨 (true=1, false=0), 기본값 true (환불 가능)
+                    room.setRefundable(roomDto.getRefundable() != null ? roomDto.getRefundable() : true);
                     room.setBreakfastIncluded(roomDto.getBreakfastIncluded());
                     room.setSmoking(roomDto.getSmoking());
-                    room.setRoomCount(roomDto.getRoomCount());
-                    room.setStatus(1); // 활성 상태
+                    // roomCount는 기본값 1로 설정 (null이면 1)
+                    room.setRoomCount(roomDto.getRoomCount() != null ? roomDto.getRoomCount() : 1);
+                    // status는 사용자가 선택한 값 또는 기본값 1
+                    room.setStatus(roomDto.getStatus() != null ? roomDto.getStatus() : 1);
+                    // imageUrl은 객실 대표 이미지 (1장)
+                    room.setImageUrl(roomDto.getImageUrl());
                     
                     roomRepository.save(room);
                     Integer savedRoomIdx = room.getRoomIdx(); // DB에서 자동 생성된 roomIdx 확인
-                    log.info("✅ Room 저장 완료: contentId={}, roomIdx={}, name={}", contentId, savedRoomIdx, room.getName());
+                    log.info("✅ Room 저장 완료: contentId={}, roomIdx={}, name={}, imageUrl={}", contentId, savedRoomIdx, room.getName(), room.getImageUrl());
                     
                     // 6. RoomImage 저장
                     if (roomDto.getImages() != null && !roomDto.getImages().isEmpty()) {
