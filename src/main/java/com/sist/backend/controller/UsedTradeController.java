@@ -47,9 +47,9 @@ public class UsedTradeController {
     })
     public ResponseEntity<Page<UsedItemDto>> getUsedTradeListWithDetails(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
-            @RequestParam(defaultValue = "0") int page, 
+            @RequestParam(name = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "10") 
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(name = "size", defaultValue = "10") int size) {
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(usedTradeService.findAllByStatusOrderByUpdatedAtDescAsDto(pageable));

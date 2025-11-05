@@ -35,7 +35,7 @@ public class HotelSearchController {
     @Operation(summary="호텔 전체 검색", description="호텔 무작정 가져오기")
     public ResponseEntity<List<HotelcardResponse>> searchHotels(
             @RequestBody HotelInfo request,
-            @RequestParam(required = false) Boolean hasDining){
+            @RequestParam(name = "hasDining", required = false) Boolean hasDining){
         System.out.println("==================================="+request+"========================================");
         System.out.println("hasDining 파라미터: " + hasDining);
         List<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle(), hasDining);
@@ -73,10 +73,10 @@ public class HotelSearchController {
     
     @GetMapping("/area")
     public ResponseEntity<List<HotelcardResponse>> getHotelsByAreaCode(
-            @RequestParam String areaCode,
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false) Double lat,
-            @RequestParam(required = false) Double lng) {
+            @RequestParam(name = "areaCode") String areaCode,
+            @RequestParam(name = "limit", defaultValue = "10") int limit,
+            @RequestParam(name = "lat", required = false) Double lat,
+            @RequestParam(name = "lng", required = false) Double lng) {
         List<HotelcardResponse> hotels;
         if (lat != null && lng != null) {
             // 좌표가 제공된 경우 가장 근접한 호텔들을 조회
