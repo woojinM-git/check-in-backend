@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
 import com.sist.backend.dto.mypage.WritableReviewDTO;
@@ -44,11 +47,7 @@ public class MyPageService {
         }
     }
 
-    /* 고객 ID와 상태 문자열을 받아 예약 목록을 조회 (DTO 반환)
-     * @param customerIdx 고객 ID (로그인 사용자)
-     * @param status 프론트엔드 상태 문자열 (upcoming, completed, cancelled)
-     * @return ReservationResponseDTO 목록
-     */
+    /* 고객 ID와 상태 문자열을 받아 예약 목록을 조회 (DTO 반환) - 페이지네이션 미지원 버전 (하위 호환성 유지) */
     public List<ReservationResponseDTO> getMyReservationsByStatus(Integer customerIdx, String status) {
         // 1. 상태 문자열을 코드로 매핑
         List<Integer> statusCodes = mapStatusToCodes(status);
@@ -61,6 +60,28 @@ public class MyPageService {
         return reservations.stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
+    }
+
+    /* 고객 ID와 상태 문자열을 받아 예약 목록을 조회 (DTO 반환) - 페이지네이션 지원 버전
+     * @param customerIdx 고객 ID (로그인 사용자)
+     * @param status 프론트엔드 상태 문자열 (upcoming, completed, cancelled)
+     * @param page 페이지 번호 (0부터 시작)
+     * @param size 페이지 크기
+     * @return Page<ReservationResponseDTO>
+     */
+    public Page<ReservationResponseDTO> getMyReservationsByStatus(Integer customerIdx, String status, int page, int size) {
+        // 1. 상태 문자열을 코드로 매핑
+        List<Integer> statusCodes = mapStatusToCodes(status);
+
+        // 2. Pageable 객체 생성
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 3. Repository에서 페이지네이션된 데이터 조회 (Hotel, Room 정보 포함)
+        Page<RoomReservation> reservationsPage = roomReservationRepository
+            .findByReservationsByCustomerAndStatusWithPagination(customerIdx, statusCodes, pageable);
+
+        // 4. Entity → DTO 변환 (Page 객체 유지)
+        return reservationsPage.map(this::convertToDTO);
     }
     
     /**

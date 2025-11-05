@@ -9,6 +9,9 @@ import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.mypage.MyPageService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RestController
 @RequestMapping("/api/mypage")
 @RequiredArgsConstructor
+@Tag(name="마이페이지", description="마이페이지 관련 API")
 public class MypageController {
 
     private final MyPageService myPageService;
@@ -36,8 +40,11 @@ public class MypageController {
 
     /* 예약 내역 조회 */
     @GetMapping("/reservations")
+    @Operation(summary="예약 내역 조회", description="예약 내역을 조회합니다. (페이지네이션 지원)")
     public ResponseEntity<?> getReservations(
             @RequestParam(name = "status") String status,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "3") int size,
             HttpServletRequest request) {
 
         // JWT에서 사용자 정보 가져오기
@@ -49,17 +56,31 @@ public class MypageController {
                 "message", "인증 정보가 유효하지 않습니다."));
         }
 
-        System.out.println("👤 예약 내역 조회 - customerIdx: " + customerIdx + ", status: " + status);
+        System.out.println("👤 예약 내역 조회 - customerIdx: " 
+            + customerIdx 
+            + ", status: " 
+            + status 
+            + ", page: " 
+            + page + ", size: " 
+            + size);
 
-        // 서비스 호출: 고객 ID와 상태 문자열 전달 (DTO로 변환된 데이터 반환)
-        List<ReservationResponseDTO> reservations = myPageService.getMyReservationsByStatus(customerIdx, status);
+        // 서비스 호출: 고객 ID, 상태 문자열, 페이지네이션 파라미터 전달
+        org.springframework.data.domain.Page<ReservationResponseDTO> reservationsPage = 
+            myPageService.getMyReservationsByStatus(customerIdx, status, page, size);
 
-        // 프론트엔드 mypage/page.js에서 예상하는 JSON 형식 ({"reservations": [...]})에 맞춰 응답
-        return ResponseEntity.ok(Map.of("reservations", reservations));
+        // Spring Boot Page 객체를 프론트엔드가 기대하는 형식으로 변환
+        return ResponseEntity.ok(Map.of(
+            "reservations", reservationsPage.getContent(),
+            "totalElements", reservationsPage.getTotalElements(),
+            "totalPages", reservationsPage.getTotalPages(),
+            "number", reservationsPage.getNumber(),
+            "size", reservationsPage.getSize()
+        ));
     }
 
     /* 예약 상세 조회 */
     @GetMapping("/reservations/{reservationId}")
+    @Operation(summary="예약 상세 조회", description="예약 상세 정보를 조회합니다.")
     public ResponseEntity<?> getReservationDetail(
             @PathVariable Integer reservationId,
             HttpServletRequest request) {
@@ -95,6 +116,7 @@ public class MypageController {
      * 작성 가능한 리뷰 조회 (이용완료된 예약 중 아직 리뷰를 작성하지 않은 것)
      */
     @GetMapping("/writable-reviews")
+    @Operation(summary="작성 가능한 리뷰 조회", description="작성 가능한 리뷰를 조회합니다.")
     public ResponseEntity<?> getWritableReviews(HttpServletRequest request) {
         try {
             // JWT에서 사용자 정보 가져오기
@@ -120,6 +142,7 @@ public class MypageController {
 
     /* 프로필 정보 조회 */
     @GetMapping("/profile")
+    @Operation(summary="프로필 정보 조회", description="프로필 정보를 조회합니다.")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         try {
             // JWT에서 사용자 정보 가져오기

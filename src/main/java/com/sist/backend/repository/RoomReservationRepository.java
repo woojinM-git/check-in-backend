@@ -70,7 +70,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     /* room 목록 */
     List<RoomReservation> findByContentid(@Param("contentid") String contentid);
 
-    /* 마이페이지 예약 목록 조회 (Hotel, Room 정보 포함) */
+    /* 마이페이지 예약 목록 조회 (Hotel, Room 정보 포함) - 페이지네이션 미지원 */
     @Query("SELECT DISTINCT r FROM RoomReservation r " +
             "LEFT JOIN FETCH r.room room " +
             "LEFT JOIN FETCH room.hotelInfo hotel " +
@@ -80,6 +80,18 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     List<RoomReservation> findByReservationsByCustomerAndStatus(
         @Param("customerIdx") Integer customerIdx,
         @Param("statusList") List<Integer> statusList);
+
+    /* 마이페이지 예약 목록 조회 (Hotel, Room 정보 포함) - 페이지네이션 지원 */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+            "LEFT JOIN FETCH r.room room " +
+            "LEFT JOIN FETCH room.hotelInfo hotel " +
+            "LEFT JOIN FETCH hotel.area area " +
+            "WHERE r.customerIdx = :customerIdx AND r.status IN :statusList " +
+            "ORDER BY r.checkinDate DESC")
+    Page<RoomReservation> findByReservationsByCustomerAndStatusWithPagination(
+        @Param("customerIdx") Integer customerIdx,
+        @Param("statusList") List<Integer> statusList,
+        Pageable pageable);
 
     /* 달력용 예약 조회 - 체크인 날짜 기준으로 검색 */
     @Query("SELECT r FROM RoomReservation r " +
@@ -153,10 +165,15 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
            "LEFT JOIN FETCH r.customer c " +
            "LEFT JOIN FETCH r.room rm " +
            "WHERE r.contentid = :contentid " +
-           "AND r.status IN (2, 4) " +
+           "AND r.status IN (1, 4) " +
            "AND (:customerId IS NULL OR c.id LIKE CONCAT('%', :customerId, '%')) " +
            "ORDER BY r.checkinDate DESC")
     List<RoomReservation> findCustomerHistoryByContentId(
             @Param("contentid") String contentid,
             @Param("customerId") String customerId);
+
+    /* 특정 호텔의 전체 이용 이력 개수 (모든 예약 수) */
+    @Query("SELECT COUNT(r) FROM RoomReservation r " +
+           "WHERE r.contentid = :contentid")
+    Long countTotalHistoryByContentId(@Param("contentid") String contentid);
 }

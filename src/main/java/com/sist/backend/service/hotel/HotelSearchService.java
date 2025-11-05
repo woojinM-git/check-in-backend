@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,10 @@ public class HotelSearchService {
         System.out.println("원본 검색어: " + title);
         System.out.println("검색 패턴: " + searchPattern);
         
-        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern);
+        // 페이지네이션 없이 전체 조회 (기존 호환성을 위해 유지)
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<HotelInfo> hotelPage = hotelSearchRepository.findByTitleWithPagination(searchPattern, null, pageable);
+        List<HotelInfo> hotels = hotelPage.getContent();
         
         // 각 호텔에 hotelLocation 정보 추가
         for (HotelInfo hotel : hotels) {
@@ -63,9 +68,11 @@ public class HotelSearchService {
     /**
      * 제목으로 호텔 검색 (가격 정보 포함)
      * @param title 검색할 호텔 제목
-     * @return HotelcardResponse 리스트 (가격 정보 포함)
+     * @param hasDining 다이닝이 있는 호텔만 필터링 (null이면 필터링 안 함)
+     * @param pageable 페이지네이션 정보
+     * @return HotelcardResponse 페이지 (가격 정보 포함)
      */
-    public List<HotelcardResponse> findByTitleWithPrice(String title){
+    public Page<HotelcardResponse> findByTitleWithPrice(String title, Boolean hasDining, Pageable pageable){
         System.out.println("=== findByTitleWithPrice 시작 ===");
         System.out.println("받은 title 파라미터: [" + title + "]");
         System.out.println("title == null: " + (title == null));
@@ -76,15 +83,15 @@ public class HotelSearchService {
         
         // 검색어 유효성 검사 및 공백 제거
         if (title == null || title.trim().isEmpty()) {
-            System.out.println("⚠️ title이 null이거나 빈 문자열입니다. 빈 리스트 반환");
-            return new ArrayList<>();
+            System.out.println("⚠️ title이 null이거나 빈 문자열입니다. 빈 페이지 반환");
+            return new PageImpl<>(new ArrayList<>(), pageable, 0);
         }
         
         String trimmedTitle = title.trim();
         // 최소 2글자 이상 검증
         if (trimmedTitle.length() < 2) {
-            System.out.println("⚠️ 검색어가 2글자 미만입니다. 빈 리스트 반환");
-            return new ArrayList<>();
+            System.out.println("⚠️ 검색어가 2글자 미만입니다. 빈 페이지 반환");
+            return new PageImpl<>(new ArrayList<>(), pageable, 0);
         }
         
         // 검색 패턴 생성 (%검색어%)
@@ -94,35 +101,17 @@ public class HotelSearchService {
         System.out.println("원본 검색어: [" + title + "]");
         System.out.println("공백 제거 후: [" + trimmedTitle + "]");
         System.out.println("검색 패턴: [" + searchPattern + "]");
+        System.out.println("다이닝 필터링: " + (hasDining != null && hasDining ? "활성화" : "비활성화"));
         System.out.println("검색 패턴 길이: " + searchPattern.length());
         System.out.println("검색 패턴 바이트: " + java.util.Arrays.toString(searchPattern.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         
         System.out.println("Repository 호출 전...");
-        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern);
+        Page<HotelInfo> hotelPage = hotelSearchRepository.findByTitleWithPagination(searchPattern, hasDining, pageable);
         System.out.println("Repository 호출 완료!");
         
-        System.out.println("검색 결과 개수: " + (hotels != null ? hotels.size() : 0));
-        if (hotels != null && !hotels.isEmpty()) {
-            System.out.println("첫 번째 결과 - title: " + hotels.get(0).getTitle() + ", adress: " + hotels.get(0).getAdress());
-        } else {
-            System.out.println("⚠️ 검색 결과가 없습니다. 쿼리를 직접 테스트해보세요.");
-            // 직접 DB 쿼리 테스트 (임시 디버깅용)
-            try {
-                List<HotelInfo> testHotels = hotelInfoRepository.findAll().stream()
-                    .filter(h -> (h.getTitle() != null && h.getTitle().contains(trimmedTitle)) ||
-                                 (h.getAdress() != null && h.getAdress().contains(trimmedTitle)))
-                    .limit(5)
-                    .collect(java.util.stream.Collectors.toList());
-                System.out.println("직접 필터링 테스트 결과: " + testHotels.size() + "개");
-                if (!testHotels.isEmpty()) {
-                    System.out.println("직접 필터링 첫 번째 결과 - title: " + testHotels.get(0).getTitle() + ", adress: " + testHotels.get(0).getAdress());
-                }
-            } catch (Exception e) {
-                System.out.println("직접 필터링 테스트 실패: " + e.getMessage());
-            }
-        }
+        System.out.println("검색 결과 개수: " + (hotelPage != null ? hotelPage.getTotalElements() : 0));
         
-        return hotels.stream().map(hotel -> {
+        List<HotelcardResponse> hotelResponses = hotelPage.getContent().stream().map(hotel -> {
             // 해당 호텔의 객실 가격 범위 조회
             List<BigDecimal> prices = roomRepository.findBasePricesByContentId(hotel.getContentId());
             
@@ -168,6 +157,8 @@ public class HotelSearchService {
                     .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
+        
+        return new PageImpl<>(hotelResponses, pageable, hotelPage.getTotalElements());
     }
 
     public List<HotelInfo> findAll(){
@@ -176,12 +167,13 @@ public class HotelSearchService {
 
     /**
      * 모든 호텔 조회 (가격 정보 포함)
-     * @return HotelcardResponse 리스트 (가격 정보 포함)
+     * @param pageable 페이지네이션 정보
+     * @return HotelcardResponse 페이지 (가격 정보 포함)
      */
-    public List<HotelcardResponse> findAllWithPrice(){
-        List<HotelInfo> hotels = hotelSearchRepository.findAll();
+    public Page<HotelcardResponse> findAllWithPrice(Pageable pageable){
+        Page<HotelInfo> hotelPage = hotelSearchRepository.findAll(pageable);
         
-        return hotels.stream().map(hotel -> {
+        List<HotelcardResponse> hotelResponses = hotelPage.getContent().stream().map(hotel -> {
             // 해당 호텔의 객실 가격 범위 조회
             List<BigDecimal> prices = roomRepository.findBasePricesByContentId(hotel.getContentId());
             
@@ -227,6 +219,8 @@ public class HotelSearchService {
                     .parkinglodging(parkinglodging)
                     .build();
         }).collect(Collectors.toList());
+        
+        return new PageImpl<>(hotelResponses, pageable, hotelPage.getTotalElements());
     }
 
     public List<HotelcardResponse> findAllPopularHotels() {
