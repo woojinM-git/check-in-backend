@@ -44,4 +44,11 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
            "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx " +
            "WHERE rr.contentid = :contentid AND rp.status = 1")
     Double findAveragePaymentByContentId(@Param("contentid") String contentid);
+
+    /**
+     * orderIdx(PK)로 결제 조회 (JpaRepository#findById로도 가능하지만 가독성을 위해 별도 노출)
+     */
+    default java.util.Optional<RoomPayment> findByOrderIdx(Integer orderIdx) {
+        return this.findById(orderIdx);
+    }
 }
