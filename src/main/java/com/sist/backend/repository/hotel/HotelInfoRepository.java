@@ -64,6 +64,20 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "ORDER BY h.contentId")
     Page<HotelInfo> findAllHotelWithDetailsAsDto(Pageable pageable);
 
+    /* 마스터 화면용 호텔 목록 (검색 기능 포함, 페이징 처리) */
+    @Query("SELECT DISTINCT h FROM HotelInfo h " +
+           "LEFT JOIN FETCH h.hotelDetail " +
+           "LEFT JOIN FETCH h.admin " +
+           "LEFT JOIN FETCH h.area " +
+           "WHERE (:search IS NULL OR :search = '' OR " +
+           "       LOWER(h.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "       LOWER(h.admin.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "       LOWER(h.adress) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "       h.areaCode LIKE CONCAT('%', :search, '%') OR " +
+           "       (h.area IS NOT NULL AND LOWER(h.area.areaName) LIKE LOWER(CONCAT('%', :search, '%')))) " +
+           "ORDER BY h.contentId")
+    Page<HotelInfo> findAllHotelWithDetailsAsDtoWithSearch(@Param("search") String search, Pageable pageable);
+
     /**
      * adminIdx로 contentId 조회
      */

@@ -10,6 +10,8 @@ import com.sist.backend.repository.UsedItemRepository;
 import com.sist.backend.repository.UsedPayRepository;
 import com.sist.backend.repository.RoomReservationRepository;
 import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.service.UsedPaymentLockService;
+import com.sist.backend.dto.UsedPaymentLockDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ public class UsedHotelTradeService {
     private final UsedPayRepository usedPayRepository;
     private final RoomReservationRepository roomReservationRepository;
     private final CustomerRepository customerRepository;
+    private final UsedPaymentLockService paymentLockService;
 
     /**
      * 중고 아이템 거래 가능 여부 확인
@@ -253,23 +256,69 @@ public class UsedHotelTradeService {
     }
 
     /**
-     * 결제 내역 생성
+     * 결제 내역 생성 (Redis 분산 락 + DB 중복 체크 적용)
      * @param usedTradeIdx 거래 ID
      * @param paymentData 결제 데이터
      * @return 생성된 결제 내역
      */
     @Transactional
     public UsedPay createPayment(Integer usedTradeIdx, Map<String, Object> paymentData) {
+        String paymentKey = (String) paymentData.get("paymentKey");
+        String orderId = (String) paymentData.get("orderId");
+        String lockKey = null;
+        
         try {
-            // 거래 존재 확인
-            UsedTrade trade = usedTradeRepository.findById(usedTradeIdx)
-                .orElseThrow(() -> new RuntimeException("거래를 찾을 수 없습니다: " + usedTradeIdx));
-
-            // 결제 내역 생성
+            // 1단계: Redis 분산 락 획득 (DB 중복 체크 포함)
+            // - paymentKey로 중복 결제 확인
+            // - usedTradeIdx로 이미 결제된 거래 확인
+            // - 거래 상태 확인
+            // (buyerIdx는 락 획득 후에 조회하므로 임시로 null 전달)
+            UsedPaymentLockDto lockResult = paymentLockService.createLock(
+                usedTradeIdx, 
+                paymentKey, 
+                orderId, 
+                null // buyerIdx는 나중에 조회
+            );
+            
+            if (!lockResult.getSuccess()) {
+                log.warn("결제 락 획득 실패: {} - {}", usedTradeIdx, lockResult.getMessage());
+                throw new RuntimeException(lockResult.getMessage());
+            }
+            
+            lockKey = lockResult.getLockKey();
+            log.info("결제 락 획득 성공: lockKey={}, usedTradeIdx={}", lockKey, usedTradeIdx);
+            
+            // 2단계: DB Pessimistic Lock으로 거래 조회 (트랜잭션 내에서)
+            // SELECT FOR UPDATE로 row를 잠가서 다른 트랜잭션의 수정을 방지
+            // 거래가 삭제되었을 수 있으므로 Optional로 처리
+            Optional<UsedTrade> tradeOpt = usedTradeRepository.findByIdForUpdate(usedTradeIdx);
+            if (tradeOpt.isEmpty()) {
+                log.warn("거래를 찾을 수 없습니다 (삭제되었을 수 있음): usedTradeIdx={}", usedTradeIdx);
+                throw new RuntimeException("거래를 찾을 수 없습니다. 거래가 취소되었거나 삭제되었을 수 있습니다.");
+            }
+            UsedTrade trade = tradeOpt.get();
+            
+            // 3단계: 트랜잭션 내에서 다시 한 번 DB 중복 체크 (이중 방어)
+            // 락 획득 후 트랜잭션 내에서 한 번 더 확인
+            Optional<UsedPay> existingPayment = usedPayRepository.findByPaymentKey(paymentKey);
+            if (existingPayment.isPresent()) {
+                log.warn("이미 처리된 결제 (락 획득 후 DB 재확인): paymentKey={}, usedPayIdx={}", 
+                        paymentKey, existingPayment.get().getUsedPayIdx());
+                throw new RuntimeException("이미 처리된 결제입니다.");
+            }
+            
+            // 거래 상태 재확인 (Pessimistic Lock으로 조회한 최신 데이터)
+            if (trade.getStstus() != 0) {
+                log.warn("이미 처리된 거래 (락 획득 후 재확인): usedTradeIdx={}, status={}", 
+                        usedTradeIdx, trade.getStstus());
+                throw new RuntimeException("이미 처리된 거래입니다.");
+            }
+            
+            // 4단계: 결제 내역 생성
             UsedPay usedPay = new UsedPay();
             usedPay.setUsedTradeIdx(usedTradeIdx);
-            usedPay.setPaymentKey((String) paymentData.get("paymentKey"));
-            usedPay.setOrderId((String) paymentData.get("orderId"));
+            usedPay.setPaymentKey(paymentKey);
+            usedPay.setOrderId(orderId);
             usedPay.setTotalAmount((Integer) paymentData.get("totalAmount"));
             usedPay.setCashAmount((Integer) paymentData.get("cashAmount"));
             usedPay.setPointAmount((Integer) paymentData.get("pointAmount"));
@@ -282,18 +331,18 @@ public class UsedHotelTradeService {
 
             UsedPay savedPayment = usedPayRepository.save(usedPay);
             
-            // 1. 거래 확정
+            // 5단계: 거래 확정
             trade.setStstus(1); // 거래완료 상태
             usedTradeRepository.save(trade);
             
-            // 2. UsedItem 상태 업데이트
+            // 6단계: UsedItem 상태 업데이트
             Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
             if (usedItem.isPresent()) {
                 UsedItem item = usedItem.get();
                 item.setStatus(2); // 거래완료 상태
                 usedItemRepository.save(item);
                 
-                // 3. RoomReservation의 customerIdx를 구매자(buyerIdx)로 변경
+                // 7단계: RoomReservation의 customerIdx를 구매자(buyerIdx)로 변경
                 Integer reservIdx = item.getReservIdx();
                 Optional<RoomReservation> reservationOpt = roomReservationRepository.findById(reservIdx);
                 
@@ -309,7 +358,7 @@ public class UsedHotelTradeService {
                 }
             }
             
-            // 4. 판매자 캐시 적립 (결제 총액 기준)
+            // 8단계: 판매자 캐시 적립 (결제 총액 기준)
             try {
                 Integer sellerIdx = trade.getSellerIdx();
                 Optional<Customer> sellerOpt = customerRepository.findById(sellerIdx);
@@ -331,9 +380,28 @@ public class UsedHotelTradeService {
             log.info("결제 내역 생성 및 거래 확정 완료: {} (거래: {})", savedPayment.getUsedPayIdx(), usedTradeIdx);
             return savedPayment;
             
-        } catch (Exception e) {
-            log.error("결제 내역 생성 실패: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            // 비즈니스 예외는 그대로 전파
+            log.error("결제 내역 생성 실패: {} - {}", usedTradeIdx, e.getMessage());
             throw e;
+        } catch (Exception e) {
+            log.error("결제 내역 생성 중 예외 발생: {} - {}", usedTradeIdx, e.getMessage(), e);
+            throw new RuntimeException("결제 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+        } finally {
+            // 8단계: 락 해제 (성공/실패 관계없이 항상 해제)
+            if (lockKey != null) {
+                try {
+                    UsedPaymentLockDto releaseResult = paymentLockService.releaseLock(lockKey, null);
+                    if (releaseResult.getSuccess()) {
+                        log.info("결제 락 해제 성공: lockKey={}", lockKey);
+                    } else {
+                        log.warn("결제 락 해제 실패: lockKey={}, message={}", lockKey, releaseResult.getMessage());
+                    }
+                } catch (Exception e) {
+                    log.error("결제 락 해제 중 예외 발생: lockKey={}, error={}", lockKey, e.getMessage(), e);
+                    // 락 해제 실패는 로그만 남기고 예외를 던지지 않음 (TTL로 자동 만료됨)
+                }
+            }
         }
     }
 

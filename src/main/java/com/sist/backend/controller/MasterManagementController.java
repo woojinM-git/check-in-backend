@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.sist.backend.dto.master.CustomerDto;
-import com.sist.backend.dto.master.HotelInfoDto;
 import com.sist.backend.dto.master.RejectHotelRequestDto;
 import com.sist.backend.dto.master.StopHotelDto;
 import com.sist.backend.dto.master.RegistrationRequestDto;
@@ -19,7 +17,10 @@ import com.sist.backend.entity.RegistrationRequest;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +33,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
+import com.sist.backend.entity.Admin;
+import com.sist.backend.repository.admin.AdminRepository;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.HotelDraftService;
@@ -44,6 +48,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 
@@ -60,7 +65,63 @@ public class MasterManagementController {
     private final CustomerService customerService;
     private final CouponTemplateService couponTemplateService;
     private final RoomReservationService roomReservationService;
+    private final AdminRepository adminRepository;
     private final ObjectMapper objectMapper;
+
+    /**
+     * 마스터 권한 확인 (type이 false(0)인지 확인)
+     * @param request HTTP 요청 (HttpOnly 쿠키 접근용)
+     * @return 마스터가 맞으면 null, 아니면 Forbidden 응답
+     */
+    private ResponseEntity<Map<String, Object>> checkMasterAuthorization(HttpServletRequest request) {
+        // JwtFilter에서 이미 쿠키를 읽어 SecurityContext에 인증 정보를 설정했으므로
+        // SecurityContextHolder에서 adminIdx를 가져올 수 있습니다.
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (authentication == null || authentication.getPrincipal() == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("redirect", true);
+            errorResponse.put("message", "인증 정보가 없습니다. 로그인 페이지로 이동합니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        
+        if (adminIdx == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("redirect", true);
+            errorResponse.put("message", "관리자 인덱스가 없습니다. 로그인 페이지로 이동합니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        // Admin 조회 및 type 확인
+        // status = false(0): 활성 상태, status = true(1): 비활성 상태
+        Optional<Admin> adminOpt = adminRepository.findByAdminIdxAndStatus(adminIdx, false);
+        if (adminOpt.isEmpty()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("redirect", true);
+            errorResponse.put("message", "관리자 정보를 찾을 수 없습니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        Admin admin = adminOpt.get();
+        // type이 false(0)이면 마스터, true(1)이면 사업자
+        // 마스터만 접근 가능하므로 type이 false가 아니면 거부
+        if (admin.getType() != null && admin.getType()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("redirect", true);
+            errorResponse.put("message", "마스터 권한이 필요합니다. 메인 화면으로 이동합니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        // 마스터 권한 확인 완료
+        return null;
+    }
 
    
     /* 등록되어 있는 회원의 목록 */
@@ -71,11 +132,17 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Page<CustomerDto>>  findCustomerAndRank(
+    public ResponseEntity<?> findCustomerAndRank(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
             @RequestParam(value = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "5") 
-            @RequestParam(value = "size", defaultValue = "5") int size) {
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(customerService.findCustomerAndRankDto(pageable));
     }
@@ -87,13 +154,21 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Page<HotelInfoDto>>  findAllHotelWithDetailsAsDto(
+    public ResponseEntity<?> findAllHotelWithDetailsAsDto(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
             @RequestParam(value = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "5") 
-            @RequestParam(value = "size", defaultValue = "5") int size) {
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "검색어 (호텔명, 사업자명, 위치)", example = "서울") 
+            @RequestParam(value = "search", required = false) String search,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(pageable));
+        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(search, pageable));
     }
 
     /* 승인요청을 한 호텔들 */
@@ -104,11 +179,17 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> findAllHotelWithDetailsDto(
+    public ResponseEntity<?> findAllHotelWithDetailsDto(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
             @RequestParam(value = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "5") 
-            @RequestParam(value = "size", defaultValue = "5") int size) {
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         Page<RegistrationRequestPlusDto> requests = registrationRequestService.findByStatusDto(pageable);
         
@@ -137,15 +218,21 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> getHotelApprovalDetail(
+    public ResponseEntity<?> getHotelApprovalDetail(
             @Parameter(description = "등록 요청 ID", example = "1") 
-            @PathVariable Integer registrationIdx) {
+            @PathVariable Integer registrationIdx,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
             // 1. RegistrationRequest 조회
-            RegistrationRequest request = registrationRequestService.findById(registrationIdx);
+            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
             
             // 2. HotelDraft 조회
-            Integer draftIdx = request.getDraftIdx();
+            Integer draftIdx = registrationRequest.getDraftIdx();
             if (draftIdx == null) {
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("success", false);
@@ -196,7 +283,13 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> dashboard() {
+    public ResponseEntity<?> dashboard(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         /* 대시보드 상단 */
         int HotelCount = hotelInfoService.findRegistrationHotelCount();
         int pendingCount = roomReservationService.findByTodayCount();
@@ -228,7 +321,13 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<List<CouponTemplate>> findAll() {
+    public ResponseEntity<?> findAll(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         return ResponseEntity.ok(couponTemplateService.findByStatus());
     }
 
@@ -239,13 +338,20 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<CouponTemplate> createTemplate(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> createTemplate(
+            @RequestBody Map<String, Object> requestData,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
-            String templateName = (String) request.get("templateName");
-            Integer discount = (Integer) request.get("discount");
-            Integer validDays = (Integer) request.get("validDays");
-            Integer status = (Integer) request.get("status");
-            Integer adminIdx = (Integer) request.get("adminIdx");
+            String templateName = (String) requestData.get("templateName");
+            Integer discount = (Integer) requestData.get("discount");
+            Integer validDays = (Integer) requestData.get("validDays");
+            Integer status = (Integer) requestData.get("status");
+            Integer adminIdx = (Integer) requestData.get("adminIdx");
 
             CouponTemplate couponTemplate = new CouponTemplate();
             couponTemplate.setTemplateName(templateName);
@@ -270,20 +376,39 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> approveHotel(
-        @RequestBody RejectHotelRequestDto request) {
+    public ResponseEntity<?> approveHotel(
+        @RequestBody RejectHotelRequestDto requestData,
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
-            registrationRequestService.updateRequest(request.getRegistrationIdx(), 1, LocalDateTime.now());
-
+            System.out.println("✅ 호텔 승인 요청 수신: registrationIdx=" + requestData.getRegistrationIdx());
+            
+            // 호텔 승인 처리 (JSON 파싱 및 정규화된 테이블 저장)
+            registrationRequestService.approveHotelRegistration(requestData.getRegistrationIdx(), LocalDateTime.now());
+            
+            System.out.println("✅ 호텔 승인 처리 완료: registrationIdx=" + requestData.getRegistrationIdx());
+            
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "호텔이 승인되었습니다.");
-
+            
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
+            System.out.println("❌ 호텔 승인 처리 실패 (잘못된 요청): " + e.getMessage());
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
-            errorResponse.put("message", "호텔 거부 중 오류가 발생했습니다: " + e.getMessage());
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            System.out.println("❌ 호텔 승인 처리 실패 (서버 오류): " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔 승인 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
@@ -296,10 +421,16 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> rejectHotel(
-        @RequestBody RejectHotelRequestDto request) {
+    public ResponseEntity<?> rejectHotel(
+        @RequestBody RejectHotelRequestDto requestData,
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
-            registrationRequestService.updateRejectRequest(request.getRegistrationIdx(), request.getRefusalMsg(), 2);
+            registrationRequestService.updateRejectRequest(requestData.getRegistrationIdx(), requestData.getRefusalMsg(), 2);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -322,9 +453,16 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> updateTemplateStatus(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> updateTemplateStatus(
+            @RequestBody Map<String, Object> requestData,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
-            Integer templateIdx = (Integer) request.get("templateIdx");
+            Integer templateIdx = (Integer) requestData.get("templateIdx");
             
             CouponTemplate template = couponTemplateService.findById(templateIdx);
             template.setStatus(2); // 삭제 상태로 변경
@@ -359,10 +497,16 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "404", description = "호텔을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<Map<String, Object>> suspendHotel(
-        @RequestBody StopHotelDto request) {
+    public ResponseEntity<?> suspendHotel(
+        @RequestBody StopHotelDto requestData,
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
         try {
-            hotelInfoService.suspendHotel(request.getContentId(), request.getReason());
+            hotelInfoService.suspendHotel(requestData.getContentId(), requestData.getReason());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

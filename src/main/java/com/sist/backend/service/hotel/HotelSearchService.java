@@ -47,7 +47,7 @@ public class HotelSearchService {
         System.out.println("원본 검색어: " + title);
         System.out.println("검색 패턴: " + searchPattern);
         
-        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern);
+        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern, null);
         
         // 각 호텔에 hotelLocation 정보 추가
         for (HotelInfo hotel : hotels) {
@@ -63,9 +63,10 @@ public class HotelSearchService {
     /**
      * 제목으로 호텔 검색 (가격 정보 포함)
      * @param title 검색할 호텔 제목
+     * @param hasDining 다이닝이 있는 호텔만 필터링 (null이면 필터링 안 함)
      * @return HotelcardResponse 리스트 (가격 정보 포함)
      */
-    public List<HotelcardResponse> findByTitleWithPrice(String title){
+    public List<HotelcardResponse> findByTitleWithPrice(String title, Boolean hasDining){
         System.out.println("=== findByTitleWithPrice 시작 ===");
         System.out.println("받은 title 파라미터: [" + title + "]");
         System.out.println("title == null: " + (title == null));
@@ -94,11 +95,12 @@ public class HotelSearchService {
         System.out.println("원본 검색어: [" + title + "]");
         System.out.println("공백 제거 후: [" + trimmedTitle + "]");
         System.out.println("검색 패턴: [" + searchPattern + "]");
+        System.out.println("다이닝 필터링: " + (hasDining != null && hasDining ? "활성화" : "비활성화"));
         System.out.println("검색 패턴 길이: " + searchPattern.length());
         System.out.println("검색 패턴 바이트: " + java.util.Arrays.toString(searchPattern.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         
         System.out.println("Repository 호출 전...");
-        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern);
+        List<HotelInfo> hotels = hotelSearchRepository.findByTitle(searchPattern, hasDining);
         System.out.println("Repository 호출 완료!");
         
         System.out.println("검색 결과 개수: " + (hotels != null ? hotels.size() : 0));

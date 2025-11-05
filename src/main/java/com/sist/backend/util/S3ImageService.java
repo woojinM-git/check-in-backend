@@ -94,6 +94,14 @@ public class S3ImageService {
   }
 
   private String uploadImageToS3(MultipartFile image, String folderPath, boolean returnFileNameOnly) throws IOException {
+    // null 체크
+    if (amazonS3 == null) {
+      throw new S3UploadException("S3 클라이언트가 초기화되지 않았습니다.");
+    }
+    if (bucketName == null || bucketName.isEmpty()) {
+      throw new S3UploadException("S3 버킷 이름이 설정되지 않았습니다.");
+    }
+    
     String originalFilename = image.getOriginalFilename(); //원본 파일 명
     String extention = originalFilename.substring(originalFilename.lastIndexOf(".")); //확장자 명
 
@@ -116,6 +124,7 @@ public class S3ImageService {
     log.info("반환 형식: {}", returnFileNameOnly ? "파일명만" : "전체 URL");
     log.info("버킷 이름: {}", bucketName);
     log.info("파일 크기: {} bytes", image.getSize());
+    log.info("S3 클라이언트: {}", amazonS3 != null ? "초기화됨" : "null");
 
     InputStream is = image.getInputStream();
     byte[] bytes = IOUtils.toByteArray(is);
@@ -139,10 +148,15 @@ public class S3ImageService {
       if (e.getCause() != null) {
         log.error("원인: {}", e.getCause().getMessage());
       }
-      throw new S3UploadException(s3Key, "S3에 파일을 업로드하는 중 오류가 발생했습니다.", e);
+      log.error("스택 트레이스:", e);
+      throw new S3UploadException(s3Key, "S3에 파일을 업로드하는 중 오류가 발생했습니다: " + e.getMessage(), e);
     }finally {
-      byteArrayInputStream.close();
-      is.close();
+      try {
+        byteArrayInputStream.close();
+        is.close();
+      } catch (IOException e) {
+        log.warn("스트림 닫기 실패: {}", e.getMessage());
+      }
     }
 
     if (returnFileNameOnly) {
@@ -152,10 +166,16 @@ public class S3ImageService {
       return s3FileName;
     } else {
       // 전체 URL 반환 (호텔 이미지)
-      String imageUrl = amazonS3.getUrl(bucketName, s3Key).toString();
-      log.info("생성된 URL: {}", imageUrl);
-      log.info("=== S3 업로드 완료 ===");
-      return imageUrl;
+      try {
+        String imageUrl = amazonS3.getUrl(bucketName, s3Key).toString();
+        log.info("생성된 URL: {}", imageUrl);
+        log.info("=== S3 업로드 완료 ===");
+        return imageUrl;
+      } catch (Exception e) {
+        log.error("URL 생성 실패: {}", e.getMessage());
+        // URL 생성 실패 시에도 파일명은 반환 (로컬 환경 대응)
+        return s3FileName;
+      }
     }
   }
 
