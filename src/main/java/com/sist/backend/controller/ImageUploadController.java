@@ -184,6 +184,92 @@ public class ImageUploadController {
         }
     }
 
+    // ==================== 리뷰 이미지 업로드 ====================
+
+    @PostMapping("/review/images")
+    @Operation(summary = "리뷰 이미지 업로드", description = "리뷰 작성 시 이미지를 S3에 업로드합니다. (최대 5장)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 업로드됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> uploadReviewImages(
+        @Parameter(description = "업로드할 이미지 파일들 (최대 5장)", required = true)
+        @RequestPart("images") List<MultipartFile> images,
+        HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // 인증 확인
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer customerIdx = principal.getCustomerIdx();
+        
+        if (customerIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(map);
+        }
+        
+        try {
+            // 이미지 파일 검증
+            if (images == null || images.isEmpty()) {
+                map.put("success", false);
+                map.put("message", "업로드할 이미지가 없습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // 최대 5장 제한
+            if (images.size() > 5) {
+                map.put("success", false);
+                map.put("message", "이미지는 최대 5장까지 업로드 가능합니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // S3에 업로드하고 전체 URL 반환
+            List<String> uploadedImageUrls = new java.util.ArrayList<>();
+            String folderPath = "review"; // 리뷰 이미지 폴더
+            
+            for (MultipartFile image : images) {
+                // 파일이 비어있는지 확인
+                if (image == null || image.isEmpty()) {
+                    continue;
+                }
+                
+                // S3에 업로드 (전체 URL 반환)
+                String imageUrl = imageService.upload(image, folderPath, false);
+                uploadedImageUrls.add(imageUrl);
+            }
+            
+            if (uploadedImageUrls.isEmpty()) {
+                map.put("success", false);
+                map.put("message", "업로드할 수 있는 이미지가 없습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            map.put("success", true);
+            map.put("message", "이미지가 성공적으로 업로드되었습니다.");
+            map.put("imageUrls", uploadedImageUrls); // 전체 URL 배열 반환
+            
+            return ResponseEntity.ok(map);
+        } catch (IllegalArgumentException e) {
+            map.put("success", false);
+            map.put("message", "잘못된 요청: " + e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        } catch (com.sist.backend.exception.S3UploadException e) {
+            map.put("success", false);
+            map.put("message", "이미지 업로드 실패: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "이미지 업로드 중 오류가 발생했습니다: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
+
     @PostMapping("/admin/room/{roomIdx}/images")
     @Operation(summary = "객실 이미지 업로드", description = "특정 객실에 이미지를 업로드합니다. (최대 10개)")
     @ApiResponses(value = {
