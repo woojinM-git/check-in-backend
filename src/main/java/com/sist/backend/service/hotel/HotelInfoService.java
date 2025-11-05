@@ -64,6 +64,13 @@ public class HotelInfoService {
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
 
+    public Page<HotelInfoDto> findAllHotelWithDetailsAsDto(String search, Pageable pageable) {
+        // search가 null이거나 빈 문자열이면 전체 조회
+        String searchTerm = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        Page<HotelInfo> hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDtoWithSearch(searchTerm, pageable);
+        return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
+    }
+
     public Optional<String> findContentIdByAdminIdx(Integer adminIdx) {
         return hotelInfoRepository.findContentIdByAdminIdx(adminIdx);
     }
