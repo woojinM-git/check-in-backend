@@ -1,7 +1,7 @@
 -- ReviewImage 테이블 생성 (리뷰 이미지 저장용 - 2~5장 저장)
 -- 1장은 review 테이블의 imageUrl 컬럼에 저장
 -- reviewIdx당 한 행만 존재 (1:1 관계)
-CREATE TABLE IF NOT EXISTS review_image (
+CREATE TABLE IF NOT EXISTS reviewImage (
     reviewImageIdx INT AUTO_INCREMENT PRIMARY KEY,
     reviewIdx INT NOT NULL UNIQUE COMMENT 'review 테이블과 1:1 관계',
     contentid VARCHAR(50) NOT NULL COMMENT '호텔 ID (호텔별 리뷰 이미지 조회용)',
