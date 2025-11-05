@@ -15,6 +15,7 @@ import lombok.ToString;
 public class Answer {
     
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "answerIdx")
     private Integer answerIdx;
     

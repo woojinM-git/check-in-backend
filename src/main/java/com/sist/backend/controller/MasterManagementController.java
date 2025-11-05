@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
 import com.sist.backend.repository.admin.AdminRepository;
+import com.sist.backend.service.AnswerService;
 import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.HotelDraftService;
@@ -43,6 +44,7 @@ import com.sist.backend.service.hotel.HotelInfoService;
 import com.sist.backend.service.RegistrationRequestService;
 import com.sist.backend.service.RoomPaymentService;
 import com.sist.backend.service.RoomReservationService;
+import com.sist.backend.entity.Answer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -67,6 +69,7 @@ public class MasterManagementController {
     private final RoomReservationService roomReservationService;
     private final AdminRepository adminRepository;
     private final ObjectMapper objectMapper;
+    private final AnswerService answerService;
 
     /**
      * 마스터 권한 확인 (type이 false(0)인지 확인)
@@ -523,6 +526,69 @@ public class MasterManagementController {
             errorResponse.put("success", false);
             errorResponse.put("message", "호텔 정지 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * 1대1 문의 답변 작성
+     */
+    @PostMapping("/inquiry/{centerIdx}/answer")
+    @Operation(summary = "1대1 문의 답변 작성", description = "특정 문의에 대한 답변을 작성합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 작성됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> createInquiryAnswer(
+            @Parameter(description = "문의 고유번호")
+            @PathVariable Integer centerIdx,
+            @Parameter(description = "답변 내용")
+            @RequestBody Map<String, String> requestBody,
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
+        
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "인증 정보가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            String content = requestBody.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                map.put("success", false);
+                map.put("message", "답변 내용을 입력해주세요.");
+                return ResponseEntity.badRequest().body(map);
+            }
+            
+            // 답변 작성
+            Answer answer = answerService.createAnswer(centerIdx, adminIdx, content);
+            
+            map.put("success", true);
+            map.put("message", "답변이 작성되었습니다.");
+            map.put("answer", answer);
+            
+            return ResponseEntity.ok(map);
+        } catch (RuntimeException e) {
+            map.put("success", false);
+            map.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "답변 작성 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
         }
     }
 }
