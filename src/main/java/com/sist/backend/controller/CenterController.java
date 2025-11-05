@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.dto.SearchRequestDto;
 import com.sist.backend.entity.Center;
 import com.sist.backend.service.CenterService;
+import com.sist.backend.service.AnswerService;
+import com.sist.backend.entity.Answer;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +36,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class CenterController {
     
     private final CenterService centerService;
+    private final AnswerService answerService;
     
     /**
      * 고객센터 글 등록
@@ -59,6 +62,29 @@ public class CenterController {
         }
     }
     
+    
+    /**
+     * 문의 답변 조회 (더 구체적인 경로를 먼저 배치)
+     */
+    @GetMapping("/posts/{centerIdx}/answer")
+    @Operation(summary = "문의 답변 조회", description = "특정 문의에 대한 답변을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Answer> getAnswerByCenterIdx(
+            @Parameter(description = "문의 고유번호")
+            @PathVariable(name = "centerIdx") Integer centerIdx) {
+        
+        try {
+            Answer answer = answerService.getActiveAnswerByCenterIdx(centerIdx)
+                .orElseThrow(() -> new RuntimeException("답변을 찾을 수 없습니다."));
+            return ResponseEntity.ok(answer);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
     
     /**
      * 고객센터 글 상세 조회

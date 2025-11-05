@@ -31,12 +31,13 @@ public class ReviewService {
     private final RoomReservationRepository roomReservationRepository;
     private final CustomerRepository customerRepository;
     private final RoomRepository roomRepository;
+    private final ReviewImageService reviewImageService;
     
     /**
-     * 리뷰 작성
+     * 리뷰 작성 (이미지 포함)
      */
     @Transactional
-    public Review createReview(Integer reservationIdx, Integer customerIdx, Integer rating, String content) {
+    public Review createReview(Integer reservationIdx, Integer customerIdx, Integer rating, String content, List<String> imageUrls) {
         // 1. 예약 정보 조회 및 검증
         RoomReservation reservation = roomReservationRepository.findById(reservationIdx)
             .orElseThrow(() -> new RuntimeException("예약 정보를 찾을 수 없습니다."));
@@ -57,7 +58,22 @@ public class ReviewService {
             throw new RuntimeException("이미 리뷰를 작성하셨습니다.");
         }
         
-        // 5. 리뷰 생성 및 저장
+        // 5. 이미지 분리 (1장은 review.imageUrl에, 2~5장은 review_image 테이블에)
+        String firstImageUrl = null;
+        List<String> additionalImageUrls = null;
+        
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            // 첫 번째 이미지는 review.imageUrl에 저장
+            firstImageUrl = imageUrls.get(0);
+            
+            // 2장부터는 별도 리스트로 저장 (최대 4개: 2~5장)
+            if (imageUrls.size() > 1) {
+                int maxAdditional = Math.min(imageUrls.size() - 1, 4); // 최대 4개
+                additionalImageUrls = imageUrls.subList(1, 1 + maxAdditional);
+            }
+        }
+        
+        // 6. 리뷰 생성 및 저장 (첫 번째 이미지 URL 포함)
         Review review = Review.builder()
             .reservIdx(reservationIdx)
             .customerIdx(customerIdx)
@@ -66,11 +82,27 @@ public class ReviewService {
             .orderIdx(reservation.getOrderIdx())
             .content(content)
             .star(BigDecimal.valueOf(rating))
+            .imageUrl(firstImageUrl) // 첫 번째 이미지 URL 저장
             .status(false) // false: 활성
             .hide(false)   // false: 공개
             .build();
         
-        return reviewRepository.save(review);
+        Review savedReview = reviewRepository.save(review);
+        
+        // 7. 2~5장은 reviewImage 테이블에 저장 (contentid 포함)
+        if (additionalImageUrls != null && !additionalImageUrls.isEmpty()) {
+            reviewImageService.saveReviewImages(savedReview.getReviewIdx(), reservation.getContentid(), additionalImageUrls);
+        }
+        
+        return savedReview;
+    }
+    
+    /**
+     * 리뷰 작성 (이미지 없이 - 기존 메서드 유지)
+     */
+    @Transactional
+    public Review createReview(Integer reservationIdx, Integer customerIdx, Integer rating, String content) {
+        return createReview(reservationIdx, customerIdx, rating, content, null);
     }
     
     /**

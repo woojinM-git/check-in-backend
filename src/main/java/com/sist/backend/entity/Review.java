@@ -74,6 +74,9 @@ public class Review {
     @Column(name = "star", precision = 2, scale = 1)
     private BigDecimal star;
     
+    @Column(name = "imageUrl", length = 500)
+    private String imageUrl;
+    
     @Column(name = "createdAt")
     private java.time.LocalDateTime createdAt;
     

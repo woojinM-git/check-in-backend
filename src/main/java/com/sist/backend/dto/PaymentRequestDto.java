@@ -44,4 +44,8 @@ public class PaymentRequestDto {
     // 쿠폰 관련 필드
     private Integer couponIdx;
     private Integer couponDiscount; // 쿠폰 할인 금액
+
+    // 중고 호텔 거래 관련 필드
+    private Integer usedTradeIdx;
+    private Integer usedItemIdx;
 }

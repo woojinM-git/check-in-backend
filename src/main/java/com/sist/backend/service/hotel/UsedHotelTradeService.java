@@ -336,11 +336,37 @@ public class UsedHotelTradeService {
             }
             
             // 거래 상태 재확인 (Pessimistic Lock으로 조회한 최신 데이터)
-            if (trade.getStstus() != 0) {
-                log.warn("이미 처리된 거래 (락 획득 후 재확인): usedTradeIdx={}, status={}", 
-                        usedTradeIdx, trade.getStstus());
-                throw new RuntimeException("이미 처리된 거래입니다.");
+            // 상태가 1 (거래완료)이고 완료된 결제가 있으면 차단
+            // 상태가 2 (거래취소)이고 완료된 결제가 없으면 재결제 허용
+            if (trade.getStstus() == 1) {
+                // 거래완료 상태: 완료된 결제가 있는지 확인
+                Optional<UsedPay> completedPayment = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx)
+                    .stream()
+                    .filter(p -> p.getStatus() == 1)
+                    .findFirst();
+                
+                if (completedPayment.isPresent()) {
+                    log.warn("이미 처리된 거래 (락 획득 후 재확인): usedTradeIdx={}, status={}, usedPayIdx={}", 
+                            usedTradeIdx, trade.getStstus(), completedPayment.get().getUsedPayIdx());
+                    throw new RuntimeException("이미 처리된 거래입니다.");
+                }
+            } else if (trade.getStstus() == 2) {
+                // 거래취소 상태: 완료된 결제가 있는지 확인
+                Optional<UsedPay> completedPayment = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx)
+                    .stream()
+                    .filter(p -> p.getStatus() == 1)
+                    .findFirst();
+                
+                if (completedPayment.isPresent()) {
+                    log.warn("취소된 거래이지만 이미 완료된 결제가 있음: usedTradeIdx={}, status={}, usedPayIdx={}", 
+                            usedTradeIdx, trade.getStstus(), completedPayment.get().getUsedPayIdx());
+                    throw new RuntimeException("이미 결제 완료된 거래입니다.");
+                }
+                // 취소 상태이고 완료된 결제가 없으면 재결제 허용 (상태를 0으로 변경)
+                log.info("취소된 거래 재결제: usedTradeIdx={}, status={} -> 0", usedTradeIdx, trade.getStstus());
+                trade.setStstus(0); // 거래중 상태로 변경
             }
+            // status == 0 (거래중)이면 계속 진행
             
             // 4단계: 결제 내역 생성
             UsedPay usedPay = new UsedPay();
