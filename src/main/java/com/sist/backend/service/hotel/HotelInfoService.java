@@ -7,6 +7,7 @@ import com.sist.backend.repository.*;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.HotelDetailRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
+import com.sist.backend.repository.hotel.HotelLocationRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
 import com.sist.backend.repository.RoomImageRepository;
 import com.sist.backend.repository.admin.AdminRepository;
@@ -34,6 +35,7 @@ public class HotelInfoService {
     private final HotelDetailRepository hotelDetailRepository;
     private final DiningRepository diningRepository;
     private final HotelImageRepository hotelImageRepository;
+    private final HotelLocationRepository hotelLocationRepository;
     private final RoomRepository roomRepository;
     private final RoomImageRepository roomImageRepository;
     private final AdminRepository adminRepository;
@@ -311,7 +313,26 @@ public class HotelInfoService {
             hotelDetailRepository.save(hotelDetail);
             log.info("✅ HotelDetail 저장 완료: contentId={}, roomcount={}", contentId, hotelDetail.getRoomcount());
             
-            // 5. Room 생성 및 저장
+            // 5. HotelLocation 생성 및 저장 (좌표 정보)
+            if (dto.getHotelInfo() != null && dto.getHotelInfo().getLatitude() != null && 
+                dto.getHotelInfo().getLongitude() != null && 
+                !dto.getHotelInfo().getLatitude().isEmpty() && 
+                !dto.getHotelInfo().getLongitude().isEmpty()) {
+                try {
+                    HotelLocation hotelLocation = new HotelLocation();
+                    hotelLocation.setContentId(contentId);
+                    // 위도(latitude) → mapY, 경도(longitude) → mapX
+                    hotelLocation.setMapY(new java.math.BigDecimal(dto.getHotelInfo().getLatitude()));
+                    hotelLocation.setMapX(new java.math.BigDecimal(dto.getHotelInfo().getLongitude()));
+                    hotelLocationRepository.save(hotelLocation);
+                    log.info("✅ HotelLocation 저장 완료: contentId={}, mapX={}, mapY={}", 
+                        contentId, hotelLocation.getMapX(), hotelLocation.getMapY());
+                } catch (Exception e) {
+                    log.warn("⚠️ HotelLocation 저장 실패: contentId={}, error={}", contentId, e.getMessage());
+                }
+            }
+            
+            // 6. Room 생성 및 저장
             if (dto.getRooms() != null && !dto.getRooms().isEmpty()) {
                 for (HotelEditFormDto.RoomDto roomDto : dto.getRooms()) {
                     Room room = new Room();

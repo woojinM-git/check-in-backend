@@ -42,6 +42,8 @@ public class HotelEditFormDto {
         private String adress;          // HotelInfo.adress
         private String tel;             // HotelInfo.tel (기존 phone → tel로 변경)
         private String imageUrl;        // HotelInfo.imageUrl (대표 이미지 URL)
+        private String latitude;        // 위도 (mapY) - HotelLocation.mapY
+        private String longitude;       // 경도 (mapX) - HotelLocation.mapX
     }
 
     @Data

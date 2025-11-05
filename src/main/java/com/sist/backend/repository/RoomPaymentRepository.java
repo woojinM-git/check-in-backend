@@ -20,7 +20,7 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
     Long findByPrice();
     
     @Query("SELECT rp FROM RoomPayment rp WHERE rp.paymentKey = :paymentKey AND rp.status = 1")
-    Optional<RoomPayment> findByPaymentKeyAndStatus(String paymentKey);
+    Optional<RoomPayment> findByPaymentKeyAndStatus(@Param("paymentKey") String paymentKey);
 
     @Query("SELECT rp FROM RoomPayment rp " +
         "LEFT JOIN FETCH rp.roomReservations rr " +
