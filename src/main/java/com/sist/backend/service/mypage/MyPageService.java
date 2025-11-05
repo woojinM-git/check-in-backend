@@ -91,7 +91,9 @@ public class MyPageService {
         return ReservationResponseDTO.builder()
             // 기본 예약 정보
             .id(reservation.getReservIdx())
-            .reservationNumber("R" + reservation.getReservIdx())
+            .reservationNumber(reservation.getOrderNum() != null && !reservation.getOrderNum().isEmpty()
+                ? reservation.getOrderNum()
+                : "R" + reservation.getReservIdx()) // orderNum이 없으면 기존 방식 사용
             
             // 호텔 정보 (Room -> HotelInfo)
             .hotelName(reservation.getRoom() != null && reservation.getRoom().getHotelInfo() != null 
