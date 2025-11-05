@@ -147,20 +147,33 @@ public class RegistrationRequestService {
             hotelInfoDto = HotelEditFormDto.HotelInfoDto.builder()
                 .title((String) hotelInfoMap.get("title"))
                 .adress((String) hotelInfoMap.get("adress"))
-                .tel((String) hotelInfoMap.get("tel"))
+                // phone → tel 매핑 (프론트엔드에서 phone으로 보내지만 백엔드는 tel로 저장)
+                .tel(hotelInfoMap.get("tel") != null 
+                    ? (String) hotelInfoMap.get("tel") 
+                    : (String) hotelInfoMap.get("phone"))
+                .imageUrl((String) hotelInfoMap.get("imageUrl")) // 대표 이미지 URL
                 .build();
         }
         
-        // hotelDetail 파싱
+        // hotelDetail 파싱 (항상 생성하여 roomcount를 저장할 수 있도록 함)
         if (formData.get("hotelDetail") instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> hotelDetailMap = (Map<String, Object>) formData.get("hotelDetail");
             hotelDetailDto = HotelEditFormDto.HotelDetailDto.builder()
-                .reservationlodging((String) hotelDetailMap.get("reservationlodging"))
+                // description → reservationlodging으로 매핑
+                .reservationlodging((String) hotelDetailMap.get("reservationlodging") != null 
+                    ? (String) hotelDetailMap.get("reservationlodging") 
+                    : (String) hotelDetailMap.get("description"))
                 .foodplace((String) hotelDetailMap.get("foodplace"))
-                .scalelodging((String) hotelDetailMap.get("scalelodging"))
+                // scale → scalelodging으로 매핑
+                .scalelodging((String) hotelDetailMap.get("scalelodging") != null 
+                    ? (String) hotelDetailMap.get("scalelodging") 
+                    : (String) hotelDetailMap.get("scale"))
                 .parkinglodging((String) hotelDetailMap.get("parkinglodging"))
                 .build();
+        } else {
+            // hotelDetail이 없어도 빈 객체로 생성 (roomcount 저장을 위해)
+            hotelDetailDto = HotelEditFormDto.HotelDetailDto.builder().build();
         }
         
         // area 파싱
@@ -212,7 +225,8 @@ public class RegistrationRequestService {
                     }).collect(Collectors.toList());
                 }
                 
-                Object basePriceObj = roomMap.get("basePrice");
+                // basePrice 파싱 (price 또는 basePrice 필드 지원)
+                Object basePriceObj = roomMap.get("basePrice") != null ? roomMap.get("basePrice") : roomMap.get("price");
                 Integer basePrice = null;
                 if (basePriceObj instanceof Number) {
                     basePrice = ((Number) basePriceObj).intValue();
@@ -224,17 +238,56 @@ public class RegistrationRequestService {
                     }
                 }
                 
+                // status 파싱 (체크박스로 받은 값, 기본값 1)
+                Object statusObj = roomMap.get("status");
+                Integer status = 1; // 기본값 1 (사용가능)
+                if (statusObj instanceof Number) {
+                    status = ((Number) statusObj).intValue();
+                } else if (statusObj instanceof Boolean) {
+                    status = ((Boolean) statusObj) ? 1 : 0;
+                }
+                
+                // roomCount 파싱 (기본값 1)
+                Object roomCountObj = roomMap.get("roomCount");
+                Integer roomCount = 1; // 기본값 1
+                if (roomCountObj instanceof Number) {
+                    roomCount = ((Number) roomCountObj).intValue();
+                }
+                
+                // refundable 파싱 (기본값 1, int로 변환: true=1, false=0)
+                Object refundableObj = roomMap.get("refundable");
+                Integer refundable = 1; // 기본값 1 (환불 가능)
+                if (refundableObj instanceof Boolean) {
+                    refundable = ((Boolean) refundableObj) ? 1 : 0;
+                } else if (refundableObj instanceof Number) {
+                    refundable = ((Number) refundableObj).intValue();
+                }
+                
+                // imageUrl 파싱 (객실 대표 이미지)
+                String imageUrl = null;
+                Object imageUrlObj = roomMap.get("imageUrl");
+                if (imageUrlObj != null) {
+                    imageUrl = imageUrlObj.toString();
+                }
+                
                 return HotelEditFormDto.RoomDto.builder()
                     .name((String) roomMap.get("name"))
                     .capacity(roomMap.get("capacity") instanceof Number ? ((Number) roomMap.get("capacity")).intValue() : null)
                     .basePrice(basePrice)
-                    .refundable(roomMap.get("refundable") instanceof Boolean ? (Boolean) roomMap.get("refundable") : null)
+                    .refundable(refundable == 1) // Integer를 Boolean으로 변환 (1=true, 0=false)
                     .breakfastIncluded(roomMap.get("breakfastIncluded") instanceof Boolean ? (Boolean) roomMap.get("breakfastIncluded") : null)
                     .smoking(roomMap.get("smoking") instanceof Boolean ? (Boolean) roomMap.get("smoking") : null)
-                    .roomCount(roomMap.get("roomCount") instanceof Number ? ((Number) roomMap.get("roomCount")).intValue() : null)
-                    .images(roomImages)
+                    .roomCount(roomCount) // 기본값 1로 설정
+                    .status(status) // 사용자가 선택한 값 또는 기본값 1
+                    .imageUrl(imageUrl) // Room.imageUrl (객실 대표 이미지)
+                    .images(roomImages) // RoomImage 리스트 (객실 상세 이미지들)
                     .build();
             }).collect(Collectors.toList());
+        }
+        
+        // hotelDetail에 roomcount 설정 (객실 총 개수)
+        if (hotelDetailDto != null && roomDtos != null) {
+            hotelDetailDto.setRoomcount(String.valueOf(roomDtos.size()));
         }
         
         // dining 파싱
