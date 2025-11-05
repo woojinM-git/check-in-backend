@@ -26,7 +26,9 @@ import com.sist.backend.repository.EmailLogRepository;
 import com.sist.backend.repository.PointLedgerRepository;
 import com.sist.backend.repository.RoomPaymentRepository;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.UsedPayRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
+import com.sist.backend.service.hotel.UsedHotelTradeService;
 import com.sist.backend.util.QRCodeGenerator;
 
 import lombok.RequiredArgsConstructor;
@@ -52,6 +54,8 @@ public class PaymentService {
     private final PointLedgerRepository pointLedgerRepository;
     private final CouponRepository couponRepository;
     private final EmailLogRepository emailLogRepository;
+    private final UsedHotelTradeService usedHotelTradeService;
+    private final UsedPayRepository usedPayRepository;
 
     // 등급별 적립률 (%)
     private static final Map<String, Double> RANK_REWARD_RATE = Map.of(
@@ -148,7 +152,28 @@ public class PaymentService {
                         .emailSent(false)
                         .build();
             }
+        } else if ("used_hotel".equals(request.getType())) {
+            // 중고 호텔 결제 중복 체크
+            Optional<com.sist.backend.entity.UsedPay> existingUsedPayOpt = usedPayRepository.findByPaymentKey(request.getPaymentKey());
+            if (existingUsedPayOpt.isPresent()) {
+                com.sist.backend.entity.UsedPay existingUsedPay = existingUsedPayOpt.get();
+                log.warn("이미 처리된 중고 호텔 결제입니다: paymentKey={}, usedPayIdx={}", 
+                        request.getPaymentKey(), existingUsedPay.getUsedPayIdx());
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("이미 처리된 결제입니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(existingUsedPay.getTotalAmount() != null ? existingUsedPay.getTotalAmount() : request.getAmount())
+                        .status("DONE")
+                        .approvedAt(existingUsedPay.getApprovedAt())
+                        .receiptUrl(existingUsedPay.getReceiptUrl())
+                        .qrUrl(existingUsedPay.getQrUrl())
+                        .emailSent(false)
+                        .build();
+            }
         } else {
+            // 호텔 예약 결제 중복 체크
             Optional<RoomPayment> existingPaymentOpt = roomPaymentRepository.findByPaymentKeyAndStatus(request.getPaymentKey());
             if (existingPaymentOpt.isPresent()) {
                 RoomPayment existingPayment = existingPaymentOpt.get();
@@ -260,9 +285,55 @@ public class PaymentService {
                         .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
                         .emailSent(true)
                         .build();
+            } else if ("used_hotel".equals(request.getType())) {
+                // 중고 호텔: 결제 검증 후 UsedPay 저장 및 거래 확정
+                if (request.getUsedTradeIdx() == null) {
+                    throw new RuntimeException("필수 파라미터 누락(usedTradeIdx)");
+                }
+
+                // 결제 데이터 구성
+                int totalAmount = request.getTotalPrice() != null ? request.getTotalPrice() : request.getAmount();
+                int cashUsed = request.getCashUsed() != null ? request.getCashUsed() : 0;
+                int pointsUsed = request.getPointsUsed() != null ? request.getPointsUsed() : 0;
+                int cardAmount = request.getAmount(); // 카드 결제 금액
+
+                Map<String, Object> paymentData = new java.util.HashMap<>();
+                paymentData.put("paymentKey", request.getPaymentKey());
+                paymentData.put("orderId", request.getOrderId());
+                paymentData.put("totalAmount", totalAmount);
+                paymentData.put("cashAmount", cashUsed);
+                paymentData.put("pointAmount", pointsUsed);
+                paymentData.put("cardAmount", cardAmount);
+                paymentData.put("paymentMethod", request.getMethod() != null ? request.getMethod() : "card");
+                paymentData.put("receiptUrl", "https://api.tosspayments.com/v1/payments/" + request.getPaymentKey() + "/receipt");
+                paymentData.put("qrUrl", qrCodeGenerator.generateQRCodeUrl(request.getOrderId()));
+
+                // 중고 호텔 결제 처리 (트랜잭션 내에서 처리)
+                usedHotelTradeService.createPayment(
+                    request.getUsedTradeIdx(),
+                    paymentData
+                );
+
+                // 고객 캐시/포인트 차감 처리
+                updateCustomerBalanceAndRecordLedger(request, null);
+
+                log.info("중고 호텔 결제 및 거래 확정 완료: usedTradeIdx={}", request.getUsedTradeIdx());
+
+                return PaymentResponseDto.builder()
+                        .success(true)
+                        .message("결제가 성공적으로 완료되었습니다.")
+                        .orderId(request.getOrderId())
+                        .paymentKey(request.getPaymentKey())
+                        .amount(request.getAmount())
+                        .status("DONE")
+                        .approvedAt(LocalDateTime.now())
+                        .receiptUrl((String) paymentData.get("receiptUrl"))
+                        .qrUrl((String) paymentData.get("qrUrl"))
+                        .emailSent(true)
+                        .build();
             } else {
-                log.warn("예약 저장 조건 미충족 또는 알 수 없는 타입: type={}, contentId={}, roomId={}, diningIdx={}",
-                        request.getType(), request.getContentId(), request.getRoomId(), request.getDiningIdx());
+                log.warn("예약 저장 조건 미충족 또는 알 수 없는 타입: type={}, contentId={}, roomId={}, diningIdx={}, usedTradeIdx={}",
+                        request.getType(), request.getContentId(), request.getRoomId(), request.getDiningIdx(), request.getUsedTradeIdx());
                 throw new RuntimeException("지원하지 않는 결제 타입입니다: " + request.getType());
             }
 

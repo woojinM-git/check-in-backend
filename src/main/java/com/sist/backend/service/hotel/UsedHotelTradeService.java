@@ -139,27 +139,38 @@ public class UsedHotelTradeService {
     }
 
     /**
-     * 거래 삭제 (페이지 이탈 시) - 최적화된 버전
+     * 거래 취소 (페이지 이탈 시) - status를 2로 변경
      * @param usedTradeIdx 거래 ID
-     * @param deleteReason 삭제 사유
+     * @param cancelReason 취소 사유
      */
     @Transactional
-    public void deleteTrade(Integer usedTradeIdx, String deleteReason) {
+    public void deleteTrade(Integer usedTradeIdx, String cancelReason) {
         try {
             // 거래 존재 여부 확인
             Optional<UsedTrade> tradeOpt = usedTradeRepository.findById(usedTradeIdx);
             if (!tradeOpt.isPresent()) {
-                log.warn("삭제할 거래가 존재하지 않습니다: {}", usedTradeIdx);
-                return; // 이미 삭제된 경우 조용히 리턴
+                log.warn("취소할 거래가 존재하지 않습니다: {}", usedTradeIdx);
+                return; // 이미 처리된 경우 조용히 리턴
             }
             
             UsedTrade trade = tradeOpt.get();
             
-            // 거래 상태가 대기 중(0)인 경우에만 삭제
+            // 거래 상태가 대기 중(0)인 경우에만 취소
             if (trade.getStstus() != 0) {
-                log.warn("이미 처리된 거래는 삭제할 수 없습니다: {} (상태: {})", usedTradeIdx, trade.getStstus());
+                log.warn("이미 처리된 거래는 취소할 수 없습니다: {} (상태: {})", usedTradeIdx, trade.getStstus());
                 return;
             }
+            
+            // 추가 안전장치: 결제 내역이 있는지 확인 (결제 완료된 거래는 취소 불가)
+            List<UsedPay> existingPayments = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx);
+            if (!existingPayments.isEmpty()) {
+                log.warn("결제 내역이 존재하는 거래는 취소할 수 없습니다: {} (결제 ID: {})", 
+                        usedTradeIdx, existingPayments.get(0).getUsedPayIdx());
+                return; // 결제 완료된 거래는 취소하지 않음
+            }
+            
+            // 거래 상태를 취소(2)로 변경
+            trade.setStstus(2); // 거래취소 상태
             
             // UsedItem 상태 복원
             Optional<UsedItem> usedItem = usedItemRepository.findById(trade.getUserItemIdx());
@@ -170,12 +181,12 @@ public class UsedHotelTradeService {
                 log.info("UsedItem 상태 복원: {} -> 판매중", trade.getUserItemIdx());
             }
             
-            // 거래 삭제
-            usedTradeRepository.delete(trade);
-            log.info("중고 호텔 거래 삭제: {} (사유: {})", usedTradeIdx, deleteReason);
+            // 거래 저장 (삭제하지 않고 status만 변경)
+            usedTradeRepository.save(trade);
+            log.info("중고 호텔 거래 취소: {} (사유: {})", usedTradeIdx, cancelReason);
             
         } catch (Exception e) {
-            log.error("거래 삭제 중 오류 발생: {} - {}", usedTradeIdx, e.getMessage());
+            log.error("거래 취소 중 오류 발생: {} - {}", usedTradeIdx, e.getMessage());
             throw e;
         }
     }
@@ -207,6 +218,7 @@ public class UsedHotelTradeService {
     /**
      * 오래된 대기 거래 정리 (스케줄러에서 호출)
      * 1분 이상 대기 상태인 거래를 자동 취소 (테스트용)
+     * 단, 결제 락이 있는 거래는 제외 (결제 진행 중인 거래 보호)
      */
     @Transactional
     public void cleanupExpiredTrades() {
@@ -214,12 +226,28 @@ public class UsedHotelTradeService {
         
         List<UsedTrade> expiredTrades = usedTradeRepository.findExpiredPendingTrades(cutoffTime);
         
+        int cancelledCount = 0;
+        int skippedCount = 0;
+        
         for (UsedTrade trade : expiredTrades) {
-            cancelTrade(trade.getUsedTradeIdx(), "자동 취소 (1분 초과)");
+            Integer usedTradeIdx = trade.getUsedTradeIdx();
+            
+            // 결제 락이 있는지 확인 (결제 진행 중인 거래는 제외)
+            boolean hasPaymentLock = paymentLockService.isLocked(String.valueOf(usedTradeIdx), false);
+            
+            if (hasPaymentLock) {
+                log.debug("결제 진행 중인 거래는 정리에서 제외: usedTradeIdx={}", usedTradeIdx);
+                skippedCount++;
+                continue; // 결제 중인 거래는 건너뛰기
+            }
+            
+            // 락이 없는 거래만 취소
+            cancelTrade(usedTradeIdx, "자동 취소 (1분 초과)");
+            cancelledCount++;
         }
         
-        if (!expiredTrades.isEmpty()) {
-            log.info("만료된 거래 {}개 자동 취소 완료", expiredTrades.size());
+        if (cancelledCount > 0 || skippedCount > 0) {
+            log.info("만료된 거래 정리 완료: 취소 {}개, 결제 중 제외 {}개", cancelledCount, skippedCount);
         }
     }
 
@@ -308,11 +336,37 @@ public class UsedHotelTradeService {
             }
             
             // 거래 상태 재확인 (Pessimistic Lock으로 조회한 최신 데이터)
-            if (trade.getStstus() != 0) {
-                log.warn("이미 처리된 거래 (락 획득 후 재확인): usedTradeIdx={}, status={}", 
-                        usedTradeIdx, trade.getStstus());
-                throw new RuntimeException("이미 처리된 거래입니다.");
+            // 상태가 1 (거래완료)이고 완료된 결제가 있으면 차단
+            // 상태가 2 (거래취소)이고 완료된 결제가 없으면 재결제 허용
+            if (trade.getStstus() == 1) {
+                // 거래완료 상태: 완료된 결제가 있는지 확인
+                Optional<UsedPay> completedPayment = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx)
+                    .stream()
+                    .filter(p -> p.getStatus() == 1)
+                    .findFirst();
+                
+                if (completedPayment.isPresent()) {
+                    log.warn("이미 처리된 거래 (락 획득 후 재확인): usedTradeIdx={}, status={}, usedPayIdx={}", 
+                            usedTradeIdx, trade.getStstus(), completedPayment.get().getUsedPayIdx());
+                    throw new RuntimeException("이미 처리된 거래입니다.");
+                }
+            } else if (trade.getStstus() == 2) {
+                // 거래취소 상태: 완료된 결제가 있는지 확인
+                Optional<UsedPay> completedPayment = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx)
+                    .stream()
+                    .filter(p -> p.getStatus() == 1)
+                    .findFirst();
+                
+                if (completedPayment.isPresent()) {
+                    log.warn("취소된 거래이지만 이미 완료된 결제가 있음: usedTradeIdx={}, status={}, usedPayIdx={}", 
+                            usedTradeIdx, trade.getStstus(), completedPayment.get().getUsedPayIdx());
+                    throw new RuntimeException("이미 결제 완료된 거래입니다.");
+                }
+                // 취소 상태이고 완료된 결제가 없으면 재결제 허용 (상태를 0으로 변경)
+                log.info("취소된 거래 재결제: usedTradeIdx={}, status={} -> 0", usedTradeIdx, trade.getStstus());
+                trade.setStstus(0); // 거래중 상태로 변경
             }
+            // status == 0 (거래중)이면 계속 진행
             
             // 4단계: 결제 내역 생성
             UsedPay usedPay = new UsedPay();

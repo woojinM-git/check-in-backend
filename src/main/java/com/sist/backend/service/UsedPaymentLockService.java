@@ -74,28 +74,37 @@ public class UsedPaymentLockService {
             Optional<UsedTrade> tradeOpt = usedTradeRepository.findById(usedTradeIdx);
             if (tradeOpt.isPresent()) {
                 UsedTrade trade = tradeOpt.get();
-                // 이미 거래완료 상태인지 확인
-                if (trade.getStstus() != 0) { // 0 = 거래중, 1 = 거래완료, 2 = 거래취소
-                    log.warn("이미 처리된 거래: usedTradeIdx={}, status={}", usedTradeIdx, trade.getStstus());
-                    return UsedPaymentLockDto.builder()
-                            .success(false)
-                            .message("이미 처리된 거래입니다.")
-                            .build();
-                }
-
+                
                 // 해당 거래에 이미 완료된 결제가 있는지 확인
                 var existingPayments = usedPayRepository.findByUsedTradeIdxOrderByCreatedAtDesc(usedTradeIdx);
-                if (!existingPayments.isEmpty()) {
-                    UsedPay latestPayment = existingPayments.get(0);
-                    if (latestPayment.getStatus() == 1) { // 1 = 결제 완료
-                        log.warn("이미 결제 완료된 거래: usedTradeIdx={}, usedPayIdx={}", 
-                                usedTradeIdx, latestPayment.getUsedPayIdx());
+                boolean hasCompletedPayment = !existingPayments.isEmpty() && 
+                    existingPayments.get(0).getStatus() == 1; // 1 = 결제 완료
+                
+                // 거래 상태 확인
+                // 0 = 거래중, 1 = 거래완료, 2 = 거래취소
+                if (trade.getStstus() == 1) {
+                    // 거래완료 상태: 완료된 결제가 있으면 차단
+                    if (hasCompletedPayment) {
+                        log.warn("이미 처리된 거래: usedTradeIdx={}, status={}", usedTradeIdx, trade.getStstus());
+                        return UsedPaymentLockDto.builder()
+                                .success(false)
+                                .message("이미 처리된 거래입니다.")
+                                .build();
+                    }
+                } else if (trade.getStstus() == 2) {
+                    // 거래취소 상태: 완료된 결제가 있으면 차단, 없으면 재결제 허용
+                    if (hasCompletedPayment) {
+                        log.warn("취소된 거래이지만 이미 완료된 결제가 있음: usedTradeIdx={}, status={}", 
+                                usedTradeIdx, trade.getStstus());
                         return UsedPaymentLockDto.builder()
                                 .success(false)
                                 .message("이미 결제 완료된 거래입니다.")
                                 .build();
                     }
+                    // 취소 상태이고 완료된 결제가 없으면 재결제 허용
+                    log.info("취소된 거래 재결제 시도: usedTradeIdx={}, status={}", usedTradeIdx, trade.getStstus());
                 }
+                // status == 0 (거래중)이면 계속 진행
             } else {
                 // 거래가 존재하지 않는 경우 (삭제되었을 수 있음)
                 // 하지만 paymentKey 중복 체크는 이미 완료했으므로, 락은 획득 가능
