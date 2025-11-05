@@ -9,6 +9,7 @@ import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.dto.UsedSearchRequestDto;
 import com.sist.backend.service.RoomReservationService;
 import com.sist.backend.service.UsedTradeService;
+import com.sist.backend.service.UsedPaymentLockService;
 import com.sist.backend.service.hotel.UsedHotelTradeService;
 import com.sist.backend.entity.UsedPay;
 import com.sist.backend.entity.UsedTrade;
@@ -35,6 +36,7 @@ public class UsedTradeController {
     private final UsedTradeService usedTradeService;
     private final UsedHotelTradeService tradeService;
     private final RoomReservationService roomReservationService;
+    private final UsedPaymentLockService paymentLockService;
 
     @GetMapping("/list")
     @Operation(summary = "양도거래 목록 조회", description = "페이징 처리된 양도거래 목록을 조회합니다.")
@@ -45,9 +47,9 @@ public class UsedTradeController {
     })
     public ResponseEntity<Page<UsedItemDto>> getUsedTradeListWithDetails(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
-            @RequestParam(defaultValue = "0") int page, 
+            @RequestParam(name = "page", defaultValue = "0") int page, 
             @Parameter(description = "페이지당 데이터 개수", example = "10") 
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(name = "size", defaultValue = "10") int size) {
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         return ResponseEntity.ok(usedTradeService.findAllByStatusOrderByUpdatedAtDescAsDto(pageable));
@@ -82,7 +84,7 @@ public class UsedTradeController {
      */
     @GetMapping("/check/{reservIdx}")
     @Operation(summary = "양도거래 등록 여부 확인", description = "특정 예약에 대한 양도거래 등록 여부를 확인합니다.")
-    public ResponseEntity<?> checkUsedItemStatus(@PathVariable Integer reservIdx) {
+    public ResponseEntity<?> checkUsedItemStatus(@PathVariable(name = "reservIdx") Integer reservIdx) {
         try {
             var usedItem = usedTradeService.findByReservIdx(reservIdx);
             
@@ -155,7 +157,7 @@ public class UsedTradeController {
     @PutMapping("/{usedItemIdx}")
     @Operation(summary = "양도거래 아이템 수정", description = "기존 양도거래 아이템을 수정합니다.")
     public ResponseEntity<?> updateUsedItem(
-            @PathVariable Integer usedItemIdx,
+            @PathVariable(name = "usedItemIdx") Integer usedItemIdx,
             @RequestBody Map<String, Object> request) {
         try {
             Integer price = parseInteger(request.get("price"));
@@ -186,7 +188,7 @@ public class UsedTradeController {
      */
     @PostMapping("/{usedItemIdx}/cancel")
     @Operation(summary = "양도거래 아이템 취소", description = "양도거래 아이템을 취소합니다. status를 4로 변경합니다.")
-    public ResponseEntity<?> cancelUsedItem(@PathVariable Integer usedItemIdx) {
+    public ResponseEntity<?> cancelUsedItem(@PathVariable(name = "usedItemIdx") Integer usedItemIdx) {
         try {
             var usedItem = usedTradeService.cancelUsedItem(usedItemIdx);
 
@@ -210,7 +212,7 @@ public class UsedTradeController {
      */
     @GetMapping("/{usedItemIdx}/availability")
     @Operation(summary = "거래 가능 여부 체크", description = "중고 아이템의 거래 가능 여부를 확인합니다.")
-    public ResponseEntity<?> checkAvailability(@PathVariable Integer usedItemIdx) {
+    public ResponseEntity<?> checkAvailability(@PathVariable(name = "usedItemIdx") Integer usedItemIdx) {
         try {
             boolean isAvailable = tradeService.isUsedItemAvailable(usedItemIdx);
             
@@ -266,7 +268,7 @@ public class UsedTradeController {
      */
     @PostMapping("/trade/{usedTradeIdx}/confirm")
     @Operation(summary = "거래 확정", description = "결제 완료 후 거래를 확정합니다.")
-    public ResponseEntity<?> confirmTrade(@PathVariable Integer usedTradeIdx) {
+    public ResponseEntity<?> confirmTrade(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx) {
         try {
             UsedTrade confirmedTrade = tradeService.confirmTrade(usedTradeIdx);
             //roomReservation의 customerIdx 값을 변경
@@ -286,13 +288,12 @@ public class UsedTradeController {
     }
 
     /**
-     * 거래 삭제 (페이지 이탈 시)
+     * 거래 취소 (페이지 이탈 시) - status를 2로 변경
      * navigator.sendBeacon은 POST만 지원하므로 POST도 허용
      */
-    @DeleteMapping("/trade/{usedTradeIdx}/delete")
-    @PostMapping("/trade/{usedTradeIdx}/delete")
-    @Operation(summary = "거래 삭제", description = "페이지 이탈 시 거래를 삭제합니다.")
-    public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
+    @RequestMapping(value = "/trade/{usedTradeIdx}/delete", method = {RequestMethod.DELETE, RequestMethod.POST})
+    @Operation(summary = "거래 취소", description = "페이지 이탈 시 거래를 취소합니다 (status를 2로 변경).")
+    public ResponseEntity<?> deleteTrade(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
         try {
             // sendBeacon이나 DELETE 요청 모두 처리
             String reason = (request != null && request.containsKey("reason")) 
@@ -302,20 +303,21 @@ public class UsedTradeController {
                 ? (String) request.get("timestamp") 
                 : "";
             
-            log.info("거래 삭제 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
+            log.info("거래 취소 요청: usedTradeIdx={}, reason={}, timestamp={}", usedTradeIdx, reason, timestamp);
             
             tradeService.deleteTrade(usedTradeIdx, reason);
             
             return ResponseEntity.ok(Map.of(
-                "message", "거래가 삭제되었습니다.",
+                "message", "거래가 취소되었습니다.",
                 "usedTradeIdx", usedTradeIdx,
-                "deletedAt", java.time.LocalDateTime.now().toString()
+                "status", 2,
+                "updatedAt", java.time.LocalDateTime.now().toString()
             ));
             
         } catch (Exception e) {
-            log.error("거래 삭제 실패: {}", e.getMessage());
+            log.error("거래 취소 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
-                .body(Map.of("message", "거래 삭제 중 오류가 발생했습니다."));
+                .body(Map.of("message", "거래 취소 중 오류가 발생했습니다."));
         }
     }
 
@@ -325,7 +327,7 @@ public class UsedTradeController {
     @PostMapping("/trade/{usedTradeIdx}/cancel")
     @Operation(summary = "거래 취소", description = "거래를 취소합니다.")
     public ResponseEntity<?> cancelTrade(
-            @PathVariable Integer usedTradeIdx,
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
             @RequestBody(required = false) Map<String, String> request) {
         try {
             String cancelReason = request != null ? request.get("reason") : "사용자 취소";
@@ -348,7 +350,7 @@ public class UsedTradeController {
      */
     @GetMapping("/trade/{usedTradeIdx}/status")
     @Operation(summary = "거래 상태 조회", description = "거래의 현재 상태를 조회합니다.")
-    public ResponseEntity<?> getTradeStatus(@PathVariable Integer usedTradeIdx) {
+    public ResponseEntity<?> getTradeStatus(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx) {
         try {
             Integer status = tradeService.getTradeStatus(usedTradeIdx);
             
@@ -381,7 +383,7 @@ public class UsedTradeController {
      */
     @GetMapping("/buyer/{buyerIdx}/trades")
     @Operation(summary = "구매자 거래 목록", description = "특정 구매자의 거래 목록을 조회합니다.")
-    public ResponseEntity<?> getBuyerTrades(@PathVariable Integer buyerIdx) {
+    public ResponseEntity<?> getBuyerTrades(@PathVariable(name = "buyerIdx") Integer buyerIdx) {
         try {
             List<UsedTrade> trades = tradeService.getBuyerTrades(buyerIdx);
             
@@ -403,7 +405,7 @@ public class UsedTradeController {
      */
     @GetMapping("/seller/{sellerIdx}/trades")
     @Operation(summary = "판매자 거래 목록", description = "특정 판매자의 거래 목록을 조회합니다.")
-    public ResponseEntity<?> getSellerTrades(@PathVariable Integer sellerIdx) {
+    public ResponseEntity<?> getSellerTrades(@PathVariable(name = "sellerIdx") Integer sellerIdx) {
         try {
             List<UsedTrade> trades = tradeService.getSellerTrades(sellerIdx);
             
@@ -417,6 +419,75 @@ public class UsedTradeController {
             log.error("판매자 거래 목록 조회 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(Map.of("message", "거래 목록 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 결제 페이지 진입 시 락 생성 (스케줄러 취소 방지)
+     */
+    @PostMapping("/trade/{usedTradeIdx}/lock")
+    @Operation(summary = "결제 페이지 진입 시 락 생성", description = "결제 페이지 진입 시 거래를 보호하기 위한 락을 생성합니다.")
+    public ResponseEntity<?> createPaymentPageLock(
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
+            @RequestBody(required = false) Map<String, Object> request) {
+        try {
+            Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;
+            
+            // paymentKey 없이 usedTradeIdx만으로 락 생성 (결제 페이지 진입 시)
+            var lockResult = paymentLockService.createLock(usedTradeIdx, null, null, buyerIdx);
+            
+            if (!lockResult.getSuccess()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("message", lockResult.getMessage()));
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "결제 페이지 락이 생성되었습니다.",
+                "lockKey", lockResult.getLockKey(),
+                "usedTradeIdx", usedTradeIdx
+            ));
+            
+        } catch (Exception e) {
+            log.error("결제 페이지 락 생성 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "결제 페이지 락 생성 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 결제 페이지 이탈 시 락 해제
+     */
+    @PostMapping("/trade/{usedTradeIdx}/unlock")
+    @Operation(summary = "결제 페이지 이탈 시 락 해제", description = "결제 페이지를 떠날 때 락을 해제합니다.")
+    public ResponseEntity<?> releasePaymentPageLock(
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
+            @RequestBody(required = false) Map<String, Object> request) {
+        try {
+            Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;
+            
+            // usedTradeIdx로 락 키 생성
+            String lockKey = "lock:payment:trade:" + usedTradeIdx;
+            
+            var lockResult = paymentLockService.releaseLock(lockKey, buyerIdx);
+            
+            if (!lockResult.getSuccess()) {
+                // 락이 없거나 이미 해제된 경우는 성공으로 처리 (중복 호출 방지)
+                log.debug("결제 페이지 락 해제: 이미 해제됨 또는 권한 없음 - usedTradeIdx={}", usedTradeIdx);
+                return ResponseEntity.ok(Map.of(
+                    "message", "락이 이미 해제되었거나 존재하지 않습니다.",
+                    "usedTradeIdx", usedTradeIdx
+                ));
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "결제 페이지 락이 해제되었습니다.",
+                "usedTradeIdx", usedTradeIdx
+            ));
+            
+        } catch (Exception e) {
+            log.error("결제 페이지 락 해제 실패: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "결제 페이지 락 해제 중 오류가 발생했습니다."));
         }
     }
 

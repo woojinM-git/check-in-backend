@@ -37,8 +37,10 @@ public class DiningController {
      * 호텔별 다이닝 목록 조회
      */
     @GetMapping("/hotel/{contentid}")
-    public ResponseEntity<List<Dining>> getDiningsByHotel(@PathVariable String contentid) {
+    public ResponseEntity<List<Dining>> getDiningsByHotel(@PathVariable(name = "contentid") String contentid) {
+        log.info("호텔별 다이닝 목록 조회 요청: contentid={}", contentid);
         List<Dining> dinings = diningService.getDiningsByHotel(contentid);
+        log.info("호텔별 다이닝 목록 조회 결과: contentid={}, count={}", contentid, dinings.size());
         return ResponseEntity.ok(dinings);
     }
     
@@ -47,7 +49,7 @@ public class DiningController {
      */
     @GetMapping("/search")
     public ResponseEntity<Page<Dining>> searchDinings(
-            @RequestParam(required = false) String destination,
+            @RequestParam(name = "destination", required = false) String destination,
             @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         
         Page<Dining> dinings = diningService.searchDinings(destination, pageable);
@@ -82,7 +84,7 @@ public class DiningController {
      * 다이닝 상세 정보 조회
      */
     @GetMapping("/{diningIdx}")
-    public ResponseEntity<Dining> getDiningDetail(@PathVariable Integer diningIdx) {
+    public ResponseEntity<Dining> getDiningDetail(@PathVariable(name = "diningIdx") Integer diningIdx) {
         Dining dining = diningService.getDiningDetail(diningIdx);
         return ResponseEntity.ok(dining);
     }
@@ -92,8 +94,8 @@ public class DiningController {
      */
     @GetMapping("/search/price")
     public ResponseEntity<Page<Dining>> searchDiningsByPrice(
-            @RequestParam(required = false) Integer priceMin,
-            @RequestParam(required = false) Integer priceMax,
+            @RequestParam(name = "priceMin", required = false) Integer priceMin,
+            @RequestParam(name = "priceMax", required = false) Integer priceMax,
             @PageableDefault(size = 10, sort = "basePrice", direction = Sort.Direction.ASC) Pageable pageable) {
         
         Page<Dining> dinings = diningService.searchDiningsByPrice(priceMin, priceMax, pageable);
@@ -105,7 +107,7 @@ public class DiningController {
      */
     @GetMapping("/search/meal-type")
     public ResponseEntity<Page<Dining>> searchDiningsByMealType(
-            @RequestParam String mealType,
+            @RequestParam(name = "mealType") String mealType,
             @PageableDefault(size = 10, sort = "openTime", direction = Sort.Direction.ASC) Pageable pageable) {
         
         Page<Dining> dinings = diningService.searchDiningsByMealType(mealType, pageable);

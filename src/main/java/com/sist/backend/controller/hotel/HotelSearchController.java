@@ -19,6 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -33,20 +37,23 @@ public class HotelSearchController {
     
     @PostMapping("/search")
     @Operation(summary="호텔 전체 검색", description="호텔 무작정 가져오기")
-    public ResponseEntity<List<HotelcardResponse>> searchHotels(
+    public ResponseEntity<Page<HotelcardResponse>> searchHotels(
             @RequestBody HotelInfo request,
-            @RequestParam(required = false) Boolean hasDining){
+            @RequestParam(name = "hasDining", required = false) Boolean hasDining,
+            @PageableDefault(size = 10, sort = "title", direction = Sort.Direction.ASC) Pageable pageable){
         System.out.println("==================================="+request+"========================================");
         System.out.println("hasDining 파라미터: " + hasDining);
-        List<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle(), hasDining);
-        System.out.println("==================================="+hotels.size()+"========================================");
+        Page<HotelcardResponse> hotels = hotelSearchService.findByTitleWithPrice(request.getTitle(), hasDining, pageable);
+        System.out.println("==================================="+hotels.getTotalElements()+"========================================");
         return ResponseEntity.ok(hotels);
     }
 
     @PostMapping("/search/page")
     @Operation(summary="호텔 조건 검색", description="이름, 날짜와 페이지 번호로 호텔 가져오기 (가격 정보 포함)")
-    public ResponseEntity<List<HotelcardResponse>> searchHotelsByCondition(@RequestBody HotelInfo request){
-        List<HotelcardResponse> hotels = hotelSearchService.findAllWithPrice();
+    public ResponseEntity<Page<HotelcardResponse>> searchHotelsByCondition(
+            @RequestBody HotelInfo request,
+            @PageableDefault(size = 10, sort = "title", direction = Sort.Direction.ASC) Pageable pageable){
+        Page<HotelcardResponse> hotels = hotelSearchService.findAllWithPrice(pageable);
         return ResponseEntity.ok(hotels); 
     }
     
@@ -73,10 +80,10 @@ public class HotelSearchController {
     
     @GetMapping("/area")
     public ResponseEntity<List<HotelcardResponse>> getHotelsByAreaCode(
-            @RequestParam String areaCode,
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false) Double lat,
-            @RequestParam(required = false) Double lng) {
+            @RequestParam(name = "areaCode") String areaCode,
+            @RequestParam(name = "limit", defaultValue = "10") int limit,
+            @RequestParam(name = "lat", required = false) Double lat,
+            @RequestParam(name = "lng", required = false) Double lng) {
         List<HotelcardResponse> hotels;
         if (lat != null && lng != null) {
             // 좌표가 제공된 경우 가장 근접한 호텔들을 조회
