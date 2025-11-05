@@ -84,7 +84,7 @@ public class UsedTradeController {
      */
     @GetMapping("/check/{reservIdx}")
     @Operation(summary = "양도거래 등록 여부 확인", description = "특정 예약에 대한 양도거래 등록 여부를 확인합니다.")
-    public ResponseEntity<?> checkUsedItemStatus(@PathVariable Integer reservIdx) {
+    public ResponseEntity<?> checkUsedItemStatus(@PathVariable(name = "reservIdx") Integer reservIdx) {
         try {
             var usedItem = usedTradeService.findByReservIdx(reservIdx);
             
@@ -157,7 +157,7 @@ public class UsedTradeController {
     @PutMapping("/{usedItemIdx}")
     @Operation(summary = "양도거래 아이템 수정", description = "기존 양도거래 아이템을 수정합니다.")
     public ResponseEntity<?> updateUsedItem(
-            @PathVariable Integer usedItemIdx,
+            @PathVariable(name = "usedItemIdx") Integer usedItemIdx,
             @RequestBody Map<String, Object> request) {
         try {
             Integer price = parseInteger(request.get("price"));
@@ -188,7 +188,7 @@ public class UsedTradeController {
      */
     @PostMapping("/{usedItemIdx}/cancel")
     @Operation(summary = "양도거래 아이템 취소", description = "양도거래 아이템을 취소합니다. status를 4로 변경합니다.")
-    public ResponseEntity<?> cancelUsedItem(@PathVariable Integer usedItemIdx) {
+    public ResponseEntity<?> cancelUsedItem(@PathVariable(name = "usedItemIdx") Integer usedItemIdx) {
         try {
             var usedItem = usedTradeService.cancelUsedItem(usedItemIdx);
 
@@ -212,7 +212,7 @@ public class UsedTradeController {
      */
     @GetMapping("/{usedItemIdx}/availability")
     @Operation(summary = "거래 가능 여부 체크", description = "중고 아이템의 거래 가능 여부를 확인합니다.")
-    public ResponseEntity<?> checkAvailability(@PathVariable Integer usedItemIdx) {
+    public ResponseEntity<?> checkAvailability(@PathVariable(name = "usedItemIdx") Integer usedItemIdx) {
         try {
             boolean isAvailable = tradeService.isUsedItemAvailable(usedItemIdx);
             
@@ -268,7 +268,7 @@ public class UsedTradeController {
      */
     @PostMapping("/trade/{usedTradeIdx}/confirm")
     @Operation(summary = "거래 확정", description = "결제 완료 후 거래를 확정합니다.")
-    public ResponseEntity<?> confirmTrade(@PathVariable Integer usedTradeIdx) {
+    public ResponseEntity<?> confirmTrade(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx) {
         try {
             UsedTrade confirmedTrade = tradeService.confirmTrade(usedTradeIdx);
             //roomReservation의 customerIdx 값을 변경
@@ -293,7 +293,7 @@ public class UsedTradeController {
      */
     @RequestMapping(value = "/trade/{usedTradeIdx}/delete", method = {RequestMethod.DELETE, RequestMethod.POST})
     @Operation(summary = "거래 취소", description = "페이지 이탈 시 거래를 취소합니다 (status를 2로 변경).")
-    public ResponseEntity<?> deleteTrade(@PathVariable Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
+    public ResponseEntity<?> deleteTrade(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx, @RequestBody(required = false) Map<String, Object> request) {
         try {
             // sendBeacon이나 DELETE 요청 모두 처리
             String reason = (request != null && request.containsKey("reason")) 
@@ -327,7 +327,7 @@ public class UsedTradeController {
     @PostMapping("/trade/{usedTradeIdx}/cancel")
     @Operation(summary = "거래 취소", description = "거래를 취소합니다.")
     public ResponseEntity<?> cancelTrade(
-            @PathVariable Integer usedTradeIdx,
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
             @RequestBody(required = false) Map<String, String> request) {
         try {
             String cancelReason = request != null ? request.get("reason") : "사용자 취소";
@@ -350,7 +350,7 @@ public class UsedTradeController {
      */
     @GetMapping("/trade/{usedTradeIdx}/status")
     @Operation(summary = "거래 상태 조회", description = "거래의 현재 상태를 조회합니다.")
-    public ResponseEntity<?> getTradeStatus(@PathVariable Integer usedTradeIdx) {
+    public ResponseEntity<?> getTradeStatus(@PathVariable(name = "usedTradeIdx") Integer usedTradeIdx) {
         try {
             Integer status = tradeService.getTradeStatus(usedTradeIdx);
             
@@ -383,7 +383,7 @@ public class UsedTradeController {
      */
     @GetMapping("/buyer/{buyerIdx}/trades")
     @Operation(summary = "구매자 거래 목록", description = "특정 구매자의 거래 목록을 조회합니다.")
-    public ResponseEntity<?> getBuyerTrades(@PathVariable Integer buyerIdx) {
+    public ResponseEntity<?> getBuyerTrades(@PathVariable(name = "buyerIdx") Integer buyerIdx) {
         try {
             List<UsedTrade> trades = tradeService.getBuyerTrades(buyerIdx);
             
@@ -405,7 +405,7 @@ public class UsedTradeController {
      */
     @GetMapping("/seller/{sellerIdx}/trades")
     @Operation(summary = "판매자 거래 목록", description = "특정 판매자의 거래 목록을 조회합니다.")
-    public ResponseEntity<?> getSellerTrades(@PathVariable Integer sellerIdx) {
+    public ResponseEntity<?> getSellerTrades(@PathVariable(name = "sellerIdx") Integer sellerIdx) {
         try {
             List<UsedTrade> trades = tradeService.getSellerTrades(sellerIdx);
             
@@ -428,7 +428,7 @@ public class UsedTradeController {
     @PostMapping("/trade/{usedTradeIdx}/lock")
     @Operation(summary = "결제 페이지 진입 시 락 생성", description = "결제 페이지 진입 시 거래를 보호하기 위한 락을 생성합니다.")
     public ResponseEntity<?> createPaymentPageLock(
-            @PathVariable Integer usedTradeIdx,
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
             @RequestBody(required = false) Map<String, Object> request) {
         try {
             Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;
@@ -460,7 +460,7 @@ public class UsedTradeController {
     @PostMapping("/trade/{usedTradeIdx}/unlock")
     @Operation(summary = "결제 페이지 이탈 시 락 해제", description = "결제 페이지를 떠날 때 락을 해제합니다.")
     public ResponseEntity<?> releasePaymentPageLock(
-            @PathVariable Integer usedTradeIdx,
+            @PathVariable(name = "usedTradeIdx") Integer usedTradeIdx,
             @RequestBody(required = false) Map<String, Object> request) {
         try {
             Integer buyerIdx = request != null ? parseInteger(request.get("buyerIdx")) : null;

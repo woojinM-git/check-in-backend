@@ -32,7 +32,13 @@ public class DiningService {
      */
     @Transactional(readOnly = true)
     public List<Dining> getDiningsByHotel(String contentid) {
-        return diningRepository.findByContentidAndStatus(contentid);
+        log.info("호텔별 다이닝 목록 조회 서비스 호출: contentid={}", contentid);
+        List<Dining> dinings = diningRepository.findByContentidAndStatus(contentid);
+        log.info("호텔별 다이닝 목록 조회 서비스 결과: contentid={}, count={}", contentid, dinings.size());
+        if (dinings.isEmpty()) {
+            log.warn("호텔별 다이닝 목록이 비어있음: contentid={}", contentid);
+        }
+        return dinings;
     }
     
     /**
