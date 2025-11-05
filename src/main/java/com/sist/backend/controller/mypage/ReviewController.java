@@ -25,10 +25,10 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     /**
-     * 리뷰 작성
+     * 리뷰 작성 (이미지 포함 가능)
      */
     @PostMapping("")
-    @Operation(summary="리뷰 작성", description="리뷰를 작성합니다.")
+    @Operation(summary="리뷰 작성", description="리뷰를 작성합니다. 이미지 URL 배열을 포함할 수 있습니다.")
     public ResponseEntity<?> createReview(
             @RequestBody Map<String, Object> request,
             HttpServletRequest req) {
@@ -45,8 +45,12 @@ public class ReviewController {
             Integer rating = (Integer) request.get("rating");
             String content = (String) request.get("content");
             
-            // 리뷰 작성
-            Review review = reviewService.createReview(reservationIdx, customerIdx, rating, content);
+            // 이미지 URL 배열 추출 (선택사항)
+            @SuppressWarnings("unchecked")
+            List<String> imageUrls = (List<String>) request.get("imageUrls");
+            
+            // 리뷰 작성 (이미지 포함)
+            Review review = reviewService.createReview(reservationIdx, customerIdx, rating, content, imageUrls);
             
             return ResponseEntity.ok(Map.of(
                 "message", "리뷰가 등록되었습니다.",
