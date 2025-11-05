@@ -1,5 +1,6 @@
 package com.sist.backend.controller.login;
 
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +21,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
@@ -38,13 +39,15 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.TimeUnit;
 
 @RestController
+@Slf4j
 @RequestMapping("/api/login")
 @Tag(name="로그인/회원가입", description="로그인/회원가입 관련 API")
 public class LoginController {
-    
     
 
     @Autowired
@@ -72,6 +75,8 @@ public class LoginController {
 
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
+
+    
 
     @GetMapping("/getaccesstoken")
     @Operation(summary="액세스 토큰 발급", description="액세스 토큰 발급")
@@ -454,5 +459,12 @@ public class LoginController {
 
 
 
-    
+    @GetMapping("/apiLogin")
+    @Operation(summary="API 로그인", description="API 로그인 페이지")
+    public ResponseEntity<Map<String, Object>> apiLogin() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("message","API 로그인 페이지");
+        result.put("status","success");
+        return ResponseEntity.ok(result);
+    }
 }

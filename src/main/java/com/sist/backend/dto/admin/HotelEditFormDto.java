@@ -41,6 +41,7 @@ public class HotelEditFormDto {
         private String title;          // HotelInfo.title
         private String adress;          // HotelInfo.adress
         private String tel;             // HotelInfo.tel (기존 phone → tel로 변경)
+        private String imageUrl;        // HotelInfo.imageUrl (대표 이미지 URL)
     }
 
     @Data
@@ -52,6 +53,7 @@ public class HotelEditFormDto {
         private String foodplace;            // HotelDetail.foodplace (식당 정보)
         private String scalelodging;        // HotelDetail.scalelodging (호텔 규모)
         private String parkinglodging;     // HotelDetail.parkinglodging (주차 정보)
+        private String roomcount;           // HotelDetail.roomcount (호텔 총 객실 수)
     }
 
     @Data
@@ -98,8 +100,10 @@ public class HotelEditFormDto {
         private Boolean refundable;        // Room.refundable
         private Boolean breakfastIncluded; // Room.breakfastIncluded
         private Boolean smoking;           // Room.smoking
-        private Integer roomCount;         // Room.roomCount
-        private List<RoomImageDto> images;  // RoomImage 리스트
+        private Integer roomCount;         // Room.roomCount (기본값 1)
+        private Integer status;            // Room.status (0: 사용불가, 1: 사용가능)
+        private String imageUrl;           // Room.imageUrl (객실 대표 이미지, 1장)
+        private List<RoomImageDto> images;  // RoomImage 리스트 (객실 상세 이미지들)
     }
 
     @Data
