@@ -152,6 +152,8 @@ public class RegistrationRequestService {
                     ? (String) hotelInfoMap.get("tel") 
                     : (String) hotelInfoMap.get("phone"))
                 .imageUrl((String) hotelInfoMap.get("imageUrl")) // 대표 이미지 URL
+                .latitude((String) hotelInfoMap.get("latitude")) // 위도 (mapY)
+                .longitude((String) hotelInfoMap.get("longitude")) // 경도 (mapX)
                 .build();
         }
         
