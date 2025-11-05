@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
@@ -72,7 +73,8 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 					log.info("userAttributes: {}", userAttributes);
 
 					//DB에 회원 저장
-					if(customerRepository.findById(userAttributes.get("sub").toString()).isEmpty()){
+					Optional<Customer> customerOptional = customerRepository.findById(userAttributes.get("sub").toString());
+					if(customerOptional.isEmpty()){
 						Customer customer = new Customer();
 						customer.setId(userAttributes.get("sub").toString());
 						customer.setName(userAttributes.get("name").toString());
@@ -109,6 +111,10 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 						customer.setRank("Traveler");
 
 
+						customerRepository.save(customer);
+					}else if(customerOptional.get().getStatus()==1&&customerOptional.get().getProvider()==providerCode){
+						Customer customer = customerOptional.get();
+						customer.setStatus(0);
 						customerRepository.save(customer);
 					}
 					Set authorities = new LinkedHashSet<>();
