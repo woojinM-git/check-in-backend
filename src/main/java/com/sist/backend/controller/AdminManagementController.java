@@ -885,31 +885,31 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         try {
-            // JWT에서 adminIdx 추출
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
-            Integer adminIdx = principal.getAdminIdx();
-            if (adminIdx == null) {
-                map.put("success", false);
-                map.put("message", "인증 정보가 유효하지 않습니다.");
-                return ResponseEntity.badRequest().body(map);
-            }
-            
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
+            map.put("success", false);
+            map.put("message", "인증 정보가 유효하지 않습니다.");
+            return ResponseEntity.badRequest().body(map);
+        }
+        
             String content = requestBody.get("content");
             if (content == null || content.trim().isEmpty()) {
-                map.put("success", false);
+            map.put("success", false);
                 map.put("message", "답변 내용을 입력해주세요.");
-                return ResponseEntity.badRequest().body(map);
-            }
-            
+            return ResponseEntity.badRequest().body(map);
+        }
+        
             // 답변 작성
             ReviewAnswer answer = reviewService.createReviewAnswer(reviewIdx, adminIdx, content);
-            
-            map.put("success", true);
+        
+        map.put("success", true);
             map.put("message", "답변이 작성되었습니다.");
             map.put("answer", answer);
-            
-            return ResponseEntity.ok(map);
+        
+        return ResponseEntity.ok(map);
         } catch (RuntimeException e) {
             map.put("success", false);
             map.put("message", e.getMessage());
@@ -935,11 +935,11 @@ public class AdminManagementController {
         Map<String, Object> map = new HashMap<>();
         
         try {
-            // JWT에서 adminIdx 추출
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
-            Integer adminIdx = principal.getAdminIdx();
-            if (adminIdx == null) {
+        // JWT에서 adminIdx 추출
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        if (adminIdx == null) {
                 map.put("success", false);
                 map.put("message", "인증 정보가 유효하지 않습니다.");
                 return ResponseEntity.badRequest().body(map);
@@ -950,8 +950,8 @@ public class AdminManagementController {
                 map.put("success", false);
                 map.put("message", "답변 내용을 입력해주세요.");
                 return ResponseEntity.badRequest().body(map);
-            }
-            
+        }
+        
             // 답변 수정
             ReviewAnswer answer = reviewService.updateReviewAnswer(reviewAnswerIdx, adminIdx, content);
             
@@ -1081,7 +1081,7 @@ public class AdminManagementController {
             map.put("success", false);
             map.put("message", "호텔 정보 수정 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(map);
-        }
+    }
     }
 
 }
