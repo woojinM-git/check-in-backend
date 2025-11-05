@@ -65,9 +65,18 @@ public class HotelInfoService {
     }
 
     public Page<HotelInfoDto> findAllHotelWithDetailsAsDto(String search, Pageable pageable) {
-        // search가 null이거나 빈 문자열이면 전체 조회
+        // search가 null이거나 빈 문자열이면 단순 조회 쿼리 사용 (성능 최적화)
         String searchTerm = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
-        Page<HotelInfo> hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDtoWithSearch(searchTerm, pageable);
+        
+        Page<HotelInfo> hotelInfoPage;
+        if (searchTerm == null) {
+            // 검색어가 없을 때: WHERE 절이 없는 단순 쿼리 사용
+            hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDto(pageable);
+        } else {
+            // 검색어가 있을 때: WHERE 절이 있는 검색 쿼리 사용
+            hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDtoWithSearch(searchTerm, pageable);
+        }
+        
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
 
@@ -260,16 +269,15 @@ public class HotelInfoService {
             String contentId = UUID.randomUUID().toString().replace("-", "").substring(0, 20);
             log.info("생성된 contentId: {}", contentId);
             
-            // 2. Admin 조회
-            // status = false(0): 활성 상태, status = true(1): 비활성 상태
-            Admin admin = adminRepository.findByAdminIdxAndStatus(adminIdx, false)
-                .orElseThrow(() -> new IllegalArgumentException("관리자를 찾을 수 없습니다: " + adminIdx));
+            // 2. Admin 존재 여부 확인 (유효성 검증)
+            if (!adminRepository.findByAdminIdxAndStatus(adminIdx, false).isPresent()) {
+                throw new IllegalArgumentException("관리자를 찾을 수 없습니다: " + adminIdx);
+            }
             
             // 3. HotelInfo 생성 및 저장
             HotelInfo hotelInfo = new HotelInfo();
             hotelInfo.setContentId(contentId);
-            hotelInfo.setAdmin(admin);
-            hotelInfo.setAdminIdx(adminIdx);
+            hotelInfo.setAdminIdx(adminIdx); // 직접 adminIdx 설정 (성능 최적화)
             hotelInfo.setTitle(dto.getHotelInfo().getTitle());
             hotelInfo.setAdress(dto.getHotelInfo().getAdress());
             hotelInfo.setTel(dto.getHotelInfo().getTel());
