@@ -54,7 +54,6 @@ public class ReservationQueryController {
         }
 
         ReservationCancelDetailDTO dto = ReservationCancelDetailDTO.builder()
-                .reservIdx(r.getReservIdx())
                 .orderNum(orderNum)
                 .hotelTitle(r.getRoom() != null && r.getRoom().getHotelInfo() != null ? r.getRoom().getHotelInfo().getTitle() : null)
                 .checkIn(r.getCheckinDate() != null ? r.getCheckinDate().toString() : null)
