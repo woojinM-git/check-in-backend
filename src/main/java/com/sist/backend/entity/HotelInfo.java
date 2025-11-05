@@ -22,12 +22,12 @@ public class HotelInfo {
     private String contentId;
 
     @ManyToOne
-    @JoinColumn(name = "adminIdx")
+    @JoinColumn(name = "adminIdx", insertable = false, updatable = false)
     @JsonIgnore
     @ToString.Exclude
     private Admin admin;
 
-    @Column(name = "adminIdx", insertable = false, updatable = false)
+    @Column(name = "adminIdx")
     private Integer adminIdx;
     
     
