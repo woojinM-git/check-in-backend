@@ -185,9 +185,9 @@ public class ReservationLockController {
             description = "특정 객실의 락 상태를 조회합니다. (디버깅용)"
     )
     public ResponseEntity<?> getLockStatus(
-            @Parameter(description = "호텔 ID") @RequestParam String contentId,
-            @Parameter(description = "객실 ID") @RequestParam Integer roomId,
-            @Parameter(description = "체크인 날짜(yyyy-MM-dd)") @RequestParam String checkIn
+            @Parameter(description = "호텔 ID") @RequestParam(name = "contentId") String contentId,
+            @Parameter(description = "객실 ID") @RequestParam(name = "roomId") Integer roomId,
+            @Parameter(description = "체크인 날짜(yyyy-MM-dd)") @RequestParam(name = "checkIn") String checkIn
     ) {
         try {
             boolean isLocked = reservationLockService.isLocked(contentId, roomId, checkIn);
