@@ -117,6 +117,7 @@ public class SecurityJavaConfig {
                 
                 // 인증 없이 접근 허용 (회원가입, 로그인, 에러 페이지 등)
                 .requestMatchers("/api/login/**").permitAll()
+                .requestMatchers("/login/**").permitAll()  // OAuth2 로그인 페이지 및 에러 페이지
                 .requestMatchers("/api/hotel/**").permitAll()
                 /* .requestMatchers("/api/hotels/**").permitAll()
                 .requestMatchers("/api/used/list").permitAll()
@@ -146,6 +147,7 @@ public class SecurityJavaConfig {
                         .successHandler(oAuth2AuthenticationSuccessHandler) // JWT 발급 및 리다이렉트
                         // 인증 실패 핸들러는 필요에 따라 추가 가능 (예시에서는 주석 처리)
                         // .failureHandler(oAuth2AuthenticationFailureHandler)
+                        .loginPage("/api/login/apiLogin")
                         
             );
         return http.build();

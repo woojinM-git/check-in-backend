@@ -458,4 +458,13 @@ public class LoginController {
     }
 
 
+
+    @GetMapping("/apiLogin")
+    @Operation(summary="API 로그인", description="API 로그인 페이지")
+    public ResponseEntity<Map<String, Object>> apiLogin() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("message","API 로그인 페이지");
+        result.put("status","success");
+        return ResponseEntity.ok(result);
+    }
 }
