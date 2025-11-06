@@ -56,6 +56,7 @@ public class PaymentService {
     private final EmailLogRepository emailLogRepository;
     private final UsedHotelTradeService usedHotelTradeService;
     private final UsedPayRepository usedPayRepository;
+    private final DiningCapacityService diningCapacityService;
 
     // 등급별 적립률 (%)
     private static final Map<String, Double> RANK_REWARD_RATE = Map.of(
@@ -268,23 +269,68 @@ public class PaymentService {
                         .emailSent(true) // 신규 처리됨: 컨트롤러에서 이메일 발송 허용
                         .build();
             } else if ("dining_reservation".equals(request.getType())) {
-                // 다이닝: 결제/예약 저장만 수행 (쿠폰/차감/적립/등급 업데이트 제외)
-                DiningPayment savedDining = saveDiningReservation(request);
+                // 다이닝: 필수 파라미터 검증
+                if (request.getDiningIdx() == null || request.getDiningDate() == null || request.getDiningTime() == null) {
+                    throw new RuntimeException("필수 파라미터 누락(diningIdx/diningDate/diningTime)");
+                }
 
-                log.info("다이닝 결제 및 예약 저장 완료: diningpayIdx={}", savedDining.getDiningpayIdx());
+                // 예약 인원 수 (guests 필드 또는 기본값 1)
+                Integer guestCount = request.getGuests() != null ? request.getGuests() : 1;
 
-                return PaymentResponseDto.builder()
-                        .success(true)
-                        .message("결제가 성공적으로 완료되었습니다.")
-                        .orderId(request.getOrderId())
-                        .paymentKey(request.getPaymentKey())
-                        .amount(request.getAmount())
-                        .status("DONE")
-                        .approvedAt(savedDining.getApprovedAt())
-                        .receiptUrl(savedDining.getReceiptUrl())
-                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
-                        .emailSent(true)
-                        .build();
+                // 정원 체크 및 예약 인원 증가 (원자적 연산)
+                try {
+                    diningCapacityService.checkAndReserveCapacity(
+                            request.getDiningIdx(),
+                            LocalDate.parse(request.getDiningDate()),
+                            java.time.LocalTime.parse(request.getDiningTime()),
+                            guestCount
+                    );
+                    log.info("다이닝 정원 예약 성공: diningIdx={}, date={}, time={}, guests={}", 
+                            request.getDiningIdx(), request.getDiningDate(), request.getDiningTime(), guestCount);
+                } catch (RuntimeException e) {
+                    // 정원 초과 시 예외 발생
+                    log.warn("다이닝 정원 초과로 결제 실패: diningIdx={}, date={}, time={}, guests={}, error={}", 
+                            request.getDiningIdx(), request.getDiningDate(), request.getDiningTime(), guestCount, e.getMessage());
+                    throw e;
+                }
+
+                try {
+                    // 다이닝: 결제/예약 저장만 수행 (쿠폰/차감/적립/등급 업데이트 제외)
+                    DiningPayment savedDining = saveDiningReservation(request, guestCount);
+
+                    log.info("다이닝 결제 및 예약 저장 완료: diningpayIdx={}", savedDining.getDiningpayIdx());
+
+                    // 정원은 유지 (DB 저장 완료 후 정원 카운터 유지)
+                    // 취소 시에만 releaseCapacity 호출
+
+                    return PaymentResponseDto.builder()
+                            .success(true)
+                            .message("결제가 성공적으로 완료되었습니다.")
+                            .orderId(request.getOrderId())
+                            .paymentKey(request.getPaymentKey())
+                            .amount(request.getAmount())
+                            .status("DONE")
+                            .approvedAt(savedDining.getApprovedAt())
+                            .receiptUrl(savedDining.getReceiptUrl())
+                            .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                            .emailSent(true)
+                            .build();
+                } catch (Exception e) {
+                    // 예외 발생 시 정원 해제 (트랜잭션 롤백으로 인해 DB 저장은 안 되지만, 정원은 해제해야 함)
+                    try {
+                        diningCapacityService.releaseCapacity(
+                                request.getDiningIdx(),
+                                LocalDate.parse(request.getDiningDate()),
+                                java.time.LocalTime.parse(request.getDiningTime()),
+                                guestCount
+                        );
+                        log.info("다이닝 정원 해제 완료 (예외 처리): diningIdx={}, date={}, time={}", 
+                                request.getDiningIdx(), request.getDiningDate(), request.getDiningTime());
+                    } catch (Exception releaseEx) {
+                        log.warn("다이닝 정원 해제 실패 (예외 처리 중): {}", releaseEx.getMessage());
+                    }
+                    throw e; // 예외를 다시 던져서 트랜잭션 롤백 보장
+                }
             } else if ("used_hotel".equals(request.getType())) {
                 // 중고 호텔: 결제 검증 후 UsedPay 저장 및 거래 확정
                 if (request.getUsedTradeIdx() == null) {
@@ -521,7 +567,7 @@ public class PaymentService {
     /**
      * 다이닝 예약 저장
      */
-    private DiningPayment saveDiningReservation(PaymentRequestDto request) {
+    private DiningPayment saveDiningReservation(PaymentRequestDto request, Integer guestCount) {
         // Dining 존재 여부 확인
         Dining dining = diningRepository.findById(request.getDiningIdx())
                 .orElseThrow(() -> new RuntimeException(
@@ -549,14 +595,14 @@ public class PaymentService {
         DiningPayment savedPayment = diningPaymentRepository.save(diningPayment);
         log.info("다이닝 결제 정보 저장 완료: diningpayIdx={}", savedPayment.getDiningpayIdx());
 
-        // 다이닝 예약 정보 저장
+        // 다이닝 예약 정보 저장 (guestCount 파라미터 사용)
         DiningReservation reservation = DiningReservation.builder()
                 .diningIdx(request.getDiningIdx())
                 .customerIdx(request.getCustomerIdx())
                 .diningpayIdx(savedPayment.getDiningpayIdx())
                 .reservationDate(request.getDiningDate() != null ? LocalDate.parse(request.getDiningDate()) : null)
                 .reservationTime(request.getDiningTime() != null ? java.time.LocalTime.parse(request.getDiningTime()) : null)
-                .guest(request.getGuests())
+                .guest(guestCount != null ? guestCount : 1) // guestCount 사용 (null이면 1명)
                 .totalPrice(request.getTotalPrice() != null ? request.getTotalPrice() : request.getAmount())
                 .status(1) // 예약 확정
                 .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
@@ -566,7 +612,7 @@ public class PaymentService {
                 .build();
 
         diningReservationRepository.save(reservation);
-        log.info("다이닝 예약 정보 저장 완료: diningResrIdx={}", reservation.getDiningResrIdx());
+        log.info("다이닝 예약 정보 저장 완료: diningResrIdx={}, guest={}", reservation.getDiningResrIdx(), reservation.getGuest());
         return savedPayment;
     }
 

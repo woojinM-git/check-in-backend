@@ -43,6 +43,7 @@ public class MypageController {
     @Operation(summary="예약 내역 조회", description="예약 내역을 조회합니다. (페이지네이션 지원)")
     public ResponseEntity<?> getReservations(
             @RequestParam(name = "status") String status,
+            @RequestParam(name = "type", defaultValue = "hotel") String type, // hotel 또는 dining
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "3") int size,
             HttpServletRequest request) {
@@ -60,22 +61,39 @@ public class MypageController {
             + customerIdx 
             + ", status: " 
             + status 
+            + ", type: "
+            + type
             + ", page: " 
             + page + ", size: " 
             + size);
 
-        // 서비스 호출: 고객 ID, 상태 문자열, 페이지네이션 파라미터 전달
-        org.springframework.data.domain.Page<ReservationResponseDTO> reservationsPage = 
-            myPageService.getMyReservationsByStatus(customerIdx, status, page, size);
+        // 타입에 따라 다른 서비스 호출
+        if ("dining".equals(type)) {
+            // 다이닝 예약 조회
+            org.springframework.data.domain.Page<com.sist.backend.dto.mypage.DiningReservationResponseDTO> reservationsPage = 
+                myPageService.getMyDiningReservationsByStatus(customerIdx, status, page, size);
 
-        // Spring Boot Page 객체를 프론트엔드가 기대하는 형식으로 변환
-        return ResponseEntity.ok(Map.of(
-            "reservations", reservationsPage.getContent(),
-            "totalElements", reservationsPage.getTotalElements(),
-            "totalPages", reservationsPage.getTotalPages(),
-            "number", reservationsPage.getNumber(),
-            "size", reservationsPage.getSize()
-        ));
+            return ResponseEntity.ok(Map.of(
+                "reservations", reservationsPage.getContent(),
+                "totalElements", reservationsPage.getTotalElements(),
+                "totalPages", reservationsPage.getTotalPages(),
+                "number", reservationsPage.getNumber(),
+                "size", reservationsPage.getSize()
+            ));
+        } else {
+            // 호텔 예약 조회 (기존 로직)
+            org.springframework.data.domain.Page<ReservationResponseDTO> reservationsPage = 
+                myPageService.getMyReservationsByStatus(customerIdx, status, page, size);
+
+            // Spring Boot Page 객체를 프론트엔드가 기대하는 형식으로 변환
+            return ResponseEntity.ok(Map.of(
+                "reservations", reservationsPage.getContent(),
+                "totalElements", reservationsPage.getTotalElements(),
+                "totalPages", reservationsPage.getTotalPages(),
+                "number", reservationsPage.getNumber(),
+                "size", reservationsPage.getSize()
+            ));
+        }
     }
 
     /* 예약 상세 조회 */
@@ -83,6 +101,7 @@ public class MypageController {
     @Operation(summary="예약 상세 조회", description="예약 상세 정보를 조회합니다.")
     public ResponseEntity<?> getReservationDetail(
             @PathVariable Integer reservationId,
+            @RequestParam(name = "type", defaultValue = "hotel") String type, // hotel 또는 dining
             HttpServletRequest request) {
         
         // JWT에서 사용자 정보 가져오기
@@ -94,17 +113,31 @@ public class MypageController {
         }
 
         try {
-            System.out.println("👤 예약 상세 조회 - customerIdx: " + customerIdx + ", reservationId: " + reservationId);
+            System.out.println("👤 예약 상세 조회 - customerIdx: " + customerIdx + ", reservationId: " + reservationId + ", type: " + type);
             
-            // 서비스 호출: 예약 상세 정보 조회
-            ReservationResponseDTO reservation = myPageService.getReservationDetail(reservationId, customerIdx);
-            
-            if (reservation == null) {
-                return ResponseEntity.status(404).body(Map.of(
-                    "message", "예약 정보를 찾을 수 없습니다."));
+            // 타입에 따라 다른 서비스 호출
+            if ("dining".equals(type)) {
+                // 다이닝 예약 상세 조회
+                com.sist.backend.dto.mypage.DiningReservationResponseDTO reservation = 
+                    myPageService.getDiningReservationDetail(reservationId, customerIdx);
+                
+                if (reservation == null) {
+                    return ResponseEntity.status(404).body(Map.of(
+                        "message", "예약 정보를 찾을 수 없습니다."));
+                }
+                
+                return ResponseEntity.ok(reservation);
+            } else {
+                // 호텔 예약 상세 조회 (기존 로직)
+                ReservationResponseDTO reservation = myPageService.getReservationDetail(reservationId, customerIdx);
+                
+                if (reservation == null) {
+                    return ResponseEntity.status(404).body(Map.of(
+                        "message", "예약 정보를 찾을 수 없습니다."));
+                }
+                
+                return ResponseEntity.ok(reservation);
             }
-            
-            return ResponseEntity.ok(reservation);
             
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
