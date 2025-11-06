@@ -6,24 +6,33 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sist.backend.dto.reservation.RefundPolicy;
 import com.sist.backend.dto.reservation.ReservationCancelDetailDTO;
+import com.sist.backend.entity.Coupon;
 import com.sist.backend.entity.RoomPayment;
 import com.sist.backend.entity.RoomReservation;
+import com.sist.backend.repository.CouponRepository;
 import com.sist.backend.repository.RoomPaymentRepository;
 import com.sist.backend.repository.RoomReservationRepository;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/reservations")
 @RequiredArgsConstructor
 @Tag(name = "Reservation Query", description = "예약 조회(취소 보강) API")
+@Slf4j
 public class ReservationQueryController {
 
     private final RoomReservationRepository roomReservationRepository;
     private final RoomPaymentRepository roomPaymentRepository;
+    private final CouponRepository couponRepository;
 
     @GetMapping("/{reservIdx}/detail")
     @Operation(summary = "예약 상세(취소용)", description = "예약 상세를 취소 계산에 필요한 필드와 함께 반환합니다.")
@@ -38,20 +47,49 @@ public class ReservationQueryController {
             p = roomPaymentRepository.findByOrderIdx(r.getOrderIdx()).orElse(null);
         }
 
-        Integer pointsUsed = p != null && p.getPointsUsed() != null ? p.getPointsUsed() : 0;
-        Integer cashUsed = p != null && p.getCashUsed() != null ? p.getCashUsed() : 0;
-        Integer cardPaid = p != null && p.getPrice() != null ? p.getPrice() : 0;
-        Integer couponDiscount = 0; // 확실한 쿠폰 금액 정보가 없으므로 0 처리
+        Integer pointsUsed = (p != null && p.getPointsUsed() != null) ? p.getPointsUsed() : 0;
+        Integer cashUsed = (p != null && p.getCashUsed() != null) ? p.getCashUsed() : 0;
+        Integer cardPaid = (p != null && p.getPrice() != null) ? p.getPrice() : 0;
+
+        // 쿠폰 할인액 조회
+        Integer couponDiscount = 0;
+        if (p != null && p.getCouponIdx() != null) {
+            try {
+                Coupon coupon = couponRepository.findById(p.getCouponIdx()).orElse(null);
+                if (coupon != null && coupon.getCouponTemplate() != null) {
+                    couponDiscount = coupon.getCouponTemplate().getDiscount() != null
+                            ? coupon.getCouponTemplate().getDiscount()
+                            : 0;
+                }
+            } catch (Exception ignore) {
+                // 쿠폰 할인액 조회 실패 시 0으로 처리
+            }
+        }
+
         Integer totalPrice = r.getTotalPrice() != null ? r.getTotalPrice() : (cardPaid + couponDiscount + pointsUsed + cashUsed);
 
-        String orderNum = null; // 엔티티에 없으면 RES-{reservIdx}
-        try {
-            // reflection or column not present; keep null
-        } catch (Exception ignore) {
-        }
-        if (orderNum == null) {
+        // orderNum 필드 매핑
+        String orderNum = r.getOrderNum();
+        if (orderNum == null || orderNum.isBlank()) {
             orderNum = "RES-" + reservIdx;
         }
+
+        // 환불 예상 정보 계산 (취소 전)
+        double expectedRefundRate = calculateRefundRate(r);
+        RefundPolicy refundPolicy = RefundPolicy.fromRefundRate(expectedRefundRate);
+
+        // 환불 예상 금액 계산
+        int refundable = (int) Math.floor((totalPrice - couponDiscount) * expectedRefundRate);
+        int expectedPaymentRefund = Math.min(refundable, cardPaid);
+        refundable -= expectedPaymentRefund;
+        int expectedCashRestore = refundable > 0 ? Math.min(refundable, cashUsed) : 0;
+        refundable -= expectedCashRestore;
+        int expectedPointRestore = refundable > 0 ? Math.min(refundable, pointsUsed) : 0;
+        int expectedTotalRefund = expectedPaymentRefund + expectedCashRestore + expectedPointRestore;
+
+        // 디버깅 로그
+        log.info("[RESERVATION DETAIL] 환불 예상 정보: expectedRefundRate={}, expectedRefundMessage={}, expectedPaymentRefund={}, expectedCashRestore={}, expectedPointRestore={}, expectedTotalRefund={}",
+                expectedRefundRate, refundPolicy.getMessage(), expectedPaymentRefund, expectedCashRestore, expectedPointRestore, expectedTotalRefund);
 
         ReservationCancelDetailDTO dto = ReservationCancelDetailDTO.builder()
                 .orderNum(orderNum)
@@ -64,7 +102,41 @@ public class ReservationQueryController {
                 .pointsUsed(pointsUsed)
                 .cashUsed(cashUsed)
                 .cardPaid(cardPaid)
+                .expectedRefundRate(expectedRefundRate)
+                .expectedRefundMessage(refundPolicy.getMessage())
+                .expectedPaymentRefund(expectedPaymentRefund)
+                .expectedCashRestore(expectedCashRestore)
+                .expectedPointRestore(expectedPointRestore)
+                .expectedTotalRefund(expectedTotalRefund)
                 .build();
         return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * 환불 규정 계산
+     */
+    private double calculateRefundRate(RoomReservation reservation) {
+        LocalDate today = LocalDate.now();
+        LocalDate checkin = reservation.getCheckinDate();
+
+        // 예약 당일 취소 예외: createdAt이 있고 같은 날짜면 100%
+        if (reservation.getCreatedAt() != null) {
+            LocalDate created = reservation.getCreatedAt().toLocalDate();
+            if (created.equals(today)) {
+                return 1.0;
+            }
+        }
+
+        long daysBefore = ChronoUnit.DAYS.between(today, checkin);
+        if (daysBefore >= 7) {
+            return 1.0;
+        }
+        if (daysBefore >= 3) {
+            return 0.5;
+        }
+        if (daysBefore >= 1) {
+            return 0.3;
+        }
+        return 0.0;
     }
 }
