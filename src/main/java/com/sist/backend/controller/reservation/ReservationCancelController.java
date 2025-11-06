@@ -41,4 +41,19 @@ public class ReservationCancelController {
         CancelResponseDTO res = reservationCancelService.cancelReservation(reservIdx, request != null ? request.getCancelReason() : null);
         return ResponseEntity.ok(res);
     }
+
+    @PostMapping("/dining/{diningResrIdx}/cancel")
+    @Operation(summary = "다이닝 예약 취소", description = "다이닝 예약 취소 및 Toss 환불 처리")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "success"),
+        @ApiResponse(responseCode = "400", description = "invalid request"),
+        @ApiResponse(responseCode = "500", description = "server error")
+    })
+    public ResponseEntity<CancelResponseDTO> cancelDining(
+            @PathVariable(name = "diningResrIdx") Integer diningResrIdx,
+            @RequestBody CancelRequestDTO request) {
+        log.info("[DINING CANCEL] API called: diningResrIdx={} reason={}", diningResrIdx, request != null ? request.getCancelReason() : null);
+        CancelResponseDTO res = reservationCancelService.cancelDiningReservation(diningResrIdx, request != null ? request.getCancelReason() : null);
+        return ResponseEntity.ok(res);
+    }
 }
