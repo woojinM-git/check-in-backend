@@ -27,56 +27,73 @@ public class SettlementService {
     private static final double DEFAULT_WITHHOLDING_TAX_RATE = 0.033; // 3.3%
 
     /**
-     * 특정 월의 정산 데이터 생성
+     * 특정 월의 정산 데이터 생성 (청크 단위 배치 처리)
      * @param year 연도
      * @param month 월 (1-12)
      */
-    @Transactional
     public void createSettlementForMonth(int year, int month) {
         String settlementMonth = String.format("%04d-%02d", year, month);
         
-        // 모든 활성 호텔 조회
-        List<HotelInfo> hotels = hotelInfoRepository.findAll();
+        int pageSize = 50; // 한 번에 처리할 호텔 수
+        int page = 0;
+        Page<HotelInfo> hotelPage;
         
-        for (HotelInfo hotel : hotels) {
-            // 이미 정산 데이터가 있는지 확인
-            if (settlementRepository.findByContentIdAndSettlementMonth(
-                    hotel.getContentId(), settlementMonth).isPresent()) {
-                continue; // 이미 정산 데이터가 있으면 스킵
+        do {
+            // 페이지 단위로 호텔 조회
+            Pageable pageable = Pageable.ofSize(pageSize).withPage(page);
+            hotelPage = hotelInfoRepository.findAll(pageable);
+            
+            // 각 호텔별로 정산 처리 (호텔별 트랜잭션 분리)
+            for (HotelInfo hotel : hotelPage.getContent()) {
+                processSettlementForHotel(hotel.getContentId(), settlementMonth, year, month);
             }
-
-            // 해당 호텔의 월별 총 수익 계산
-            Long totalRevenue = roomPaymentRepository.findTotalRevenueByContentIdAndMonth(
-                hotel.getContentId(), year, month);
-
-            if (totalRevenue == null || totalRevenue == 0) {
-                continue; // 수익이 없으면 정산 데이터 생성하지 않음
-            }
-
-            // 수수료 계산 (10%)
-            Long commissionAmount = Math.round(totalRevenue * DEFAULT_COMMISSION_RATE);
             
-            // 정산 대상 금액 (수수료 제외)
-            Long settlementAmount = totalRevenue - commissionAmount;
-            
-            // 원천징수 계산 (3.3%)
-            Long withholdingTaxAmount = Math.round(settlementAmount * DEFAULT_WITHHOLDING_TAX_RATE);
-            
-            // 최종 지급 금액 (원천징수 제외)
-            Long finalAmount = settlementAmount - withholdingTaxAmount;
+            page++;
+        } while (hotelPage.hasNext());
+    }
 
-            // 정산 데이터 생성
-            HotelSettlement settlement = HotelSettlement.builder()
-                .contentId(hotel.getContentId())
-                .settlementMonth(settlementMonth)
-                .totalRevenue(totalRevenue)
-                .commissionAmount(commissionAmount)
-                .withholdingTaxAmount(withholdingTaxAmount)
-                .finalAmount(finalAmount)
-                .build();
-
-            settlementRepository.save(settlement);
+    /**
+     * 개별 호텔의 정산 처리 (호텔별 트랜잭션 분리)
+     */
+    @Transactional
+    public void processSettlementForHotel(String contentId, String settlementMonth, int year, int month) {
+        // 이미 정산 데이터가 있는지 확인
+        if (settlementRepository.findByContentIdAndSettlementMonth(
+                contentId, settlementMonth).isPresent()) {
+            return; // 이미 정산 데이터가 있으면 스킵
         }
+
+        // 해당 호텔의 월별 총 수익 계산
+        Long totalRevenue = roomPaymentRepository.findTotalRevenueByContentIdAndMonth(
+            contentId, year, month);
+
+        if (totalRevenue == null || totalRevenue == 0) {
+            return; // 수익이 없으면 정산 데이터 생성하지 않음
+        }
+
+        // 수수료 계산 (10%)
+        Long commissionAmount = Math.round(totalRevenue * DEFAULT_COMMISSION_RATE);
+        
+        // 정산 대상 금액 (수수료 제외)
+        Long settlementAmount = totalRevenue - commissionAmount;
+        
+        // 원천징수 계산 (3.3%)
+        Long withholdingTaxAmount = Math.round(settlementAmount * DEFAULT_WITHHOLDING_TAX_RATE);
+        
+        // 최종 지급 금액 (원천징수 제외)
+        Long finalAmount = settlementAmount - withholdingTaxAmount;
+
+        // 정산 데이터 생성
+        HotelSettlement settlement = HotelSettlement.builder()
+            .contentId(contentId)
+            .settlementMonth(settlementMonth)
+            .totalRevenue(totalRevenue)
+            .commissionAmount(commissionAmount)
+            .withholdingTaxAmount(withholdingTaxAmount)
+            .finalAmount(finalAmount)
+            .build();
+
+        settlementRepository.save(settlement);
     }
 
     /**
