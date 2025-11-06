@@ -19,5 +19,9 @@ public class TossPaymentsConfig {
 
         private String secretKey;
         private String clientKey;
+        /**
+         * Toss API Base URL (optional). Default: https://api.tosspayments.com
+         */
+        private String apiBaseUrl;
     }
 }
