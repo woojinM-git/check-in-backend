@@ -54,7 +54,7 @@ public class RoomReservation {
     private Integer orderIdx;
 
     @Column(name = "status")
-    private Integer status; // 0: 대기, 1: 확정, 2: 취소, 3: 노쇼
+    private Integer status; // 0: 대기, 1: 확정, 2: 취소, 3: 노쇼, 4: 이용완료
 
     @Column(name = "checkin")
     private LocalDate checkinDate;
