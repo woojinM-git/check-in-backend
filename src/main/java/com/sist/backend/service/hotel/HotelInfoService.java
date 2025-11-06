@@ -207,7 +207,7 @@ public class HotelInfoService {
             
             List<HotelEditFormDto.ImageDto> imageDtos = hotelImages.stream().map(image ->
                 HotelEditFormDto.ImageDto.builder()
-                    .id(image.getId() != null ? Long.valueOf(image.getId()) : null)
+                    .id(Long.valueOf(image.getId())) // id는 항상 존재 (AUTO_INCREMENT PRIMARY KEY)
                     .originUrl(image.getOriginUrl())
                     .smallUrl(image.getSmallUrl())
                     .build()
@@ -457,40 +457,76 @@ public class HotelInfoService {
                         roomImageRepository.findById(imageIdx).ifPresent(image -> {
                             image.setStatus(0);
                             image.setDeletedAt(java.time.LocalDateTime.now());
+                            // UNIQUE 제약조건 충돌 방지를 위해 imageOrder를 roomImageIdx + 10000으로 변경
+                            // (각 삭제된 이미지마다 고유한 imageOrder 보장, 활성 이미지 범위(1-10)와 충돌 방지)
+                            image.setImageOrder(imageIdx + 10000); // roomImageIdx + 10000을 imageOrder로 사용
                             roomImageRepository.save(image);
-                            log.info("✅ RoomImage 소프트 삭제 완료: contentId={}, roomIdx={}, roomImageIdx={}", 
-                                contentId, savedRoomIdx, imageIdx);
+                            log.info("✅ RoomImage 소프트 삭제 완료: contentId={}, roomIdx={}, roomImageIdx={}, imageOrder={}", 
+                                contentId, savedRoomIdx, imageIdx, imageIdx + 10000);
                         });
                     }
                     
-                    // 새 이미지 저장 (고유키가 없는 이미지만 INSERT)
-                    final int[] imageOrderRef = {1}; // final 배열로 감싸서 람다에서 사용 가능하게
+                    // 먼저 기존 이미지의 순서를 업데이트 (신규 이미지 INSERT 전에 충돌 방지)
+                    for (HotelEditFormDto.RoomImageDto imageDto : roomDto.getImages()) {
+                        if (imageDto.getImageUrl() != null && !imageDto.getImageUrl().isEmpty()) {
+                            if (imageDto.getRoomImageIdx() != null) {
+                                // 기존 이미지: 순서만 먼저 업데이트
+                                Integer imageOrder = imageDto.getImageOrder() != null ? imageDto.getImageOrder() : 1;
+                                roomImageRepository.findById(imageDto.getRoomImageIdx()).ifPresent(existingImage -> {
+                                    if (!existingImage.getImageOrder().equals(imageOrder)) {
+                                        existingImage.setImageOrder(imageOrder);
+                                        roomImageRepository.save(existingImage);
+                                        log.info("✅ RoomImage 순서 업데이트: contentId={}, roomIdx={}, roomImageIdx={}, imageOrder={}", 
+                                            contentId, savedRoomIdx, imageDto.getRoomImageIdx(), imageOrder);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 그 다음 신규 이미지 INSERT (기존 이미지 순서 업데이트 완료 후)
                     for (HotelEditFormDto.RoomImageDto imageDto : roomDto.getImages()) {
                         if (imageDto.getImageUrl() != null && !imageDto.getImageUrl().isEmpty()) {
                             if (imageDto.getRoomImageIdx() == null) {
-                                // 신규 이미지: INSERT
+                                // 신규 이미지: INSERT (프론트엔드에서 전달한 imageOrder 사용)
+                                Integer imageOrder = imageDto.getImageOrder() != null ? imageDto.getImageOrder() : 1;
+                                
+                                // UNIQUE 제약조건 충돌 방지: 해당 imageOrder가 이미 사용 중인지 확인
+                                // (활성 이미지만 확인, 삭제된 이미지는 imageOrder >= 10000이므로 충돌 없음)
+                                final Integer finalImageOrder = imageOrder; // final 변수로 복사
+                                boolean orderExists = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(savedRoomIdx, contentId)
+                                    .stream()
+                                    .anyMatch(img -> img.getImageOrder().equals(finalImageOrder) && img.getStatus() == 1);
+                                
+                                Integer adjustedImageOrder = imageOrder;
+                                if (orderExists) {
+                                    // 충돌 발생 시 사용 가능한 다음 순서 찾기
+                                    List<Integer> usedOrders = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(savedRoomIdx, contentId)
+                                        .stream()
+                                        .filter(img -> img.getStatus() == 1)
+                                        .map(RoomImage::getImageOrder)
+                                        .collect(Collectors.toList());
+                                    
+                                    for (int i = 1; i <= 10; i++) {
+                                        if (!usedOrders.contains(i)) {
+                                            adjustedImageOrder = i;
+                                            break;
+                                        }
+                                    }
+                                    log.warn("⚠️ RoomImage imageOrder 충돌 감지, 자동 조정: contentId={}, roomIdx={}, imageOrder={}", 
+                                        contentId, savedRoomIdx, adjustedImageOrder);
+                                }
+                                
                                 RoomImage roomImage = new RoomImage();
                                 roomImage.setRoomIdx(savedRoomIdx);
                                 roomImage.setContentId(contentId);
                                 roomImage.setImageUrl(imageDto.getImageUrl());
-                                roomImage.setImageOrder(imageOrderRef[0]);
+                                roomImage.setImageOrder(adjustedImageOrder);
                                 roomImage.setStatus(1); // 활성 상태
                                 roomImageRepository.save(roomImage);
                                 log.info("✅ RoomImage 신규 저장 완료: contentId={}, roomIdx={}, imageOrder={}, imageUrl={}", 
-                                    contentId, savedRoomIdx, imageOrderRef[0], imageDto.getImageUrl());
-                            } else {
-                                // 기존 이미지: 순서만 업데이트 (필요 시)
-                                final int currentOrder = imageOrderRef[0]; // final 변수로 복사
-                                roomImageRepository.findById(imageDto.getRoomImageIdx()).ifPresent(existingImage -> {
-                                    if (!existingImage.getImageOrder().equals(currentOrder)) {
-                                        existingImage.setImageOrder(currentOrder);
-                                        roomImageRepository.save(existingImage);
-                                        log.info("✅ RoomImage 순서 업데이트: contentId={}, roomIdx={}, roomImageIdx={}, imageOrder={}", 
-                                            contentId, savedRoomIdx, imageDto.getRoomImageIdx(), currentOrder);
-                                    }
-                                });
+                                    contentId, savedRoomIdx, adjustedImageOrder, imageDto.getImageUrl());
                             }
-                            imageOrderRef[0]++;
                         }
                     }
                 }
@@ -741,16 +777,30 @@ public class HotelInfoService {
                 }
             }
             
-            // 7. HotelImage 저장
+            // 7. HotelImage 저장 또는 업데이트
             if (dto.getImages() != null && !dto.getImages().isEmpty()) {
                 for (HotelEditFormDto.ImageDto imageDto : dto.getImages()) {
-                    HotelImage hotelImage = new HotelImage();
-                    hotelImage.setContentId(contentId);
-                    hotelImage.setOriginUrl(imageDto.getOriginUrl());
-                    hotelImage.setSmallUrl(imageDto.getSmallUrl() != null ? imageDto.getSmallUrl() : imageDto.getOriginUrl());
-                    hotelImage.setStatus(1); // 활성 상태
-                    hotelImageRepository.save(hotelImage);
-                    log.info("✅ HotelImage 저장 완료: contentId={}, originUrl={}", contentId, imageDto.getOriginUrl());
+                    if (imageDto.getId() != null) {
+                        // 이미 DB에 저장된 이미지 (등록 페이지에서 업로드한 이미지): contentId만 업데이트
+                        hotelImageRepository.findById(imageDto.getId().intValue()).ifPresent(existingImage -> {
+                            if (existingImage.getContentId() == null) {
+                                existingImage.setContentId(contentId);
+                                hotelImageRepository.save(existingImage);
+                                log.info("✅ HotelImage contentId 업데이트 완료: id={}, contentId={}, originUrl={}", 
+                                    existingImage.getId(), contentId, existingImage.getOriginUrl());
+                            }
+                        });
+                    } else {
+                        // 신규 이미지: INSERT
+                        HotelImage hotelImage = new HotelImage();
+                        hotelImage.setContentId(contentId);
+                        hotelImage.setOriginUrl(imageDto.getOriginUrl());
+                        hotelImage.setSmallUrl(imageDto.getSmallUrl() != null ? imageDto.getSmallUrl() : imageDto.getOriginUrl());
+                        hotelImage.setStatus(1); // 활성 상태
+                        hotelImageRepository.save(hotelImage);
+                        log.info("✅ HotelImage 신규 저장 완료: contentId={}, originUrl={}", 
+                            contentId, imageDto.getOriginUrl());
+                    }
                 }
             }
             
