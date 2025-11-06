@@ -17,6 +17,7 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelDraft;
 import com.sist.backend.entity.RegistrationRequest;
 
+import com.sist.backend.service.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -38,14 +39,8 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
 import com.sist.backend.repository.admin.AdminRepository;
-import com.sist.backend.service.CouponTemplateService;
-import com.sist.backend.service.CustomerService;
-import com.sist.backend.service.HotelDraftService;
-import com.sist.backend.service.SettlementService;
 import com.sist.backend.service.hotel.HotelInfoService;
-import com.sist.backend.service.RegistrationRequestService;
-import com.sist.backend.service.RoomPaymentService;
-import com.sist.backend.service.RoomReservationService;
+import com.sist.backend.entity.Answer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -68,9 +63,10 @@ public class MasterManagementController {
     private final CustomerService customerService;
     private final CouponTemplateService couponTemplateService;
     private final RoomReservationService roomReservationService;
-    private final SettlementService settlementService;
     private final AdminRepository adminRepository;
     private final ObjectMapper objectMapper;
+    private final SettlementService settlementService;
+    private final AnswerService answerService;
 
     /**
      * 마스터 권한 확인 (type이 false(0)인지 확인)
@@ -530,6 +526,69 @@ public class MasterManagementController {
         }
     }
 
+    /**
+     * 1대1 문의 답변 작성
+     */
+    @PostMapping("/inquiry/{centerIdx}/answer")
+    @Operation(summary = "1대1 문의 답변 작성", description = "특정 문의에 대한 답변을 작성합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 작성됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> createInquiryAnswer(
+            @Parameter(description = "문의 고유번호")
+            @PathVariable Integer centerIdx,
+            @Parameter(description = "답변 내용")
+            @RequestBody Map<String, String> requestBody,
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
+
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        Map<String, Object> map = new HashMap<>();
+
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "인증 정보가 유효하지 않습니다.");
+                return ResponseEntity.badRequest().body(map);
+            }
+
+            String content = requestBody.get("content");
+            if (content == null || content.trim().isEmpty()) {
+                map.put("success", false);
+                map.put("message", "답변 내용을 입력해주세요.");
+                return ResponseEntity.badRequest().body(map);
+            }
+
+            // 답변 작성
+            Answer answer = answerService.createAnswer(centerIdx, adminIdx, content);
+
+            map.put("success", true);
+            map.put("message", "답변이 작성되었습니다.");
+            map.put("answer", answer);
+
+            return ResponseEntity.ok(map);
+        } catch (RuntimeException e) {
+            map.put("success", false);
+            map.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "답변 작성 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
+
     @PostMapping("/suspendCustomer")
     @Operation(summary = "회원 정지", description = "회원을 정지 처리합니다.")
     @ApiResponses(value = {
@@ -545,7 +604,7 @@ public class MasterManagementController {
         if (authCheck != null) {
             return authCheck;
         }
-        
+
         try {
             customerService.suspendCustomer(requestData.getCustomerIdx());
 
@@ -576,27 +635,27 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<?> getSettlements(
-            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
-            @RequestParam(value = "page", defaultValue = "0") int page, 
-            @Parameter(description = "페이지당 데이터 개수", example = "10") 
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "페이지당 데이터 개수", example = "10")
             @RequestParam(value = "size", defaultValue = "10") int size,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
         if (authCheck != null) {
             return authCheck;
         }
-        
+
         try {
             Pageable pageable = Pageable.ofSize(size).withPage(page);
             Page<SettlementDto> settlements = settlementService.findAllSettlements(pageable);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("content", settlements.getContent());
             response.put("totalElements", settlements.getTotalElements());
             response.put("totalPages", settlements.getTotalPages());
             response.put("currentPage", settlements.getNumber());
             response.put("size", settlements.getSize());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
@@ -615,16 +674,16 @@ public class MasterManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<?> createSettlement(
-            @Parameter(description = "연도", example = "2024") 
+            @Parameter(description = "연도", example = "2024")
             @RequestParam(value = "year", required = false) Integer year,
-            @Parameter(description = "월 (1-12)", example = "1") 
+            @Parameter(description = "월 (1-12)", example = "1")
             @RequestParam(value = "month", required = false) Integer month,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
         if (authCheck != null) {
             return authCheck;
         }
-        
+
         try {
             if (year != null && month != null) {
                 settlementService.createSettlementForMonth(year, month);
@@ -632,11 +691,11 @@ public class MasterManagementController {
                 // year와 month가 없으면 직전 달 정산 생성
                 settlementService.createSettlementForPreviousMonth();
             }
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "정산 데이터가 생성되었습니다.");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();

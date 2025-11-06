@@ -81,6 +81,9 @@ public class CustomerService {
         return customerRepository.findByContentIdAndSearchTerm(contentId, searchTerm);
     }
 
+    public Optional<Customer> findByEmail(String email) {
+        return customerRepository.findByEmail(email);
+    }
     public Optional<Customer> findByEmailAndStatus(String email, Integer status) {
         return customerRepository.findByEmailAndStatus(email, status);
     }

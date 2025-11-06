@@ -21,7 +21,7 @@ public class TossPaymentsService {
 
     private final TossPaymentsConfig tossPaymentsConfig;
 
-    private static final String TOSS_PAYMENTS_CONFIRM_URL = "https://api.tosspayments.com/v1/payments/confirm";
+    private static final String DEFAULT_API_BASE = "https://api.tosspayments.com";
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -51,13 +51,17 @@ public class TossPaymentsService {
             requestBody.put("amount", amount);
 
             log.info("TossPayments API 요청 데이터: orderId={}, amount={}", orderId, amount);
-            log.info("TossPayments API URL: {}", TOSS_PAYMENTS_CONFIRM_URL);
+            String baseUrl = tossPaymentsConfig.getPayments().getApiBaseUrl() != null
+                    ? tossPaymentsConfig.getPayments().getApiBaseUrl()
+                    : DEFAULT_API_BASE;
+            String confirmUrl = baseUrl + "/v1/payments/confirm";
+            log.info("TossPayments API URL: {}", confirmUrl);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             // TossPayments API 호출
             ResponseEntity<Map> response = restTemplate.exchange(
-                    TOSS_PAYMENTS_CONFIRM_URL,
+                    confirmUrl,
                     HttpMethod.POST,
                     request,
                     Map.class
@@ -104,7 +108,10 @@ public class TossPaymentsService {
             HttpEntity<String> request = new HttpEntity<>(headers);
 
             // TossPayments API 호출
-            String url = "https://api.tosspayments.com/v1/payments/" + paymentKey;
+            String baseUrl = tossPaymentsConfig.getPayments().getApiBaseUrl() != null
+                    ? tossPaymentsConfig.getPayments().getApiBaseUrl()
+                    : DEFAULT_API_BASE;
+            String url = baseUrl + "/v1/payments/" + paymentKey;
             ResponseEntity<Map> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -130,6 +137,7 @@ public class TossPaymentsService {
 
     /**
      * 결제 취소를 처리합니다.
+     * 관리자나 전액환불 시나리오를 위해 남겨둠돠
      *
      * @param paymentKey 결제 키
      * @param cancelReason 취소 사유
@@ -152,7 +160,10 @@ public class TossPaymentsService {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             // TossPayments API 호출
-            String url = "https://api.tosspayments.com/v1/payments/" + paymentKey + "/cancel";
+            String baseUrl = tossPaymentsConfig.getPayments().getApiBaseUrl() != null
+                    ? tossPaymentsConfig.getPayments().getApiBaseUrl()
+                    : DEFAULT_API_BASE;
+            String url = baseUrl + "/v1/payments/" + paymentKey + "/cancel";
             ResponseEntity<Map> response = restTemplate.exchange(
                     url,
                     HttpMethod.POST,
@@ -173,6 +184,55 @@ public class TossPaymentsService {
         } catch (Exception e) {
             log.error("TossPayments 결제 취소 중 오류 발생: paymentKey={}", paymentKey, e);
             throw new RuntimeException("TossPayments 결제 취소 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 부분 취소(부분 환불)를 처리합니다.
+     *
+     * @param paymentKey 결제 키
+     * @param cancelAmount 환불 금액(정수, KRW)
+     * @param cancelReason 취소 사유
+     */
+    public Map<String, Object> cancelPaymentWithAmount(String paymentKey, Integer cancelAmount, String cancelReason) {
+        try {
+            log.info("TossPayments 부분 결제 취소 시작: paymentKey={}, amount={}, reason={}", paymentKey, cancelAmount, cancelReason);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Basic " + java.util.Base64.getEncoder()
+                    .encodeToString((tossPaymentsConfig.getPayments().getSecretKey() + ":").getBytes()));
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("cancelReason", cancelReason);
+            requestBody.put("cancelAmount", cancelAmount);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+
+            String baseUrl = tossPaymentsConfig.getPayments().getApiBaseUrl() != null
+                    ? tossPaymentsConfig.getPayments().getApiBaseUrl()
+                    : DEFAULT_API_BASE;
+            String url = baseUrl + "/v1/payments/" + paymentKey + "/cancel";
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                log.info("TossPayments 부분 결제 취소 성공: {}", responseBody);
+                return responseBody;
+            } else {
+                log.error("TossPayments 부분 결제 취소 실패: status={}, body={}",
+                        response.getStatusCode(), response.getBody());
+                throw new RuntimeException("TossPayments 부분 결제 취소 실패");
+            }
+
+        } catch (Exception e) {
+            log.error("TossPayments 부분 결제 취소 중 오류 발생: paymentKey={}", paymentKey, e);
+            throw new RuntimeException("TossPayments 부분 결제 취소 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 }
