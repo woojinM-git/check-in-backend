@@ -1,5 +1,7 @@
 package com.sist.backend.service.bookmark;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,4 +26,13 @@ public class RoomBookmarkService {
     public void deleteRoomBookmark(Integer roomIdx, Integer customerIdx) {
         roomBookmarkRepository.deleteByRoomIdxAndCustomerIdx(roomIdx, customerIdx);
     }
+
+    public List<RoomBookMark> getRoomBookmarkList(Integer customerIdx) {
+        return roomBookmarkRepository.findAllByCustomerIdx(customerIdx);
+    }
+
+    public List<RoomBookMark> getRoomBookmarkOneList(String contentid, Integer customerIdx) {
+        return roomBookmarkRepository.findByContentidAndCustomerIdx(contentid, customerIdx);
+    }
+
 }

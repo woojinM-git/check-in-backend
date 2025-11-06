@@ -84,12 +84,13 @@ public class bookmarkController {
 
     @GetMapping("/roombookmark/save")
     @Operation(summary = "방 즐겨찾기 저장", description = "방 즐겨찾기를 저장합니다.")
-    public ResponseEntity<String> saveRoomBookmark(@RequestParam("contentId") Integer roomIdx) {
+    public ResponseEntity<String> saveRoomBookmark(@RequestParam("roomIdx") Integer roomIdx,@RequestParam("contentId") String contentid) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         CustomerAdminSignupDTO customer = (CustomerAdminSignupDTO) authentication.getPrincipal();
         RoomBookMark roomBookMark = new RoomBookMark();
         roomBookMark.setCustomerIdx(customer.getCustomerIdx());
         roomBookMark.setRoomIdx(roomIdx);
+        roomBookMark.setContentid(contentid);
         RoomBookMark savedRoomBookMark = roomBookmarkService.saveRoomBookmark(roomBookMark);
         if(savedRoomBookMark != null) {
             return ResponseEntity.ok("roombookmark save success");
@@ -106,6 +107,25 @@ public class bookmarkController {
         roomBookmarkService.deleteRoomBookmark(roomIdx, customer.getCustomerIdx());
         return ResponseEntity.ok("roombookmark delete success");
     }
+
+    @GetMapping("/roombookmark/list")
+    @Operation(summary = "방 즐겨찾기 목록", description = "방 즐겨찾기 목록을 조회합니다.")
+    public ResponseEntity<List<RoomBookMark>> getRoomBookmarkList() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO customer = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        List<RoomBookMark> roomBookmarkList = roomBookmarkService.getRoomBookmarkList(customer.getCustomerIdx());
+        return ResponseEntity.ok(roomBookmarkList);
+    }
+
+    @GetMapping("/roombookmark/onelist")
+    @Operation(summary = "한 호텔에 있는 방 목록", description = "해당 호텔에 대한 방 목록을 반환합니다")
+    public ResponseEntity<List<RoomBookMark>> getRoomBookmarkOneList(@RequestParam("contentId") String contentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO customer = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        List<RoomBookMark> roomBookmarkList = roomBookmarkService.getRoomBookmarkOneList(contentId, customer.getCustomerIdx());
+        return ResponseEntity.ok(roomBookmarkList);
+    }
+    
 
 
 
