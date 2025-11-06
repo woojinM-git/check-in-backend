@@ -115,6 +115,7 @@ public class SecurityJavaConfig {
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+                .requestMatchers("/api/bookmark/**").hasRole("CUSTOMER")
                 
                 // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
                 .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")

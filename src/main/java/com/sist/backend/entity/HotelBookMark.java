@@ -16,6 +16,7 @@ public class HotelBookMark {
     
     @Id
     @Column(name = "hotelBookIdx")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer hotelBookIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)

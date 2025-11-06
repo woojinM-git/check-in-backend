@@ -1,6 +1,7 @@
 package com.sist.backend.filter;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
@@ -374,11 +375,36 @@ public class JwtFilter extends OncePerRequestFilter {
             if(roleString.equals("customer")){
                 log.error("customer role 존재");
                 Object customerIdx = jwtProvider.getClaims(token).get("customerIdx");
-                customerAdminSignupDTO.setCustomerIdx(Integer.parseInt(customerIdx.toString()));
+                Optional<Customer> customer = customerService.findByCustomerIdxAndStatus(Integer.parseInt(customerIdx.toString()), 0);
+                if(customer.isPresent()){
+                    Customer customer_entity = customer.get();
+                    customerAdminSignupDTO.setCustomerIdx(Integer.parseInt(customerIdx.toString()));
+                    customerAdminSignupDTO.setId(customer_entity.getId());
+                    customerAdminSignupDTO.setNickname(customer_entity.getNickname());
+                    customerAdminSignupDTO.setCash(BigDecimal.valueOf(customer_entity.getCash()));
+                    customerAdminSignupDTO.setPoint(BigDecimal.valueOf(customer_entity.getPoint()));
+                    customerAdminSignupDTO.setRank(customer_entity.getRank());
+                    customerAdminSignupDTO.setRole("customer");
+                    customerAdminSignupDTO.setBirthday(customer_entity.getBirthday());
+                    customerAdminSignupDTO.setGender(customer_entity.getGender());
+                    customerAdminSignupDTO.setPhone(customer_entity.getPhone());
+                    customerAdminSignupDTO.setEmail(customer_entity.getEmail());
+                    customerAdminSignupDTO.setRefToken(customer_entity.getRefToken());
+                    customerAdminSignupDTO.setRefTokenUpdatedAt(customer_entity.getRefTokenUpdatedAt());
+                    customerAdminSignupDTO.setJoinDate(customer_entity.getJoinDate());
+                    customerAdminSignupDTO.setTotalPrice(BigDecimal.valueOf(customer_entity.getTotalPrice()));
+                }
             }else if(roleString.equals("admin")){
                 log.error("admin role 존재");
                 Object adminIdx = jwtProvider.getClaims(token).get("adminIdx");
-                customerAdminSignupDTO.setAdminIdx(Integer.parseInt(adminIdx.toString()));
+                Optional<Admin> admin = adminService.findByAdminIdxAndStatus(Integer.parseInt(adminIdx.toString()), false);
+                if(admin.isPresent()){
+                    Admin admin_entity = admin.get();
+                    customerAdminSignupDTO.setAdminIdx(Integer.parseInt(adminIdx.toString()));
+                    customerAdminSignupDTO.setId(admin_entity.getId());
+                    customerAdminSignupDTO.setRole("admin");
+                    customerAdminSignupDTO.setName(admin_entity.getName());
+                }
             }
         }else{
             log.error("role 없음");
