@@ -180,4 +180,30 @@ public class RoomReservationService {
     public Long countTotalHistoryByContentId(String contentid) {
         return roomReservationRepository.countTotalHistoryByContentId(contentid);
     }
+
+    /**
+     * 체크아웃 시간이 지난 예약확정(status=1) 예약을 이용완료(status=4)로 변경
+     * 체크아웃 날짜의 15시부터 24시간이 지난 예약만 처리
+     * 
+     * 처리 조건:
+     * - 체크아웃 날짜 < 어제 (체크아웃 날짜 + 1일 < 현재 날짜) → 항상 처리
+     * - 체크아웃 날짜 = 어제 (체크아웃 날짜 + 1일 = 현재 날짜) → 오늘 15시에 처리
+     * 
+     * 스케줄러가 매일 15시에 실행되므로, 체크아웃 날짜가 어제 이하인 모든 예약을 처리
+     * 
+     * 참고: 체크인 날짜나 숙박 기간(박수)과 무관하게 체크아웃 날짜만 기준으로 처리됩니다.
+     * 
+     * 
+     * @return 변경된 예약의 개수
+     */
+    @Transactional
+    public int completeExpiredReservations() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate yesterday = today.minusDays(1);
+        
+        // 체크아웃 날짜가 어제 이하인 모든 예약 처리
+        // 체크아웃 날짜 + 1일의 15시가 이미 지났으므로 처리 가능
+        // (1박, 연박, 장기 체류 모두 체크아웃 날짜 기준으로 동일하게 처리됨)
+        return roomReservationRepository.updateExpiredReservationsToCompleted(yesterday);
+    }
 }
