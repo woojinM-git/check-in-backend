@@ -1,5 +1,6 @@
 package com.sist.backend.controller.login;
 
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +21,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
@@ -38,13 +39,15 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.TimeUnit;
 
 @RestController
+@Slf4j
 @RequestMapping("/api/login")
 @Tag(name="로그인/회원가입", description="로그인/회원가입 관련 API")
 public class LoginController {
-    
     
 
     @Autowired
@@ -72,6 +75,8 @@ public class LoginController {
 
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
+
+    
 
     @GetMapping("/getaccesstoken")
     @Operation(summary="액세스 토큰 발급", description="액세스 토큰 발급")
@@ -351,9 +356,15 @@ public class LoginController {
     public ResponseEntity<Map<String, Object>> sendHotelReservationEmail(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         Map<String, Object> result = new HashMap<>();
         String inputemail = customerAdminSignupDTO.getEmail(); 
-        if(customerService.findByEmailAndStatus(inputemail,0).isPresent()){
+        Optional<Customer> customer_exist = customerService.findByEmailAndStatus(inputemail,0);
+        if(customer_exist.isPresent()){
             result.put("message","현재 사용 중인 이메일입니다.");
             result.put("status","fail");
+            if(customer_exist.get().getProvider() != null){
+                result.put("message","소셜 로그인 사용자입니다.");
+                result.put("status","fail");
+            }
+
             return ResponseEntity.ok(result);
         }
     try{
@@ -428,6 +439,7 @@ public class LoginController {
             Optional<Customer> customer = customerService.findByCustomerIdxAndStatus(principal.getCustomerIdx(),0);
             if(customer.isPresent()){
                 customer.get().setRefToken(null);
+                customer.get().setRefTokenUpdatedAt(null);
                 customerService.save(customer.get());
             }
         }else if(principal.getRole().equals("admin")){
@@ -453,6 +465,4 @@ public class LoginController {
     }
 
 
-
-    
 }

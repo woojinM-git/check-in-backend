@@ -7,6 +7,7 @@ import com.sist.backend.repository.*;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.HotelDetailRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
+import com.sist.backend.repository.hotel.HotelLocationRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
 import com.sist.backend.repository.RoomImageRepository;
 import com.sist.backend.repository.admin.AdminRepository;
@@ -34,6 +35,7 @@ public class HotelInfoService {
     private final HotelDetailRepository hotelDetailRepository;
     private final DiningRepository diningRepository;
     private final HotelImageRepository hotelImageRepository;
+    private final HotelLocationRepository hotelLocationRepository;
     private final RoomRepository roomRepository;
     private final RoomImageRepository roomImageRepository;
     private final AdminRepository adminRepository;
@@ -65,9 +67,18 @@ public class HotelInfoService {
     }
 
     public Page<HotelInfoDto> findAllHotelWithDetailsAsDto(String search, Pageable pageable) {
-        // search가 null이거나 빈 문자열이면 전체 조회
+        // search가 null이거나 빈 문자열이면 단순 조회 쿼리 사용 (성능 최적화)
         String searchTerm = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
-        Page<HotelInfo> hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDtoWithSearch(searchTerm, pageable);
+        
+        Page<HotelInfo> hotelInfoPage;
+        if (searchTerm == null) {
+            // 검색어가 없을 때: WHERE 절이 없는 단순 쿼리 사용
+            hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDto(pageable);
+        } else {
+            // 검색어가 있을 때: WHERE 절이 있는 검색 쿼리 사용
+            hotelInfoPage = hotelInfoRepository.findAllHotelWithDetailsAsDtoWithSearch(searchTerm, pageable);
+        }
+        
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
 
@@ -260,26 +271,31 @@ public class HotelInfoService {
             String contentId = UUID.randomUUID().toString().replace("-", "").substring(0, 20);
             log.info("생성된 contentId: {}", contentId);
             
-            // 2. Admin 조회
-            // status = false(0): 활성 상태, status = true(1): 비활성 상태
-            Admin admin = adminRepository.findByAdminIdxAndStatus(adminIdx, false)
-                .orElseThrow(() -> new IllegalArgumentException("관리자를 찾을 수 없습니다: " + adminIdx));
+            // 2. Admin 존재 여부 확인 (유효성 검증)
+            if (!adminRepository.findByAdminIdxAndStatus(adminIdx, false).isPresent()) {
+                throw new IllegalArgumentException("관리자를 찾을 수 없습니다: " + adminIdx);
+            }
             
             // 3. HotelInfo 생성 및 저장
             HotelInfo hotelInfo = new HotelInfo();
             hotelInfo.setContentId(contentId);
-            hotelInfo.setAdmin(admin);
-            hotelInfo.setAdminIdx(adminIdx);
+            hotelInfo.setAdminIdx(adminIdx); // 직접 adminIdx 설정 (성능 최적화)
             hotelInfo.setTitle(dto.getHotelInfo().getTitle());
             hotelInfo.setAdress(dto.getHotelInfo().getAdress());
             hotelInfo.setTel(dto.getHotelInfo().getTel());
-            hotelInfo.setAreaCode(dto.getArea().getAreaCode());
+            hotelInfo.setImageUrl(dto.getHotelInfo().getImageUrl()); // 대표 이미지 URL 설정
+            // areaCode 설정 (area가 null이면 null 또는 빈 문자열로 설정)
+            if (dto.getArea() != null && dto.getArea().getAreaCode() != null) {
+                hotelInfo.setAreaCode(dto.getArea().getAreaCode());
+            } else {
+                hotelInfo.setAreaCode(null); // area가 없으면 null로 설정
+            }
             hotelInfo.setHotelCategoryCode("B02010100"); // 기본값: 호텔
             hotelInfo.setStatus(0); // 승인 완료 상태
             hotelInfoRepository.save(hotelInfo);
-            log.info("✅ HotelInfo 저장 완료: contentId={}, title={}", contentId, hotelInfo.getTitle());
+            log.info("✅ HotelInfo 저장 완료: contentId={}, title={}, imageUrl={}", contentId, hotelInfo.getTitle(), hotelInfo.getImageUrl());
             
-            // 4. HotelDetail 생성 및 저장
+               // 4. HotelDetail 생성 및 저장
             HotelDetail hotelDetail = new HotelDetail();
             hotelDetail.setContentid(contentId);
             if (dto.getHotelDetail() != null) {
@@ -288,10 +304,35 @@ public class HotelInfoService {
                 hotelDetail.setScalelodging(dto.getHotelDetail().getScalelodging());
                 hotelDetail.setParkinglodging(dto.getHotelDetail().getParkinglodging());
             }
+            // roomcount는 객실 총 개수로 설정 (dto.getRooms()의 크기)
+            if (dto.getRooms() != null && !dto.getRooms().isEmpty()) {
+                hotelDetail.setRoomcount(String.valueOf(dto.getRooms().size()));
+            } else {
+                hotelDetail.setRoomcount("0");
+            }
             hotelDetailRepository.save(hotelDetail);
-            log.info("✅ HotelDetail 저장 완료: contentId={}", contentId);
+            log.info("✅ HotelDetail 저장 완료: contentId={}, roomcount={}", contentId, hotelDetail.getRoomcount());
             
-            // 5. Room 생성 및 저장
+            // 5. HotelLocation 생성 및 저장 (좌표 정보)
+            if (dto.getHotelInfo() != null && dto.getHotelInfo().getLatitude() != null && 
+                dto.getHotelInfo().getLongitude() != null && 
+                !dto.getHotelInfo().getLatitude().isEmpty() && 
+                !dto.getHotelInfo().getLongitude().isEmpty()) {
+                try {
+                    HotelLocation hotelLocation = new HotelLocation();
+                    hotelLocation.setContentId(contentId);
+                    // 위도(latitude) → mapY, 경도(longitude) → mapX
+                    hotelLocation.setMapY(new java.math.BigDecimal(dto.getHotelInfo().getLatitude()));
+                    hotelLocation.setMapX(new java.math.BigDecimal(dto.getHotelInfo().getLongitude()));
+                    hotelLocationRepository.save(hotelLocation);
+                    log.info("✅ HotelLocation 저장 완료: contentId={}, mapX={}, mapY={}", 
+                        contentId, hotelLocation.getMapX(), hotelLocation.getMapY());
+                } catch (Exception e) {
+                    log.warn("⚠️ HotelLocation 저장 실패: contentId={}, error={}", contentId, e.getMessage());
+                }
+            }
+            
+            // 6. Room 생성 및 저장
             if (dto.getRooms() != null && !dto.getRooms().isEmpty()) {
                 for (HotelEditFormDto.RoomDto roomDto : dto.getRooms()) {
                     Room room = new Room();
@@ -300,15 +341,20 @@ public class HotelInfoService {
                     room.setName(roomDto.getName());
                     room.setCapacity(roomDto.getCapacity());
                     room.setBasePrice(roomDto.getBasePrice());
-                    room.setRefundable(roomDto.getRefundable());
+                    // refundable: Boolean이지만 DB에는 int로 저장됨 (true=1, false=0), 기본값 true (환불 가능)
+                    room.setRefundable(roomDto.getRefundable() != null ? roomDto.getRefundable() : true);
                     room.setBreakfastIncluded(roomDto.getBreakfastIncluded());
                     room.setSmoking(roomDto.getSmoking());
-                    room.setRoomCount(roomDto.getRoomCount());
-                    room.setStatus(1); // 활성 상태
+                    // roomCount는 기본값 1로 설정 (null이면 1)
+                    room.setRoomCount(roomDto.getRoomCount() != null ? roomDto.getRoomCount() : 1);
+                    // status는 사용자가 선택한 값 또는 기본값 1
+                    room.setStatus(roomDto.getStatus() != null ? roomDto.getStatus() : 1);
+                    // imageUrl은 객실 대표 이미지 (1장)
+                    room.setImageUrl(roomDto.getImageUrl());
                     
                     roomRepository.save(room);
                     Integer savedRoomIdx = room.getRoomIdx(); // DB에서 자동 생성된 roomIdx 확인
-                    log.info("✅ Room 저장 완료: contentId={}, roomIdx={}, name={}", contentId, savedRoomIdx, room.getName());
+                    log.info("✅ Room 저장 완료: contentId={}, roomIdx={}, name={}, imageUrl={}", contentId, savedRoomIdx, room.getName(), room.getImageUrl());
                     
                     // 6. RoomImage 저장
                     if (roomDto.getImages() != null && !roomDto.getImages().isEmpty()) {
