@@ -72,7 +72,9 @@ public class ReservationQueryController {
             }
         }
 
-        Integer totalPrice = r.getTotalPrice() != null ? r.getTotalPrice() : (cardPaid + couponDiscount + pointsUsed + cashUsed);
+        // totalPrice 재계산: 실제 사용한 모든 금액 합산 (환불 계산용)
+        // DB의 totalPrice는 실제 총액과 다를 수 있으므로, 실제 사용 금액을 합산
+        Integer totalPrice = cardPaid + cashUsed + pointsUsed;
 
         // orderNum 필드 매핑
         String orderNum = r.getOrderNum();

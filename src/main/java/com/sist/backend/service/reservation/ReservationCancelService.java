@@ -74,10 +74,13 @@ public class ReservationCancelService {
         }
 
         // 4) 환불 금액 계산 (사용자 요구사항 로직)
-        int totalPrice = reservation.getTotalPrice() != null ? reservation.getTotalPrice() : 0;
         int pointsUsed = (payment.getPointsUsed() != null) ? payment.getPointsUsed() : 0;
         int cashUsed = (payment.getCashUsed() != null) ? payment.getCashUsed() : 0;
         int cardPaid = (payment.getPrice() != null) ? payment.getPrice() : 0;
+
+        // totalPrice 재계산: 실제 사용한 모든 금액 합산 (환불 계산용)
+        // DB의 totalPrice는 실제 총액과 다를 수 있으므로, 실제 사용 금액을 합산
+        int totalPrice = cardPaid + cashUsed + pointsUsed;
 
         RefundCalculationResult refundResult = calculateRefund(
                 totalPrice, couponDiscount, cardPaid, cashUsed, pointsUsed, refundRate);
