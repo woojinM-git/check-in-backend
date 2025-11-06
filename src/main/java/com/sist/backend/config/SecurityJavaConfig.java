@@ -145,8 +145,14 @@ public class SecurityJavaConfig {
                         )
                         // 인증 성공 핸들러 설정 (사용자 처리 성공 후 실행)
                         .successHandler(oAuth2AuthenticationSuccessHandler) // JWT 발급 및 리다이렉트
-                        // 인증 실패 핸들러는 필요에 따라 추가 가능 (예시에서는 주석 처리)
-                        // .failureHandler(oAuth2AuthenticationFailureHandler)
+                        // 인증 실패 핸들러: 예외 발생 시 프론트로 에러 전달
+                        .failureHandler((request, response, exception) -> {
+                            String errorMessage = "이미 다른 방식으로 가입된 이력이 있는 이메일입니다.";
+                            // 프론트로 에러 메시지와 함께 리다이렉트
+                            String redirectUrl = String.format("http://localhost:3333/login?error=oauth2_failed&message=%s", 
+                                java.net.URLEncoder.encode(errorMessage, java.nio.charset.StandardCharsets.UTF_8));
+                            response.sendRedirect(redirectUrl);
+                        })
                         .loginPage("/api/login/apiLogin")
                         
             );
