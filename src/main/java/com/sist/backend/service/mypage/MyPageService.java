@@ -10,9 +10,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
+import com.sist.backend.dto.mypage.DiningReservationResponseDTO;
 import com.sist.backend.dto.mypage.WritableReviewDTO;
 import com.sist.backend.entity.RoomReservation;
+import com.sist.backend.entity.DiningReservation;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.DiningReservationRepository;
 import com.sist.backend.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +26,7 @@ import java.time.LocalDate;
 public class MyPageService {
     
     private final RoomReservationRepository roomReservationRepository;
+    private final DiningReservationRepository diningReservationRepository;
     private final ReviewRepository reviewRepository;
     
     // 날짜 포맷터 (YYYY.MM.DD)
@@ -159,6 +163,26 @@ public class MyPageService {
         // 3. Entity → DTO 변환
         return convertToDTO(reservation);
     }
+
+    /**
+     * 다이닝 예약 상세 정보 조회
+     * @param reservationId 다이닝 예약 ID (diningResrIdx)
+     * @param customerIdx 고객 ID (권한 검증용)
+     * @return DiningReservationResponseDTO
+     */
+    public DiningReservationResponseDTO getDiningReservationDetail(Integer reservationId, Integer customerIdx) {
+        // 1. 예약 정보 조회 (권한 검증 포함)
+        DiningReservation reservation = diningReservationRepository.findById(reservationId)
+            .orElse(null);
+        
+        // 2. 예약이 없거나 다른 고객의 예약인 경우 null 반환
+        if (reservation == null || !reservation.getCustomerIdx().equals(customerIdx)) {
+            return null;
+        }
+        
+        // 3. Entity → DTO 변환
+        return convertDiningToDTO(reservation);
+    }
     
     /**
      * 상태 코드를 한글 문자열로 변환
@@ -229,6 +253,84 @@ public class MyPageService {
                 : "객실 정보 없음")
             .checkOutDate(checkOut != null ? checkOut.format(DATE_FORMATTER) : "")
             .daysLeft(daysLeft)
+            .build();
+    }
+
+    /* 다이닝 예약 내역 조회 (페이지네이션 지원) */
+    public Page<DiningReservationResponseDTO> getMyDiningReservationsByStatus(Integer customerIdx, String status, int page, int size) {
+        // 1. 상태 문자열을 코드로 매핑
+        List<Integer> statusCodes = mapStatusToCodes(status);
+
+        // 2. Pageable 객체 생성
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 3. Repository에서 페이지네이션된 데이터 조회 (Dining 정보 포함)
+        Page<DiningReservation> reservationsPage = diningReservationRepository
+            .findByCustomerIdxAndStatusWithPagination(customerIdx, statusCodes, pageable);
+
+        // 4. Entity → DTO 변환 (Page 객체 유지)
+        return reservationsPage.map(this::convertDiningToDTO);
+    }
+
+    /**
+     * DiningReservation Entity를 DiningReservationResponseDTO로 변환
+     */
+    private DiningReservationResponseDTO convertDiningToDTO(DiningReservation reservation) {
+        return DiningReservationResponseDTO.builder()
+            // 기본 예약 정보
+            .id(reservation.getDiningResrIdx())
+            .reservationNumber("D" + reservation.getDiningResrIdx())
+            
+            // 다이닝 정보 (Dining -> HotelInfo)
+            .diningName(reservation.getDining() != null 
+                ? reservation.getDining().getName() 
+                : "다이닝 정보 없음")
+            .hotelName(reservation.getDining() != null 
+                && reservation.getDining().getHotelInfo() != null 
+                ? reservation.getDining().getHotelInfo().getTitle() 
+                : "호텔명 없음")
+            .location(reservation.getDining() != null 
+                && reservation.getDining().getHotelInfo() != null 
+                && reservation.getDining().getHotelInfo().getArea() != null
+                ? reservation.getDining().getHotelInfo().getArea().getAreaName()
+                : reservation.getDining() != null 
+                    && reservation.getDining().getHotelInfo() != null
+                    ? reservation.getDining().getHotelInfo().getAdress()
+                    : "위치 정보 없음")
+            .contentId(reservation.getDining() != null 
+                ? reservation.getDining().getContentid() 
+                : null)
+            .diningIdx(reservation.getDiningIdx())
+            
+            // 예약 상세 정보
+            .reservationDate(reservation.getReservationDate() != null 
+                ? reservation.getReservationDate().format(DATE_FORMATTER) 
+                : "")
+            .reservationTime(reservation.getReservationTime() != null 
+                ? reservation.getReservationTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) 
+                : "")
+            .guest(reservation.getGuest())
+            .totalPrice(reservation.getTotalPrice())
+            
+            // 예약 상태
+            .status(mapStatusCodeToString(reservation.getStatus()))
+            .statusCode(reservation.getStatus())
+            
+            // 환불 정보 (취소 시 - 실제로는 DiningPayment에서 가져와야 함)
+            .refundAmount(reservation.getStatus() == 2 || reservation.getStatus() == 3 
+                ? (int)(reservation.getTotalPrice() * 0.9) // 임시: 90% 환불
+                : null)
+            
+            // 생성/수정 시간
+            .createdAt(reservation.getCreatedAt() != null 
+                ? reservation.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"))
+                : "")
+            .updatedAt(reservation.getUpdatedAt() != null 
+                ? reservation.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"))
+                : "")
+            
+            // 예약 타입 구분
+            .type("dining")
             .build();
     }
 }
