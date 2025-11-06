@@ -21,7 +21,7 @@ public class RoomReservationScheduler {
      * 체크아웃 날짜의 15시부터 24시간이 지난 예약을 이용완료(4)로 변경
      * 체크아웃은 15시 전에 이루어지므로, 체크아웃 날짜 + 1일의 15시에 실행하면 충분
      */
-    @Scheduled(cron = "0 0 15 * * ?") // 매일 15시 정각 실행
+    @Scheduled(cron = "0 0 9 * * ?") // 매일 15시 정각 실행
     public void completeExpiredReservations() {
         try {
             log.info("체크아웃 시간이 지난 예약 이용완료 처리 시작");
