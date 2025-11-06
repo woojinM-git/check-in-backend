@@ -34,6 +34,10 @@ server:
     mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
     min-response-size: 1024
 
+# 프로덕션 환경 프론트엔드 URL
+frontend:
+  url: ${FRONTEND_URL:http://15.164.210.141}
+
 # 프로덕션용 보안 설정
 management:
   endpoints:
