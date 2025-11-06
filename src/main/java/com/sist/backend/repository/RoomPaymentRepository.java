@@ -20,7 +20,7 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
     Long findByPrice();
     
     @Query("SELECT rp FROM RoomPayment rp WHERE rp.paymentKey = :paymentKey AND rp.status = 1")
-    Optional<RoomPayment> findByPaymentKeyAndStatus(@Param("paymentKey") String paymentKey);
+    Optional<RoomPayment> findByPaymentKeyAndStatus(String paymentKey);
 
     @Query("SELECT rp FROM RoomPayment rp " +
         "LEFT JOIN FETCH rp.roomReservations rr " +
@@ -44,4 +44,23 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
            "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx " +
            "WHERE rr.contentid = :contentid AND rp.status = 1")
     Double findAveragePaymentByContentId(@Param("contentid") String contentid);
+
+    /* 특정 호텔의 월별 총 수익 계산 (결제 완료된 것만) */
+    @Query("SELECT COALESCE(SUM(rp.price), 0) FROM RoomPayment rp " +
+           "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx " +
+           "WHERE rr.contentid = :contentId " +
+           "AND rp.status = 1 " +
+           "AND YEAR(rp.approvedAt) = :year " +
+           "AND MONTH(rp.approvedAt) = :month")
+    Long findTotalRevenueByContentIdAndMonth(
+        @Param("contentId") String contentId,
+        @Param("year") int year,
+        @Param("month") int month);
+
+    /**
+     * orderIdx(PK)로 결제 조회 (JpaRepository#findById로도 가능하지만 가독성을 위해 별도 노출)
+     */
+    default java.util.Optional<RoomPayment> findByOrderIdx(Integer orderIdx) {
+        return this.findById(orderIdx);
+    }
 }

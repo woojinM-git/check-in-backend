@@ -1,6 +1,8 @@
 package com.sist.backend.service.hotel;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,13 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.HotelResponse;
+import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
+import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelDetail;
 import com.sist.backend.entity.HotelImage;
 import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.entity.Review;
 import com.sist.backend.entity.Room;
 import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.ReviewRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
@@ -36,6 +43,8 @@ public class HotelQueryService {
     private final RoomRepository roomRepository;
     private final RoomAdvancedMapper roomAdvancedMapper;
     private final HotelImageRepository hotelImageRepository;
+    private final ReviewRepository reviewRepository;
+    private final CustomerRepository customerRepository;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -165,5 +174,66 @@ public class HotelQueryService {
                 .originUrl(image.getOriginUrl())
                 .smallUrl(image.getSmallUrl())
                 .build();
+    }
+
+    // 호텔 리뷰 목록 조회
+    public List<ReviewResponse> getReviews(String contentId) {
+        List<Review> reviews = reviewRepository.findByContentId(contentId);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        return reviews.stream().map(review -> {
+            // Customer 정보 조회
+            String userName = "익명";
+            Optional<Customer> customerOpt = customerRepository.findById(review.getCustomerIdx());
+            if (customerOpt.isPresent()) {
+                Customer customer = customerOpt.get();
+                userName = customer.getName() != null && !customer.getName().isBlank()
+                        ? customer.getName()
+                        : (customer.getNickname() != null && !customer.getNickname().isBlank()
+                        ? customer.getNickname()
+                        : "익명");
+            }
+
+            // Room 정보 조회
+            String roomType = null;
+            Optional<Room> roomOpt = roomRepository.findById(review.getRoomIdx());
+            if (roomOpt.isPresent()) {
+                roomType = roomOpt.get().getName();
+            }
+
+            // star를 0-10 스케일로 변환 (DB는 0-5 스케일)
+            Double rating = null;
+            if (review.getStar() != null) {
+                rating = review.getStar().doubleValue() * 2.0; // 0-5를 0-10으로 변환
+            }
+
+            // 날짜 포맷팅
+            String date = review.getCreatedAt() != null
+                    ? review.getCreatedAt().format(formatter)
+                    : null;
+
+            return ReviewResponse.builder()
+                    .id(review.getReviewIdx())
+                    .userName(userName)
+                    .date(date)
+                    .roomType(roomType)
+                    .rating(rating)
+                    .comment(review.getContent())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    // 호텔 평균 평점 및 리뷰 개수 조회
+    public Map<String, Object> getReviewSummary(String contentId) {
+        BigDecimal avgRating = reviewRepository.findAverageRatingByContentId(contentId);
+        Long reviewCount = reviewRepository.countFeedbackByContentId(contentId);
+
+        // 평점을 0-10 스케일로 변환
+        Double rating = avgRating != null ? avgRating.doubleValue() * 2.0 : 0.0;
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("rating", rating);
+        summary.put("reviewCount", reviewCount != null ? reviewCount.intValue() : 0);
+        return summary;
     }
 }

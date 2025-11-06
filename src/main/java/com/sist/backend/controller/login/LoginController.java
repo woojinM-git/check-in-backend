@@ -356,9 +356,15 @@ public class LoginController {
     public ResponseEntity<Map<String, Object>> sendHotelReservationEmail(@RequestBody CustomerAdminSignupDTO customerAdminSignupDTO) {
         Map<String, Object> result = new HashMap<>();
         String inputemail = customerAdminSignupDTO.getEmail(); 
-        if(customerService.findByEmailAndStatus(inputemail,0).isPresent()){
+        Optional<Customer> customer_exist = customerService.findByEmailAndStatus(inputemail,0);
+        if(customer_exist.isPresent()){
             result.put("message","현재 사용 중인 이메일입니다.");
             result.put("status","fail");
+            if(customer_exist.get().getProvider() != null){
+                result.put("message","소셜 로그인 사용자입니다.");
+                result.put("status","fail");
+            }
+
             return ResponseEntity.ok(result);
         }
     try{
@@ -433,6 +439,7 @@ public class LoginController {
             Optional<Customer> customer = customerService.findByCustomerIdxAndStatus(principal.getCustomerIdx(),0);
             if(customer.isPresent()){
                 customer.get().setRefToken(null);
+                customer.get().setRefTokenUpdatedAt(null);
                 customerService.save(customer.get());
             }
         }else if(principal.getRole().equals("admin")){
@@ -458,13 +465,4 @@ public class LoginController {
     }
 
 
-
-    @GetMapping("/apiLogin")
-    @Operation(summary="API 로그인", description="API 로그인 페이지")
-    public ResponseEntity<Map<String, Object>> apiLogin() {
-        Map<String, Object> result = new HashMap<>();
-        result.put("message","API 로그인 페이지");
-        result.put("status","success");
-        return ResponseEntity.ok(result);
-    }
 }

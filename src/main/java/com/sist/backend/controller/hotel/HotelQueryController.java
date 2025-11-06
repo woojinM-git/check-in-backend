@@ -2,6 +2,7 @@ package com.sist.backend.controller.hotel;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sist.backend.dto.hotel.HotelImageResponse;
+import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.service.hotel.HotelQueryService;
@@ -101,5 +103,27 @@ public class HotelQueryController {
             @RequestParam(name = "checkoutDate") LocalDate checkoutDate
     ) {
         return ResponseEntity.ok(hotelQueryService.getRoomAvailability(contentId, checkinDate, checkoutDate));
+    }
+
+    // Swagger: 호텔 리뷰 목록 조회 API 문서
+    @Operation(summary = "호텔 리뷰 목록 조회", description = "contentId로 호텔 리뷰 목록을 조회합니다. 삭제되지 않고 숨김 처리되지 않은 리뷰만 반환됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{contentId}/reviews")
+    public ResponseEntity<List<ReviewResponse>> getReviews(@PathVariable(name = "contentId") String contentId) {
+        return ResponseEntity.ok(hotelQueryService.getReviews(contentId));
+    }
+
+    // Swagger: 호텔 평균 평점 및 리뷰 개수 조회 API 문서
+    @Operation(summary = "호텔 리뷰 요약 조회", description = "contentId로 호텔의 평균 평점과 리뷰 개수를 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{contentId}/reviews/summary")
+    public ResponseEntity<Map<String, Object>> getReviewSummary(@PathVariable(name = "contentId") String contentId) {
+        return ResponseEntity.ok(hotelQueryService.getReviewSummary(contentId));
     }
 }
