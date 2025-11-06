@@ -1,7 +1,6 @@
 package com.sist.backend.dto.master;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import com.sist.backend.entity.Customer;
 
@@ -27,7 +26,8 @@ public class CustomerDto {
     private Integer status;
     private Integer totalPrice;
     private Integer point;
-    private LocalDateTime joinDate;
+    private LocalDate joinDate;
+    private Long reservationCount;
 
     /* 회원 등급 정보 객체 */
     private Rank rankEntity;
@@ -61,7 +61,7 @@ public class CustomerDto {
         dto.setStatus(customer.getStatus());
         dto.setTotalPrice(customer.getTotalPrice());
         dto.setPoint(customer.getPoint());
-        dto.setJoinDate(customer.getJoinDate());
+        dto.setJoinDate(customer.getJoinDate() != null ? customer.getJoinDate().toLocalDate() : null);
 
         if(customer.getRankEntity() != null) {
             Rank rank = new Rank();

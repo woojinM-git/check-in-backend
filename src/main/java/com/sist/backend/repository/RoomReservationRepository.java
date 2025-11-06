@@ -113,6 +113,11 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     /* customerIdx와 status로 예약 목록 조회 */
     List<RoomReservation> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
 
+    /* customerIdx와 status로 예약 개수 조회 */
+    @Query("SELECT COUNT(r) FROM RoomReservation r " +
+           "WHERE r.customerIdx = :customerIdx AND r.status = :status")
+    Long countByCustomerIdxAndStatus(@Param("customerIdx") Integer customerIdx, @Param("status") Integer status);
+
     /**
      * 같은 객실/콘텐츠/체크인 조합으로 활성 예약이 존재하는지 여부
      */
