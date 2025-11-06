@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.admin.CustomerListDto;
 import com.sist.backend.dto.master.CustomerDto;
@@ -54,7 +55,12 @@ public class CustomerService {
 
     public Page<CustomerDto> findCustomerAndRankDto(Pageable pageable){
         Page<Customer> customerPage = customerRepository.findCustomerAndRank(pageable);
-        return customerPage.map(CustomerDto::fromEntity);
+        return customerPage.map(customer -> {
+            CustomerDto dto = CustomerDto.fromEntity(customer);
+            Long reservationCount = roomReservationRepository.countByCustomerIdxAndStatus(customer.getCustomerIdx(), 4);
+            dto.setReservationCount(reservationCount);
+            return dto;
+        });
     }
 
     public Customer save(Customer customer){
@@ -83,6 +89,16 @@ public class CustomerService {
     }
     public Optional<Customer> findByCustomerIdxAndStatus(Integer customerIdx, Integer status) {
         return customerRepository.findByCustomerIdxAndStatus(customerIdx, status);
+    }
+
+    /* 회원 정지 처리 (status를 1로 변경) */
+    @Transactional
+    public Customer suspendCustomer(Integer customerIdx) {
+        Customer customer = customerRepository.findByCustomerIdx(customerIdx)
+            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        
+        customer.setStatus(1);
+        return customerRepository.save(customer);
     }
 
     /* 특정 호텔을 이용한 고객 목록 조회 (예약 통계 포함) */
