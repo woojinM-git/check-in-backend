@@ -102,7 +102,8 @@ public class StatisticsService {
 
     /**
      * 총 매출액 조회 (날짜 범위 적용)
-     * hotelSettlement 테이블의 commissionAmount 합계를 조회
+     * hotelSettlement 테이블의 totalRevenue 합계를 조회
+     * 플랫폼을 통한 모든 호텔의 총 거래액을 집계
      * settlementMonth가 날짜 범위에 포함되는 정산 데이터를 합산
      */
     private Long getTotalRevenue(LocalDate startDate, LocalDate endDate) {
@@ -115,7 +116,7 @@ public class StatisticsService {
         }
 
         Long result = queryFactory
-            .select(hotelSettlement.commissionAmount.sum())
+            .select(hotelSettlement.totalRevenue.sum())
             .from(hotelSettlement)
             .where(hotelSettlement.settlementMonth.in(settlementMonths))
             .fetchOne();
