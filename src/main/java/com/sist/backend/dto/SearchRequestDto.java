@@ -14,6 +14,7 @@ public class SearchRequestDto {
     private Integer priority;
     private Integer customerIdx;
     private Integer adminIdx;
+    private String contentId;
     private String title;
     private int page = 0;
     private int size = 10;
