@@ -155,6 +155,36 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
             @Param("customerIdx") Integer customerIdx,
             @Param("contentid") String contentid);
 
+    /**
+     * 총 매출액 조회 (status=4인 예약의 totalPrice 합계)
+     */
+    @Query("SELECT COALESCE(SUM(r.totalPrice), 0) FROM RoomReservation r WHERE r.status = 4")
+    Long getTotalRevenue();
+
+    /**
+     * 총 예약수 조회 (status=4인 예약의 개수)
+     */
+    @Query("SELECT COUNT(r) FROM RoomReservation r WHERE r.status = 4")
+    Long getTotalReservationCount();
+
+    /**
+     * 이번달 총 매출액 조회 (status=4이고 checkoutDate가 이번달인 예약의 totalPrice 합계)
+     */
+    @Query("SELECT COALESCE(SUM(r.totalPrice), 0) FROM RoomReservation r " +
+           "WHERE r.status = 4 " +
+           "AND YEAR(r.checkoutDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(r.checkoutDate) = MONTH(CURRENT_DATE)")
+    Long getMonthlyRevenue();
+
+    /**
+     * 이번달 총 예약수 조회 (status=4이고 checkoutDate가 이번달인 예약의 개수)
+     */
+    @Query("SELECT COUNT(r) FROM RoomReservation r " +
+           "WHERE r.status = 4 " +
+           "AND YEAR(r.checkoutDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(r.checkoutDate) = MONTH(CURRENT_DATE)")
+    Long getMonthlyReservationCount();
+
     /* 특정 호텔을 이용한 고객의 최근 방문 날짜 (오늘 기준 가장 가까운 과거 날짜) */
     @Query("SELECT MAX(r.checkinDate) FROM RoomReservation r " +
            "WHERE r.customerIdx = :customerIdx " +
