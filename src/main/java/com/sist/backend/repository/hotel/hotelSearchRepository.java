@@ -17,7 +17,7 @@ public interface hotelSearchRepository extends JpaRepository<HotelInfo, String> 
     Page<HotelInfo> findAll(Pageable pageable);
     
     @Query(value = 
-    "SELECT h.contentId, h.title, h.adress, h.tel, h.hotelCategoryCode, h.areaCode, h.imageUrl, h.status, h.adminIdx ,h.count " +
+    "SELECT h.contentId, h.title, h.adress, h.tel, h.hotelCategoryCode, h.areaCode, h.imageUrl, h.status, h.adminIdx, h.count " +
     "FROM hotelInfo h " +
     "WHERE (:searchPattern IS NULL OR :searchPattern = '' OR " +
     "  ((h.title IS NOT NULL AND h.title LIKE :searchPattern) " +
