@@ -485,16 +485,21 @@ public class PaymentService {
 
     /**
      * 적립금 계산 및 지급 + 등급 업데이트 - 실 결제 금액(realPrice)을 기준으로 적립 -
-     * customer.totalPrice에는 실 결제 금액만 누적
+     * customer.totalPrice에는 실 결제 금액만+ 현금자산인 캐시도 누적되게 바꿈
      */
     private void calculateAndAddRewards(PaymentRequestDto request, Integer orderIdx) {
         try {
+            //고객 정보 조회
             Customer customer = customerRepository.findById(request.getCustomerIdx())
                     .orElseThrow(() -> new RuntimeException("고객 정보를 찾을 수 없습니다: customerIdx=" + request.getCustomerIdx()));
 
+
             // 실 결제 금액은 amount와 동일하게 처리 (요청에 따라 amount==totalPrice)
             int realPrice = request.getAmount() != null ? request.getAmount() : 0;
-            log.info("적립 기준 금액 계산: 실결제={}", realPrice);
+
+            //캐시도 포함
+            int cashUsed = request.getCashUsed() != null ? request.getCashUsed() : 0; // 캐시 포함
+            log.info("적립 기준 금액 계산: 실결제={} 캐시={}", realPrice,cashUsed);
 
             // 현재 등급의 적립률 계산 (실 결제 금액 기준)
             String currentRank = customer.getRank() != null ? customer.getRank() : "Traveler";
@@ -521,7 +526,7 @@ public class PaymentService {
 
             // 누적 결제 금액 업데이트 (실 결제 금액만 누적)
             int currentTotalPrice = customer.getTotalPrice() != null ? customer.getTotalPrice() : 0;
-            customer.setTotalPrice(currentTotalPrice + realPrice);
+            customer.setTotalPrice(currentTotalPrice + realPrice+cashUsed);
 
             // 등급 자동 업데이트
             String oldRank = customer.getRank();
