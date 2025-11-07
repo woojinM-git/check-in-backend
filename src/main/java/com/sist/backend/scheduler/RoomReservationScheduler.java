@@ -1,6 +1,7 @@
 package com.sist.backend.scheduler;
 
 import com.sist.backend.service.RoomReservationService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,6 +16,15 @@ import org.springframework.stereotype.Component;
 public class RoomReservationScheduler {
 
     private final RoomReservationService roomReservationService;
+
+    /**
+     * 서버 시작 시 한 번 실행
+     */
+    @PostConstruct
+    public void init() {
+        log.info("서버 시작 시 체크아웃 시간이 지난 예약 이용완료 처리 실행");
+        completeExpiredReservations();
+    }
 
     /**
      * 체크아웃 시간이 지난 예약을 이용완료로 자동 변경 (매일 15시 실행)
