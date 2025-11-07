@@ -38,14 +38,16 @@ public interface CenterRepository extends JpaRepository<Center, Integer> {
     @Query("SELECT c FROM Center c WHERE c.content LIKE %:content%")
     Page<Center> findByContentContaining(@Param("content") String content, Pageable pageable);
     
-    // 복합 검색
+    // 복합 검색 (contentId가 "NULL" 문자열이면 IS NULL 조건, 값이 있으면 = 조건, null이면 필터링 없음)
+    // customerIdx가 -1이면 필터링 없음, 값이 있으면 해당 customerIdx만, null이면 아무것도 반환하지 않음
     @Query("SELECT c FROM Center c WHERE " +
            "(:mainCategory IS NULL OR c.mainCategory = :mainCategory) AND " +
            "(:subCategory IS NULL OR c.subCategory = :subCategory) AND " +
            "(:status IS NULL OR c.status = :status) AND " +
            "(:priority IS NULL OR c.priority = :priority) AND " +
-           "(:customerIdx IS NULL OR c.customerIdx = :customerIdx) AND " +
+           "(:customerIdx = -1 OR c.customerIdx = :customerIdx) AND " +
            "(:adminIdx IS NULL OR c.adminIdx = :adminIdx) AND " +
+           "(:contentId IS NULL OR (:contentId = 'NULL' AND c.contentId IS NULL) OR (:contentId != 'NULL' AND c.contentId = :contentId)) AND " +
            "(:title IS NULL OR c.title LIKE %:title% OR c.content LIKE %:title%)")
     Page<Center> findByMultipleConditions(
         @Param("mainCategory") String mainCategory,
@@ -54,7 +56,12 @@ public interface CenterRepository extends JpaRepository<Center, Integer> {
         @Param("priority") Integer priority,
         @Param("customerIdx") Integer customerIdx,
         @Param("adminIdx") Integer adminIdx,
+        @Param("contentId") String contentId,
         @Param("title") String title,
         Pageable pageable
     );
+    
+    // 특정 호텔에 대한 신고 존재 여부 확인 (고객별)
+    @Query("SELECT COUNT(c) > 0 FROM Center c WHERE c.mainCategory = '신고' AND c.contentId = :contentId AND c.customerIdx = :customerIdx")
+    boolean existsReportByContentIdAndCustomerIdx(@Param("contentId") String contentId, @Param("customerIdx") Integer customerIdx);
 }
