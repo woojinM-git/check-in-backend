@@ -3,6 +3,7 @@ package com.sist.backend.service.hotel;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +26,12 @@ import com.sist.backend.entity.Review;
 import com.sist.backend.entity.Room;
 import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
 import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.ReviewImageRepository;
 import com.sist.backend.repository.ReviewRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
+import com.sist.backend.service.ReviewImageService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +39,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HotelQueryService {
+
+    private final ReviewImageRepository reviewImageRepository;
 
     //용준 사용 호텔 디테일 창에서 객실 정보 편의시설 정보 이미지등
     //불러 올때 사용
@@ -45,6 +50,7 @@ public class HotelQueryService {
     private final HotelImageRepository hotelImageRepository;
     private final ReviewRepository reviewRepository;
     private final CustomerRepository customerRepository;
+    private final ReviewImageService reviewImageService;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -212,6 +218,19 @@ public class HotelQueryService {
                     ? review.getCreatedAt().format(formatter)
                     : null;
 
+            // 대표이미지 1장
+            String firstImageUrl = review.getImageUrl();
+
+            // 추가 이미지 2~5장 조회
+            List<String> imageUrls = reviewImageService.getReviewImageUrls(review.getReviewIdx());
+
+            // 대표 + 추가 이미지 합치기
+            List<String> allImageUrls = new ArrayList<>();
+            if(firstImageUrl != null && !firstImageUrl.isBlank()) {
+                allImageUrls.add(firstImageUrl);
+            }
+            allImageUrls.addAll(imageUrls);
+
             return ReviewResponse.builder()
                     .id(review.getReviewIdx())
                     .userName(userName)
@@ -219,6 +238,8 @@ public class HotelQueryService {
                     .roomType(roomType)
                     .rating(rating)
                     .comment(review.getContent())
+                    .imageUrl(firstImageUrl)
+                    .imageUrls(allImageUrls)
                     .build();
         }).collect(Collectors.toList());
     }
