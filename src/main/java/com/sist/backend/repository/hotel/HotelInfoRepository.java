@@ -4,6 +4,7 @@ import com.sist.backend.entity.HotelInfo;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -93,5 +94,12 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.area " +
            "WHERE h.adminIdx = :adminIdx")
     Optional<HotelInfo> findByAdminIdxWithDetails(@Param("adminIdx") Integer adminIdx);
+
+    //호텔 예약 수 count +1 증가시키는 메서드
+    //예약 성공시 호출됨
+    //DB에서 count+1증가시킴
+    @Modifying
+    @Query("UPDATE HotelInfo h SET h.count = h.count + 1 WHERE h.contentId = :contentId")
+    int increaseReservationCount(@Param("contentId") String contentId);
 }
 
