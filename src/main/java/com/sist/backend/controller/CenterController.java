@@ -18,10 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.Optional;
 
 import com.sist.backend.dto.SearchRequestDto;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Center;
+import com.sist.backend.entity.Admin;
+import com.sist.backend.repository.admin.AdminRepository;
 import com.sist.backend.service.CenterService;
 import com.sist.backend.service.AnswerService;
 import com.sist.backend.entity.Answer;
@@ -42,6 +45,7 @@ public class CenterController {
     
     private final CenterService centerService;
     private final AnswerService answerService;
+    private final AdminRepository adminRepository;
     
     /**
      * 고객센터 글 등록
@@ -184,6 +188,9 @@ public class CenterController {
     @Operation(summary = "고객센터 글 검색", description = "다양한 조건으로 고객센터 글을 검색합니다.")
     public ResponseEntity<Page<Center>> searchCenter(@RequestBody SearchRequestDto searchRequest) {
         
+        // 마스터인지 확인
+        boolean isMaster = isMasterUser();
+        
         // JWT에서 customerIdx 자동 설정 (고객인 경우, 명시적으로 전달되지 않은 경우)
         Integer customerIdxFromToken = getCustomerIdxFromToken();
         String mainCategory = searchRequest.getMainCategory();
@@ -191,15 +198,20 @@ public class CenterController {
         // customerIdx 처리: 문의/신고는 로그인 필수, FAQ는 필터링 없음
         Integer finalCustomerIdx = searchRequest.getCustomerIdx();
         if (mainCategory != null && (mainCategory.equals("문의") || mainCategory.equals("신고"))) {
-            // 명시적으로 customerIdx가 전달되지 않은 경우에만 자동 설정
-            if (finalCustomerIdx == null) {
-                if (customerIdxFromToken == null) {
-                    // 로그인하지 않은 경우 빈 결과 반환
-                    Pageable pageable = Pageable.ofSize(searchRequest.getSize()).withPage(searchRequest.getPage());
-                    return ResponseEntity.ok(Page.empty(pageable));
+            // 마스터인 경우 customerIdx 필터링 없음
+            if (isMaster) {
+                finalCustomerIdx = -1; // 마스터는 모든 문의/신고 조회 가능
+            } else {
+                // 명시적으로 customerIdx가 전달되지 않은 경우에만 자동 설정
+                if (finalCustomerIdx == null) {
+                    if (customerIdxFromToken == null) {
+                        // 로그인하지 않은 경우 빈 결과 반환
+                        Pageable pageable = Pageable.ofSize(searchRequest.getSize()).withPage(searchRequest.getPage());
+                        return ResponseEntity.ok(Page.empty(pageable));
+                    }
+                    // 로그인한 경우 자동으로 customerIdx 설정
+                    finalCustomerIdx = customerIdxFromToken;
                 }
-                // 로그인한 경우 자동으로 customerIdx 설정
-                finalCustomerIdx = customerIdxFromToken;
             }
         } else {
             // FAQ 등 다른 카테고리는 customerIdx 필터링 없음 (-1로 설정)
@@ -211,7 +223,10 @@ public class CenterController {
         // 문의인 경우 contentId 필터링 처리
         String contentIdFilter = null;
         if ("문의".equals(searchRequest.getMainCategory())) {
-            if (searchRequest.getContentId() == null) {
+            // 마스터인 경우 contentId 필터링 없음 (모든 문의 조회 가능)
+            if (isMaster) {
+                contentIdFilter = null; // 필터링 없음
+            } else if (searchRequest.getContentId() == null) {
                 // contentId가 명시되지 않았으면 "NULL" 문자열로 설정하여 IS NULL 조건 적용 (사이트 문의만)
                 contentIdFilter = "NULL";
             } else {
@@ -258,6 +273,37 @@ public class CenterController {
         
         boolean exists = centerService.existsReportByContentIdAndCustomerIdx(contentId, customerIdx);
         return ResponseEntity.ok(Map.of("exists", exists));
+    }
+    
+    /**
+     * 마스터 사용자인지 확인
+     * @return 마스터이면 true, 아니면 false
+     */
+    private boolean isMasterUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication != null) {
+                Object principal = authentication.getPrincipal();
+                
+                if (principal instanceof CustomerAdminSignupDTO) {
+                    CustomerAdminSignupDTO dto = (CustomerAdminSignupDTO) principal;
+                    // 관리자인 경우에만 확인
+                    if ("admin".equals(dto.getRole()) && dto.getAdminIdx() != null) {
+                        Optional<Admin> adminOpt = adminRepository.findByAdminIdxAndStatus(dto.getAdminIdx(), false);
+                        if (adminOpt.isPresent()) {
+                            Admin admin = adminOpt.get();
+                            // type이 false(0)이면 마스터
+                            return admin.getType() != null && !admin.getType();
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**
