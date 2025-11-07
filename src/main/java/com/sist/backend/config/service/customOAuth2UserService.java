@@ -123,6 +123,19 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 					}
 				}
 				
+				// 카카오 전화번호 변환 (+82 10-xxxx-xxxx → 010-xxxx-xxxx)
+				Object phoneObj = userAttributes.get("phone_number");
+				if (phoneObj != null) {
+					String phoneStr = phoneObj.toString();
+					// "+82 10-xxxx-xxxx" 형식이면 "010-xxxx-xxxx"로 변환
+					if (phoneStr.startsWith("+82 ")) {
+						String phoneWithoutCountryCode = phoneStr.substring(4); // "+82 " 제거
+						String formattedPhone = "0" + phoneWithoutCountryCode; // 앞에 "0" 추가
+						userAttributes.put("phone_number", formattedPhone);
+						log.info("카카오 전화번호 변환: {} → {}", phoneStr, formattedPhone);
+					}
+				}
+				
 				log.info("userAttributes: {}", userAttributes);
 				
 				newCustomer(userAttributes, providerCode);
@@ -155,9 +168,18 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 
 	public void newCustomer(Map<String, Object> userAttributes, Integer providerCode){
 		//DB에 회원 저장
-		Optional<Customer> customerOptional = customerService.findById(userAttributes.get("id").toString());
-		if(customerService.findByEmail(userAttributes.get("email").toString()).isEmpty()){
-			if(customerOptional.isEmpty()){
+		Optional<Customer> customerOptional = customerService.findByEmail(userAttributes.get("email").toString());
+		if(customerOptional.isPresent()){
+			if(customerOptional.get().getProvider()==providerCode){
+				Customer customer = customerOptional.get();
+				customer.setStatus(0);
+				customerService.save(customer);
+			}else{
+				// 같은 이메일이지만 다른 provider로 가입된 경우
+				log.warn("OAuth2 로그인 실패 - 다른 provider로 가입된 이메일: {}", userAttributes.get("email"));
+				throw new OAuth2AuthenticationException("이미 방식으로 가입된 이력이 있는 이메일입니다.");
+			}
+		}else{
 				Customer customer = new Customer();
 				customer.setId(userAttributes.get("id").toString());
 				customer.setName(userAttributes.get("name").toString());
@@ -202,15 +224,6 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 
 
 				customerService.save(customer);
-			}else if(customerOptional.get().getProvider()==providerCode&&customerOptional.get().getStatus()==1){
-				Customer customer = customerOptional.get();
-				customer.setStatus(0);
-				customerService.save(customer);
-			}
-		}else{
-			// 같은 이메일이지만 다른 provider로 가입된 경우
-			log.warn("OAuth2 로그인 실패 - 다른 provider로 가입된 이메일: {}", userAttributes.get("email"));
-			throw new OAuth2AuthenticationException("이미 방식으로 가입된 이력이 있는 이메일입니다.");
 		}
 	}
 }
