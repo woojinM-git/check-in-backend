@@ -20,11 +20,15 @@ import com.sist.backend.config.service.customOAuth2UserService;
 import com.sist.backend.filter.JwtFilter;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityJavaConfig {
+    
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     private final JwtFilter jwtFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
@@ -111,6 +115,7 @@ public class SecurityJavaConfig {
                 // customer 권한만 허용 (ROLE_CUSTOMER)
                 .requestMatchers("/api/mypage/**").hasRole("CUSTOMER")
                 .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+                .requestMatchers("/api/bookmark/**").hasRole("CUSTOMER")
                 
                 // 예약 락 API는 인증 필요 (ROLE_CUSTOMER)
                 .requestMatchers("/api/reservations/lock").hasRole("CUSTOMER")
@@ -149,8 +154,8 @@ public class SecurityJavaConfig {
                         .failureHandler((request, response, exception) -> {
                             String errorMessage = "이미 다른 방식으로 가입된 이력이 있는 이메일입니다.";
                             // 프론트로 에러 메시지와 함께 리다이렉트
-                            String redirectUrl = String.format("http://localhost:3333/login?error=oauth2_failed&message=%s", 
-                                java.net.URLEncoder.encode(errorMessage, java.nio.charset.StandardCharsets.UTF_8));
+                            String redirectUrl = String.format("%s/login?error=oauth2_failed&message=%s", 
+                                frontendUrl, java.net.URLEncoder.encode(errorMessage, java.nio.charset.StandardCharsets.UTF_8));
                             response.sendRedirect(redirectUrl);
                         })
                         .loginPage("/api/login/apiLogin")

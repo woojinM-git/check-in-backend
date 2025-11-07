@@ -36,6 +36,12 @@ public class RoomImage {
     @Column(name = "createdAt", updatable = false)
     private LocalDateTime createdAt;
     
+    @Column(name = "status", nullable = false)
+    private Integer status = 1; // 0: 삭제됨, 1: 활성
+    
+    @Column(name = "deletedAt")
+    private LocalDateTime deletedAt;
+    
     // Room 엔티티와의 관계 (필요시 사용)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({

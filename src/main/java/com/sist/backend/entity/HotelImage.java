@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "hotelImage")
 @Data
@@ -33,4 +35,10 @@ public class HotelImage {
     
     @Column(name = "smallUrl", length = 500)
     private String smallUrl;
+    
+    @Column(name = "status", nullable = false)
+    private Integer status = 1; // 0: 삭제됨, 1: 활성
+    
+    @Column(name = "deletedAt")
+    private LocalDateTime deletedAt;
 }

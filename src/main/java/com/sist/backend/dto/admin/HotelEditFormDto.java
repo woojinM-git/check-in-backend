@@ -96,6 +96,7 @@ public class HotelEditFormDto {
     @AllArgsConstructor
     @Builder
     public static class RoomDto {
+        private Integer roomIdx;           // Room.roomIdx (수정 시 기존 객실 식별용, null이면 신규)
         private String name;                // Room.name
         private Integer capacity;           // Room.capacity
         private Integer basePrice;         // Room.basePrice
@@ -113,6 +114,7 @@ public class HotelEditFormDto {
     @AllArgsConstructor
     @Builder
     public static class RoomImageDto {
+        private Integer roomImageIdx;      // RoomImage.roomImageIdx (고유키, null이면 신규 이미지)
         private String imageUrl;           // RoomImage.imageUrl
         private Integer imageOrder;        // RoomImage.imageOrder
     }
