@@ -1,9 +1,10 @@
 package com.sist.backend.scheduler;
 
 import com.sist.backend.repository.CustomerRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,9 +24,10 @@ public class CustomerRankScheduler {
     private final CustomerRepository customerRepository;
 
     /**
-     * 서버 시작 시 한 번 실행
+     * 서버 시작 시 한 번 실행 (애플리케이션이 완전히 준비된 후 실행)
      */
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
     public void init() {
         log.info("서버 시작 시 고객 등급 업데이트 실행");
         updateCustomerRanks();
