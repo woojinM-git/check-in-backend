@@ -34,10 +34,12 @@ import com.sist.backend.repository.hotel.RoomRepository;
 import com.sist.backend.service.ReviewImageService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class HotelQueryService {
 
     private final ReviewImageRepository reviewImageRepository;
@@ -220,7 +222,7 @@ public class HotelQueryService {
 
             // 대표이미지 1장
             String firstImageUrl = review.getImageUrl();
-
+            log.info("firstImageUrl: {}", firstImageUrl);
             // 추가 이미지 2~5장 조회
             List<String> imageUrls = reviewImageService.getReviewImageUrls(review.getReviewIdx());
 
