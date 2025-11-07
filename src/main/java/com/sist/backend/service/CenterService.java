@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sist.backend.entity.Center;
 import com.sist.backend.repository.CenterRepository;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -77,11 +79,12 @@ public class CenterService {
         Integer customerIdx,
         Integer adminIdx,
         String contentId,
+        List<String> contentIdList,
         String title,
         Pageable pageable
     ) {
         return centerRepository.findByMultipleConditions(
-            mainCategory, subCategory, status, priority, customerIdx, adminIdx, contentId, title, pageable
+            mainCategory, subCategory, status, priority, customerIdx, adminIdx, contentId, contentIdList, title, pageable
         );
     }
     
