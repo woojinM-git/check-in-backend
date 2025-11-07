@@ -759,4 +759,30 @@ public class MasterManagementController {
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
+
+    /* 호텔별 매출 순위 조회 */
+    @GetMapping("/statistics/hotelRanking")
+    @Operation(summary = "호텔별 매출 순위 조회", description = "예약건수가 많은 상위 4개 호텔의 매출 순위를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getHotelRevenueRanking(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            List<Map<String, Object>> ranking = statisticsService.getHotelRevenueRanking();
+            return ResponseEntity.ok(ranking);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔별 매출 순위 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
 }

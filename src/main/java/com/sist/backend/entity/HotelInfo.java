@@ -30,6 +30,8 @@ public class HotelInfo {
     @Column(name = "adminIdx")
     private Integer adminIdx;
     
+    @Column(name = "count")
+    private Integer count;
     
     @Column(name = "title")
     private String title;

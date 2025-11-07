@@ -19,6 +19,7 @@ import static com.sist.backend.entity.QCustomer.customer;
 import static com.sist.backend.entity.QHotelInfo.hotelInfo;
 import static com.sist.backend.entity.QHotelSettlement.hotelSettlement;
 import static com.sist.backend.entity.QRegistrationRequest.registrationRequest;
+import static com.sist.backend.entity.QReview.review;
 import static com.sist.backend.entity.QRoomReservation.roomReservation;
 
 @Slf4j
@@ -240,6 +241,99 @@ public class StatisticsService {
             monthData.put("revenue", commissionAmount != null ? commissionAmount : 0L);
             
             result.add(monthData);
+        }
+        
+        return result;
+    }
+
+    /**
+     * 호텔별 매출 순위 조회 (상위 4개)
+     * 예약건수가 많은 순서로 정렬
+     * hotelInfo.count 컬럼 사용
+     * 
+     * @return 호텔별 매출 순위 리스트 (rank, name, reservations, rating, revenue, growth)
+     */
+    public List<Map<String, Object>> getHotelRevenueRanking() {
+        LocalDate now = LocalDate.now();
+        LocalDate startOfMonth = now.withDayOfMonth(1);
+        String currentMonth = String.format("%04d-%02d", now.getYear(), now.getMonthValue());
+        
+        // 1. hotelInfo.count가 많은 호텔 상위 4개 조회 (운영중인 호텔만)
+        List<com.querydsl.core.Tuple> hotelData = queryFactory
+            .select(
+                hotelInfo.contentId,
+                hotelInfo.title,
+                hotelInfo.count
+            )
+            .from(hotelInfo)
+            .where(hotelInfo.status.eq(0)) // 운영중인 호텔만
+            .orderBy(hotelInfo.count.desc().nullsLast())
+            .limit(4)
+            .fetch();
+        
+        List<Map<String, Object>> result = new ArrayList<>();
+        
+        for (int i = 0; i < hotelData.size(); i++) {
+            com.querydsl.core.Tuple tuple = hotelData.get(i);
+            String contentId = tuple.get(hotelInfo.contentId);
+            String title = tuple.get(hotelInfo.title);
+            Integer reservationCount = tuple.get(hotelInfo.count);
+            
+            // count가 null이면 0으로 처리
+            if (reservationCount == null) {
+                reservationCount = 0;
+            }
+            
+            // 2. 별점 평균 계산 (review 테이블)
+            Double avgRating = queryFactory
+                .select(review.star.avg())
+                .from(review)
+                .where(
+                    review.contentid.eq(contentId)
+                        .and(review.status.eq(false))
+                        .and(review.hide.eq(false))
+                )
+                .fetchOne();
+            
+            // 3. 현재 월 매출 계산 (hotelSettlement 또는 roomReservation)
+            // hotelSettlement에서 현재 월 데이터가 있으면 사용, 없으면 roomReservation에서 계산
+            Long monthlyRevenue = queryFactory
+                .select(hotelSettlement.totalRevenue.sum())
+                .from(hotelSettlement)
+                .where(
+                    hotelSettlement.contentId.eq(contentId)
+                        .and(hotelSettlement.settlementMonth.eq(currentMonth))
+                )
+                .fetchOne();
+            
+            // hotelSettlement에 데이터가 없으면 roomReservation에서 계산
+            if (monthlyRevenue == null || monthlyRevenue == 0) {
+                Integer revenue = queryFactory
+                    .select(roomReservation.totalPrice.sum())
+                    .from(roomReservation)
+                    .where(
+                        roomReservation.contentid.eq(contentId)
+                            .and(roomReservation.status.eq(4))
+                            .and(roomReservation.checkoutDate.goe(startOfMonth))
+                            .and(roomReservation.checkoutDate.loe(now))
+                    )
+                    .fetchOne();
+                
+                monthlyRevenue = revenue != null ? revenue.longValue() : 0L;
+            }
+            
+            // 4. 전월 대비 증감률 계산 (간단히 0%로 설정, 필요시 추가 구현)
+            String growth = "+0%"; // TODO: 전월 데이터와 비교하여 계산
+            
+            Map<String, Object> hotelMap = new HashMap<>();
+            hotelMap.put("rank", i + 1);
+            hotelMap.put("name", title != null ? title : "");
+            hotelMap.put("reservations", reservationCount.longValue());
+            hotelMap.put("rating", avgRating != null ? avgRating : 0.0);
+            hotelMap.put("revenue", monthlyRevenue);
+            hotelMap.put("growth", growth);
+            
+            result.add(hotelMap);
         }
         
         return result;
