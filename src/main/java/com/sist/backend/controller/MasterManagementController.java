@@ -296,7 +296,8 @@ public class MasterManagementController {
         int HotelCount = hotelInfoService.findRegistrationHotelCount();
         int pendingCount = roomReservationService.findByTodayCount();
         int CustomerCount = customerService.findRegistrationCustomerCount();
-        Long paymentAmount = roomPaymentService.findByPrice();
+        // 총 매출은 hotelSettlement의 totalRevenue 합계로 변경
+        Long totalRevenue = statisticsService.getTotalRevenueAll();
         /* 승인요청 호텔, 고객 목록 */
         List<RegistrationRequestDto> pendingRequests = registrationRequestService.findTop5ByStatusInDashboard();
         int pendingRequestCount = registrationRequestService.findByStatusCount();
@@ -307,7 +308,7 @@ public class MasterManagementController {
         map.put("hotelCount", HotelCount);
         map.put("pendingCount", pendingCount);
         map.put("customerCount", CustomerCount);
-        map.put("paymentAmount", paymentAmount);
+        map.put("paymentAmount", totalRevenue); // totalRevenue로 변경 (하위 호환성을 위해 paymentAmount 키 유지)
         map.put("pendingRequests", pendingRequests);
         map.put("pendingRequestCount", pendingRequestCount);
         map.put("newCustomers", newCustomers);
