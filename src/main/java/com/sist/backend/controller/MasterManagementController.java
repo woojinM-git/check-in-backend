@@ -128,7 +128,7 @@ public class MasterManagementController {
    
     /* 등록되어 있는 회원의 목록 */
     @GetMapping("/customers")
-    @Operation(summary = "마스터 회원 관리", description = "등록되어 있는 회원의 목록을 보여줍니다.")
+    @Operation(summary = "마스터 회원 관리", description = "등록되어 있는 회원의 목록을 검색 및 필터링하여 보여줍니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -137,8 +137,12 @@ public class MasterManagementController {
     public ResponseEntity<?> findCustomerAndRank(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
             @RequestParam(value = "page", defaultValue = "0") int page, 
-            @Parameter(description = "페이지당 데이터 개수", example = "5") 
-            @RequestParam(value = "size", defaultValue = "5") int size,
+            @Parameter(description = "페이지당 데이터 개수", example = "10") 
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @Parameter(description = "검색어 (회원명, 이메일, 전화번호)", example = "홍길동") 
+            @RequestParam(value = "searchTerm", required = false) String searchTerm,
+            @Parameter(description = "상태 필터 (all, active, inactive, suspended)", example = "all") 
+            @RequestParam(value = "statusFilter", defaultValue = "all") String statusFilter,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
         if (authCheck != null) {
@@ -146,7 +150,14 @@ public class MasterManagementController {
         }
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(customerService.findCustomerAndRankDto(pageable));
+        
+        // 검색어나 필터가 있으면 검색 API 사용, 없으면 기존 API 사용
+        if ((searchTerm != null && !searchTerm.trim().isEmpty()) || 
+            (statusFilter != null && !statusFilter.equals("all"))) {
+            return ResponseEntity.ok(customerService.searchCustomers(searchTerm, statusFilter, pageable));
+        } else {
+            return ResponseEntity.ok(customerService.findCustomerAndRankDto(pageable));
+        }
     }
 
     @GetMapping("/hotels")
@@ -448,15 +459,71 @@ public class MasterManagementController {
         }
     }
 
-    @PostMapping("/updateTemplate")
-    @Operation(summary = "쿠폰 템플릿 상태 변경", description = "쿠폰 템플릿의 상태를 변경합니다.")
+    @PostMapping("/editTemplate")
+    @Operation(summary = "쿠폰 템플릿 수정", description = "쿠폰 템플릿 정보를 수정합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 변경됨"),
+        @ApiResponse(responseCode = "200", description = "성공적으로 수정됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
-    public ResponseEntity<?> updateTemplateStatus(
+    public ResponseEntity<?> editTemplate(
+            @RequestBody Map<String, Object> requestData,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        try {
+            Integer templateIdx = (Integer) requestData.get("templateIdx");
+            String templateName = (String) requestData.get("templateName");
+            Integer discount = requestData.get("discount") instanceof Number 
+                ? ((Number) requestData.get("discount")).intValue() 
+                : null;
+            Integer validDays = requestData.get("validDays") instanceof Number 
+                ? ((Number) requestData.get("validDays")).intValue() 
+                : null;
+            Integer status = requestData.get("status") instanceof Number 
+                ? ((Number) requestData.get("status")).intValue() 
+                : null;
+
+            CouponTemplate updateData = new CouponTemplate();
+            updateData.setTemplateName(templateName);
+            updateData.setDiscount(discount);
+            updateData.setValidDays(validDays);
+            updateData.setStatus(status);
+            
+            CouponTemplate updatedTemplate = couponTemplateService.updateTemplate(templateIdx, updateData);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "템플릿이 성공적으로 수정되었습니다.");
+            response.put("template", updatedTemplate);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "템플릿 수정 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/delTemplate")
+    @Operation(summary = "쿠폰 템플릿 삭제", description = "쿠폰 템플릿을 삭제합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 삭제됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> deleteTemplate(
             @RequestBody Map<String, Object> requestData,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
@@ -625,6 +692,81 @@ public class MasterManagementController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "회원 정지 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/batchUpdateCustomers")
+    @Operation(summary = "회원 일괄 처리", description = "선택한 회원들을 일괄적으로 활성화/비활성화/정지 처리합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 처리됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> batchUpdateCustomers(
+        @RequestBody Map<String, Object> requestData,
+        @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            @SuppressWarnings("unchecked")
+            List<Integer> customerIdxList = (List<Integer>) requestData.get("customerIdxList");
+            String action = (String) requestData.get("action");
+
+            if (customerIdxList == null || customerIdxList.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "선택한 회원이 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            if (action == null || action.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "처리할 작업을 지정해주세요.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            Integer status;
+            String actionName;
+            switch (action) {
+                case "activate":
+                    status = 0;
+                    actionName = "활성화";
+                    break;
+                case "deactivate":
+                case "suspend":
+                    status = 1;
+                    actionName = action.equals("suspend") ? "정지" : "비활성화";
+                    break;
+                default:
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("success", false);
+                    errorResponse.put("message", "지원하지 않는 작업입니다: " + action);
+                    return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            int successCount = customerService.batchUpdateCustomerStatus(customerIdxList, status);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", String.format("%d명의 회원이 %s 처리되었습니다.", successCount, actionName));
+            response.put("successCount", successCount);
+            response.put("totalCount", customerIdxList.size());
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "회원 일괄 처리 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
