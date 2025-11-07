@@ -113,6 +113,11 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     /* customerIdx와 status로 예약 목록 조회 */
     List<RoomReservation> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
 
+    /* customerIdx와 status로 예약 개수 조회 */
+    @Query("SELECT COUNT(r) FROM RoomReservation r " +
+           "WHERE r.customerIdx = :customerIdx AND r.status = :status")
+    Long countByCustomerIdxAndStatus(@Param("customerIdx") Integer customerIdx, @Param("status") Integer status);
+
     /**
      * 같은 객실/콘텐츠/체크인 조합으로 활성 예약이 존재하는지 여부
      */
@@ -176,4 +181,18 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     @Query("SELECT COUNT(r) FROM RoomReservation r " +
            "WHERE r.contentid = :contentid")
     Long countTotalHistoryByContentId(@Param("contentid") String contentid);
+
+    /* 체크아웃 날짜가 지났고 아직 예약확정(status=1) 상태인 예약 조회 */
+    @Query("SELECT r FROM RoomReservation r " +
+           "WHERE r.status = 1 " +
+           "AND r.checkoutDate <= :targetDate")
+    List<RoomReservation> findExpiredReservationsToComplete(@Param("targetDate") java.time.LocalDate targetDate);
+
+    /* 체크아웃 날짜가 지정된 날짜 이하인 예약의 상태를 이용완료(4)로 일괄 업데이트 */
+    @Modifying
+    @Query("UPDATE RoomReservation r SET r.status = 4, r.updatedAt = CURRENT_TIMESTAMP " +
+           "WHERE r.status = 1 " +
+           "AND r.checkoutDate <= :targetDate")
+    int updateExpiredReservationsToCompleted(@Param("targetDate") java.time.LocalDate targetDate);
+
 }

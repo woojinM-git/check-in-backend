@@ -1,6 +1,8 @@
 package com.sist.backend.service.hotel;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,16 +14,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.HotelResponse;
+import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
+import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelDetail;
 import com.sist.backend.entity.HotelImage;
 import com.sist.backend.entity.HotelInfo;
+import com.sist.backend.entity.Review;
+import com.sist.backend.entity.ReviewImage;
 import com.sist.backend.entity.Room;
 import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
+import com.sist.backend.repository.CustomerRepository;
+import com.sist.backend.repository.ReviewImageRepository;
+import com.sist.backend.repository.ReviewRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
+
+import java.util.ArrayList;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +47,9 @@ public class HotelQueryService {
     private final RoomRepository roomRepository;
     private final RoomAdvancedMapper roomAdvancedMapper;
     private final HotelImageRepository hotelImageRepository;
+    private final ReviewRepository reviewRepository;
+    private final ReviewImageRepository reviewImageRepository;
+    private final CustomerRepository customerRepository;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -165,5 +179,93 @@ public class HotelQueryService {
                 .originUrl(image.getOriginUrl())
                 .smallUrl(image.getSmallUrl())
                 .build();
+    }
+
+    // 호텔 리뷰 목록 조회
+    public List<ReviewResponse> getReviews(String contentId) {
+        List<Review> reviews = reviewRepository.findByContentId(contentId);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        return reviews.stream().map(review -> {
+            // Customer 정보 조회 (닉네임 우선)
+            String userName = "익명";
+            Optional<Customer> customerOpt = customerRepository.findById(review.getCustomerIdx());
+            if (customerOpt.isPresent()) {
+                Customer customer = customerOpt.get();
+                userName = customer.getNickname() != null && !customer.getNickname().isBlank()
+                        ? customer.getNickname()
+                        : (customer.getName() != null && !customer.getName().isBlank()
+                        ? customer.getName()
+                        : "익명");
+            }
+
+            // Room 정보 조회
+            String roomType = null;
+            Optional<Room> roomOpt = roomRepository.findById(review.getRoomIdx());
+            if (roomOpt.isPresent()) {
+                roomType = roomOpt.get().getName();
+            }
+
+            // star를 1-5 스케일로 유지 (DB는 1-5 스케일)
+            Double rating = null;
+            if (review.getStar() != null) {
+                rating = review.getStar().doubleValue(); // 1-5 스케일 유지
+            }
+
+            // 날짜 포맷팅
+            String date = review.getCreatedAt() != null
+                    ? review.getCreatedAt().format(formatter)
+                    : null;
+
+            // 리뷰 이미지 수집 (imageUrl + imageUrl2~5 중 null이 아닌 것들)
+            List<String> images = new ArrayList<>();
+
+            // Review 엔티티의 imageUrl (첫 번째 이미지)
+            if (review.getImageUrl() != null && !review.getImageUrl().isBlank()) {
+                images.add(review.getImageUrl());
+            }
+
+            // ReviewImage 엔티티의 imageUrl2~5
+            Optional<ReviewImage> reviewImageOpt = reviewImageRepository.findByReviewIdx(review.getReviewIdx());
+            if (reviewImageOpt.isPresent()) {
+                ReviewImage reviewImage = reviewImageOpt.get();
+                if (reviewImage.getImageUrl2() != null && !reviewImage.getImageUrl2().isBlank()) {
+                    images.add(reviewImage.getImageUrl2());
+                }
+                if (reviewImage.getImageUrl3() != null && !reviewImage.getImageUrl3().isBlank()) {
+                    images.add(reviewImage.getImageUrl3());
+                }
+                if (reviewImage.getImageUrl4() != null && !reviewImage.getImageUrl4().isBlank()) {
+                    images.add(reviewImage.getImageUrl4());
+                }
+                if (reviewImage.getImageUrl5() != null && !reviewImage.getImageUrl5().isBlank()) {
+                    images.add(reviewImage.getImageUrl5());
+                }
+            }
+
+            return ReviewResponse.builder()
+                    .id(review.getReviewIdx())
+                    .userName(userName)
+                    .date(date)
+                    .roomType(roomType)
+                    .rating(rating)
+                    .comment(review.getContent())
+                    .images(images)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    // 호텔 평균 평점 및 리뷰 개수 조회
+    public Map<String, Object> getReviewSummary(String contentId) {
+        BigDecimal avgRating = reviewRepository.findAverageRatingByContentId(contentId);
+        Long reviewCount = reviewRepository.countFeedbackByContentId(contentId);
+
+        // 평점을 1-5 스케일로 유지 (DB는 1-5 스케일)
+        Double rating = avgRating != null ? avgRating.doubleValue() : 0.0;
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("rating", rating);
+        summary.put("reviewCount", reviewCount != null ? reviewCount.intValue() : 0);
+        return summary;
     }
 }

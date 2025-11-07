@@ -48,6 +48,9 @@ dependencies {
 	// Quartz Scheduler
 	implementation 'org.springframework.boot:spring-boot-starter-quartz'
 	
+	// Spring Batch (정산 배치 작업용)
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+	
 	// OAuth2
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	

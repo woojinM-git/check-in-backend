@@ -3,10 +3,12 @@ package com.sist.backend;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
+@EnableScheduling // @Scheduled 어노테이션을 사용하기 위해 필요
+@EnableAsync // @Async 어노테이션을 사용하기 위해 필요
 public class BackendApplication {
 
 	public static void main(String[] args) {

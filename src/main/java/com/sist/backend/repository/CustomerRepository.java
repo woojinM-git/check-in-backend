@@ -54,6 +54,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     Optional<Customer> findByRefTokenAndId(String tokenID, String id);
 
+    Optional<Customer> findByEmail(String email);
     Optional<Customer> findByEmailAndStatus(String email, Integer status);
 
     Optional<Customer> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);

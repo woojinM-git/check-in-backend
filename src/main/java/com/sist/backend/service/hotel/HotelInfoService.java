@@ -21,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -110,71 +112,158 @@ public class HotelInfoService {
     }
 
     /**
-     * 정규화된 테이블에서 호텔 정보를 조회하여 등록 폼 구조로 변환
+     * 정규화된 테이블에서 호텔 정보를 조회하여 등록 폼 구조로 변환 (병렬 처리)
      */
     public HotelEditFormDto getHotelInfoForEdit(String contentId) {
-        // HotelInfo 조회
-        HotelInfo hotelInfo = hotelInfoRepository.findById(contentId)
-            .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다."));
-        
-        // HotelDetail 조회
-        HotelDetail hotelDetail = hotelDetailRepository.findById(contentId)
-            .orElse(new HotelDetail());
-        
-        // Dining 목록 조회
-        List<Dining> dinings = diningRepository.findByContentidAndStatus(contentId);
-        
-        // HotelImage 목록 조회
-        List<HotelImage> hotelImages = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
-        
-        // Entity 필드명에 맞춰 DTO 변환
-        HotelEditFormDto.HotelInfoDto hotelInfoDto = HotelEditFormDto.HotelInfoDto.builder()
-            .title(hotelInfo.getTitle())
-            .adress(hotelInfo.getAdress())
-            .tel(hotelInfo.getTel())
-            .build();
-        
-        HotelEditFormDto.HotelDetailDto hotelDetailDto = HotelEditFormDto.HotelDetailDto.builder()
-            .reservationlodging(hotelDetail.getReservationlodging() != null ? hotelDetail.getReservationlodging() : "")
-            .foodplace(hotelDetail.getFoodplace() != null ? hotelDetail.getFoodplace() : "")
-            .scalelodging(hotelDetail.getScalelodging() != null ? hotelDetail.getScalelodging() : "")
-            .parkinglodging(hotelDetail.getParkinglodging() != null ? hotelDetail.getParkinglodging() : "")
-            .build();
-        
-        HotelEditFormDto.AreaDto areaDto = HotelEditFormDto.AreaDto.builder()
-            .areaCode(hotelInfo.getAreaCode() != null ? hotelInfo.getAreaCode() : "")
-            .nearbyAttractions("") // 프론트엔드용 (Entity에 없음)
-            .transportation("") // 프론트엔드용 (Entity에 없음)
-            .build();
-        
-        List<HotelEditFormDto.ImageDto> imageDtos = hotelImages.stream().map(image ->
-            HotelEditFormDto.ImageDto.builder()
-                .id(image.getId() != null ? Long.valueOf(image.getId()) : null) // Integer를 Long으로 변환
-                .originUrl(image.getOriginUrl())
-                .smallUrl(image.getSmallUrl())
-                .build()
-        ).collect(Collectors.toList());
-        
-        List<HotelEditFormDto.DiningDto> diningDtos = dinings.stream().map(dining ->
-            HotelEditFormDto.DiningDto.builder()
-                .diningIdx(dining.getDiningIdx())
-                .name(dining.getName())
-                .operatingHours(dining.getOpenTime() != null && dining.getCloseTime() != null 
-                    ? dining.getOpenTime().toString() + " - " + dining.getCloseTime().toString()
-                    : "")
-                .description(dining.getDescription())
-                .basePrice(dining.getBasePrice())
-                .totalSeats(dining.getTotalSeats())
-                .build()
-        ).collect(Collectors.toList());
-        
-        return HotelEditFormDto.builder()
-            .hotelInfo(hotelInfoDto)
-            .hotelDetail(hotelDetailDto)
-            .area(areaDto)
-            .images(imageDtos)
-            .dining(diningDtos)
-            .build();
+        try {
+            // 병렬로 모든 데이터 조회
+            CompletableFuture<HotelInfo> hotelInfoFuture = CompletableFuture.supplyAsync(() ->
+                hotelInfoRepository.findById(contentId)
+                    .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다."))
+            );
+            
+            CompletableFuture<HotelDetail> hotelDetailFuture = CompletableFuture.supplyAsync(() ->
+                hotelDetailRepository.findById(contentId)
+                    .orElse(new HotelDetail())
+            );
+            
+            CompletableFuture<List<Dining>> diningsFuture = CompletableFuture.supplyAsync(() ->
+                diningRepository.findByContentidAndStatus(contentId)
+            );
+            
+            CompletableFuture<List<HotelImage>> hotelImagesFuture = CompletableFuture.supplyAsync(() ->
+                hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId)
+            );
+            
+            CompletableFuture<Optional<HotelLocation>> hotelLocationFuture = CompletableFuture.supplyAsync(() ->
+                hotelLocationRepository.findByContentId(contentId)
+            );
+            
+            CompletableFuture<List<Room>> roomsFuture = CompletableFuture.supplyAsync(() ->
+                roomRepository.findByContentId(contentId).stream()
+                    .filter(room -> room.getStatus() != null && room.getStatus() == 1)
+                    .collect(Collectors.toList())
+            );
+            
+            // 모든 조회 완료 대기
+            CompletableFuture.allOf(
+                hotelInfoFuture, hotelDetailFuture, diningsFuture, 
+                hotelImagesFuture, hotelLocationFuture, roomsFuture
+            ).join();
+            
+            // 결과 가져오기
+            HotelInfo hotelInfo = hotelInfoFuture.join();
+            HotelDetail hotelDetail = hotelDetailFuture.join();
+            List<Dining> dinings = diningsFuture.join();
+            List<HotelImage> hotelImages = hotelImagesFuture.join();
+            Optional<HotelLocation> hotelLocationOpt = hotelLocationFuture.join();
+            List<Room> rooms = roomsFuture.join();
+            
+            // RoomImage 병렬 조회 (각 Room에 대해)
+            List<CompletableFuture<Map<Integer, List<RoomImage>>>> roomImageFutures = rooms.stream()
+                .map(room -> CompletableFuture.supplyAsync(() -> {
+                    List<RoomImage> images = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(
+                        room.getRoomIdx(), contentId
+                    );
+                    return Map.of(room.getRoomIdx(), images);
+                }))
+                .collect(Collectors.toList());
+            
+            // 모든 RoomImage 조회 완료 대기
+            CompletableFuture.allOf(roomImageFutures.toArray(new CompletableFuture[0])).join();
+            
+            // RoomImage 결과를 Map으로 합치기
+            Map<Integer, List<RoomImage>> roomImageMap = roomImageFutures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(map -> map.entrySet().stream())
+                .collect(Collectors.toMap(
+                    Map.Entry::getKey,
+                    Map.Entry::getValue
+                ));
+            
+            // Entity 필드명에 맞춰 DTO 변환
+            HotelEditFormDto.HotelInfoDto hotelInfoDto = HotelEditFormDto.HotelInfoDto.builder()
+                .title(hotelInfo.getTitle())
+                .adress(hotelInfo.getAdress())
+                .tel(hotelInfo.getTel())
+                .imageUrl(hotelInfo.getImageUrl())
+                .latitude(hotelLocationOpt.map(loc -> loc.getMapY() != null ? loc.getMapY().toString() : "").orElse(""))
+                .longitude(hotelLocationOpt.map(loc -> loc.getMapX() != null ? loc.getMapX().toString() : "").orElse(""))
+                .build();
+            
+            HotelEditFormDto.HotelDetailDto hotelDetailDto = HotelEditFormDto.HotelDetailDto.builder()
+                .reservationlodging(hotelDetail.getReservationlodging() != null ? hotelDetail.getReservationlodging() : "")
+                .foodplace(hotelDetail.getFoodplace() != null ? hotelDetail.getFoodplace() : "")
+                .scalelodging(hotelDetail.getScalelodging() != null ? hotelDetail.getScalelodging() : "")
+                .parkinglodging(hotelDetail.getParkinglodging() != null ? hotelDetail.getParkinglodging() : "")
+                .roomcount(hotelDetail.getRoomcount() != null ? hotelDetail.getRoomcount() : "")
+                .build();
+            
+            HotelEditFormDto.AreaDto areaDto = HotelEditFormDto.AreaDto.builder()
+                .areaCode(hotelInfo.getAreaCode() != null ? hotelInfo.getAreaCode() : "")
+                .nearbyAttractions("") // 프론트엔드용 (Entity에 없음)
+                .transportation("") // 프론트엔드용 (Entity에 없음)
+                .build();
+            
+            List<HotelEditFormDto.ImageDto> imageDtos = hotelImages.stream().map(image ->
+                HotelEditFormDto.ImageDto.builder()
+                    .id(Long.valueOf(image.getId())) // id는 항상 존재 (AUTO_INCREMENT PRIMARY KEY)
+                    .originUrl(image.getOriginUrl())
+                    .smallUrl(image.getSmallUrl())
+                    .build()
+            ).collect(Collectors.toList());
+            
+            List<HotelEditFormDto.DiningDto> diningDtos = dinings.stream().map(dining ->
+                HotelEditFormDto.DiningDto.builder()
+                    .diningIdx(dining.getDiningIdx())
+                    .name(dining.getName())
+                    .operatingHours(dining.getOpenTime() != null && dining.getCloseTime() != null 
+                        ? dining.getOpenTime().toString() + " - " + dining.getCloseTime().toString()
+                        : "")
+                    .description(dining.getDescription())
+                    .basePrice(dining.getBasePrice())
+                    .totalSeats(dining.getTotalSeats())
+                    .build()
+            ).collect(Collectors.toList());
+            
+            // Room DTO 변환 (RoomImage 포함)
+            List<HotelEditFormDto.RoomDto> roomDtos = rooms.stream().map(room -> {
+                List<RoomImage> roomImages = roomImageMap.getOrDefault(room.getRoomIdx(), List.of());
+                List<HotelEditFormDto.RoomImageDto> roomImageDtos = roomImages.stream()
+                    .map(img -> HotelEditFormDto.RoomImageDto.builder()
+                        .roomImageIdx(img.getRoomImageIdx()) // 고유키 포함
+                        .imageUrl(img.getImageUrl())
+                        .imageOrder(img.getImageOrder())
+                        .build())
+                    .collect(Collectors.toList());
+                
+                return HotelEditFormDto.RoomDto.builder()
+                    .roomIdx(room.getRoomIdx())
+                    .name(room.getName())
+                    .capacity(room.getCapacity())
+                    .basePrice(room.getBasePrice())
+                    .refundable(room.getRefundable() != null ? room.getRefundable() : false)
+                    .breakfastIncluded(room.getBreakfastIncluded() != null ? room.getBreakfastIncluded() : false)
+                    .smoking(room.getSmoking() != null ? room.getSmoking() : false)
+                    .roomCount(room.getRoomCount() != null ? room.getRoomCount() : 1)
+                    .status(room.getStatus() != null ? room.getStatus() : 1)
+                    .imageUrl(room.getImageUrl())
+                    .images(roomImageDtos)
+                    .build();
+            }).collect(Collectors.toList());
+            
+            return HotelEditFormDto.builder()
+                .hotelInfo(hotelInfoDto)
+                .hotelDetail(hotelDetailDto)
+                .area(areaDto)
+                .images(imageDtos)
+                .dining(diningDtos)
+                .rooms(roomDtos)
+                .build();
+        } catch (Exception e) {
+            log.error("호텔 정보 조회 실패: contentId={}", contentId, e);
+            throw new RuntimeException("호텔 정보를 불러오는데 실패했습니다.", e);
+        }
     }
 
     /**
@@ -213,47 +302,361 @@ public class HotelInfoService {
         }
         hotelDetailRepository.save(hotelDetail);
         
-        // Dining 업데이트 (Entity 필드명 사용)
-        if (dto.getDining() != null) {
-            for (HotelEditFormDto.DiningDto diningDto : dto.getDining()) {
-                if (diningDto.getDiningIdx() != null) {
-                    Optional<Dining> diningOpt = diningRepository.findById(diningDto.getDiningIdx());
-                    if (diningOpt.isPresent()) {
-                        Dining dining = diningOpt.get();
-                        
-                        if (diningDto.getName() != null) {
-                            dining.setName(diningDto.getName());
-                        }
-                        if (diningDto.getDescription() != null) {
-                            dining.setDescription(diningDto.getDescription());
-                        }
-                        if (diningDto.getBasePrice() != null) {
-                            dining.setBasePrice(diningDto.getBasePrice());
-                        }
-                        if (diningDto.getTotalSeats() != null) {
-                            dining.setTotalSeats(diningDto.getTotalSeats());
-                        }
-                        
-                        // operatingHours 파싱 (예: "09:00 - 21:00" → openTime, closeTime)
-                        if (diningDto.getOperatingHours() != null && !diningDto.getOperatingHours().isEmpty()) {
-                            String[] times = diningDto.getOperatingHours().split(" - ");
-                            if (times.length == 2) {
-                                try {
-                                    dining.setOpenTime(java.time.LocalTime.parse(times[0].trim()));
-                                    dining.setCloseTime(java.time.LocalTime.parse(times[1].trim()));
-                                } catch (Exception e) {
-                                    // 파싱 실패 시 무시
-                                }
+        // HotelLocation 업데이트 (좌표 정보)
+        if (dto.getHotelInfo() != null && dto.getHotelInfo().getLatitude() != null && 
+            dto.getHotelInfo().getLongitude() != null && 
+            !dto.getHotelInfo().getLatitude().isEmpty() && 
+            !dto.getHotelInfo().getLongitude().isEmpty()) {
+            HotelLocation hotelLocation = hotelLocationRepository.findByContentId(contentId)
+                .orElseGet(() -> {
+                    HotelLocation newLocation = new HotelLocation();
+                    newLocation.setContentId(contentId);
+                    return newLocation;
+                });
+            
+            try {
+                // 위도(latitude) → mapY, 경도(longitude) → mapX
+                hotelLocation.setMapY(new java.math.BigDecimal(dto.getHotelInfo().getLatitude()));
+                hotelLocation.setMapX(new java.math.BigDecimal(dto.getHotelInfo().getLongitude()));
+                hotelLocationRepository.save(hotelLocation);
+                log.info("✅ HotelLocation 업데이트 완료: contentId={}, mapY={}, mapX={}", 
+                    contentId, hotelLocation.getMapY(), hotelLocation.getMapX());
+            } catch (NumberFormatException e) {
+                log.warn("좌표 파싱 실패: contentId={}, latitude={}, longitude={}", 
+                    contentId, dto.getHotelInfo().getLatitude(), dto.getHotelInfo().getLongitude());
+            }
+        }
+        
+        // HotelInfo.imageUrl 업데이트 (대표 이미지)
+        if (dto.getHotelInfo() != null && dto.getHotelInfo().getImageUrl() != null) {
+            HotelInfo hotelInfo = hotelInfoRepository.findById(contentId)
+                .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다."));
+            hotelInfo.setImageUrl(dto.getHotelInfo().getImageUrl());
+            hotelInfoRepository.save(hotelInfo);
+            log.info("✅ HotelInfo.imageUrl 업데이트 완료: contentId={}, imageUrl={}", 
+                contentId, dto.getHotelInfo().getImageUrl());
+        }
+        
+        // HotelDetail.roomcount 업데이트 (객실 총 개수)
+        if (dto.getRooms() != null) {
+            hotelDetail.setRoomcount(String.valueOf(dto.getRooms().size()));
+            hotelDetailRepository.save(hotelDetail);
+            log.info("✅ HotelDetail.roomcount 업데이트 완료: contentId={}, roomcount={}", 
+                contentId, hotelDetail.getRoomcount());
+        }
+        
+        // Room 업데이트/생성/삭제 (Soft Delete 원칙 적용)
+        if (dto.getRooms() != null) {
+            // 기존 활성 객실 목록 조회 (status = 1인 객실만)
+            List<Room> existingRooms = roomRepository.findByContentId(contentId);
+            List<Integer> existingActiveRoomIdxs = existingRooms.stream()
+                .filter(room -> room.getStatus() != null && room.getStatus() == 1)
+                .map(Room::getRoomIdx)
+                .collect(Collectors.toList());
+            
+            // 전송된 객실의 roomIdx 목록 (null이 아닌 것만)
+            List<Integer> submittedRoomIdxs = dto.getRooms().stream()
+                .map(HotelEditFormDto.RoomDto::getRoomIdx)
+                .filter(roomIdx -> roomIdx != null)
+                .collect(Collectors.toList());
+            
+            // Soft Delete 처리: 기존에는 있지만 전송된 데이터에는 없는 활성 객실은 status = 0으로 변경
+            List<Integer> roomsToDeactivate = existingActiveRoomIdxs.stream()
+                .filter(roomIdx -> !submittedRoomIdxs.contains(roomIdx))
+                .collect(Collectors.toList());
+            
+            // 객실 Soft Delete (status = 0으로 변경)
+            for (Integer roomIdx : roomsToDeactivate) {
+                roomRepository.findByRoomIdx(roomIdx).ifPresent(room -> {
+                    room.setStatus(0); // 0 = 사용불가 (삭제됨)
+                    roomRepository.save(room);
+                    log.info("✅ Room Soft Delete 완료: contentId={}, roomIdx={}, name={}", 
+                        contentId, roomIdx, room.getName());
+                });
+            }
+            
+            // 객실 업데이트/생성
+            for (HotelEditFormDto.RoomDto roomDto : dto.getRooms()) {
+                Room room;
+                
+                if (roomDto.getRoomIdx() != null && existingActiveRoomIdxs.contains(roomDto.getRoomIdx())) {
+                    // 기존 객실 업데이트 (roomIdx가 있고 기존 활성 객실 목록에 있는 경우)
+                    room = roomRepository.findByRoomIdx(roomDto.getRoomIdx())
+                        .orElseThrow(() -> new IllegalArgumentException("객실을 찾을 수 없습니다: " + roomDto.getRoomIdx()));
+                } else {
+                    // 신규 객실 생성 (roomIdx가 없거나 기존 활성 객실 목록에 없는 경우)
+                    room = new Room();
+                    room.setContentId(contentId);
+                    room.setStatus(1); // 신규 생성 시 기본값: 활성 상태
+                }
+                
+                // 객실 정보 업데이트
+                if (roomDto.getName() != null) {
+                    room.setName(roomDto.getName());
+                }
+                if (roomDto.getCapacity() != null) {
+                    room.setCapacity(roomDto.getCapacity());
+                }
+                if (roomDto.getBasePrice() != null) {
+                    room.setBasePrice(roomDto.getBasePrice());
+                }
+                if (roomDto.getRefundable() != null) {
+                    room.setRefundable(roomDto.getRefundable());
+                } else {
+                    room.setRefundable(true); // 기본값
+                }
+                if (roomDto.getBreakfastIncluded() != null) {
+                    room.setBreakfastIncluded(roomDto.getBreakfastIncluded());
+                } else {
+                    room.setBreakfastIncluded(false); // 기본값
+                }
+                if (roomDto.getSmoking() != null) {
+                    room.setSmoking(roomDto.getSmoking());
+                } else {
+                    room.setSmoking(false); // 기본값
+                }
+                if (roomDto.getRoomCount() != null) {
+                    room.setRoomCount(roomDto.getRoomCount());
+                } else {
+                    room.setRoomCount(1); // 기본값
+                }
+                if (roomDto.getStatus() != null) {
+                    room.setStatus(roomDto.getStatus());
+                } else {
+                    room.setStatus(1); // 기본값
+                }
+                if (roomDto.getImageUrl() != null) {
+                    room.setImageUrl(roomDto.getImageUrl());
+                }
+                
+                roomRepository.save(room);
+                Integer savedRoomIdx = room.getRoomIdx();
+                log.info("✅ Room 저장 완료: contentId={}, roomIdx={}, name={}", 
+                    contentId, savedRoomIdx, room.getName());
+                
+                // RoomImage 업데이트 (고유키 기반 소프트 삭제 및 신규 추가)
+                if (roomDto.getImages() != null) {
+                    // 기존 활성 이미지 목록 조회
+                    List<RoomImage> existingActiveImages = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(savedRoomIdx, contentId);
+                    List<Integer> existingActiveImageIdxs = existingActiveImages.stream()
+                        .map(RoomImage::getRoomImageIdx)
+                        .collect(Collectors.toList());
+                    
+                    // 전송된 이미지의 고유키 목록 (null이 아닌 것만)
+                    List<Integer> submittedImageIdxs = roomDto.getImages().stream()
+                        .map(HotelEditFormDto.RoomImageDto::getRoomImageIdx)
+                        .filter(idx -> idx != null)
+                        .collect(Collectors.toList());
+                    
+                    // 제거된 이미지: 기존에는 있지만 전송되지 않은 이미지 → 소프트 삭제
+                    List<Integer> imagesToDelete = existingActiveImageIdxs.stream()
+                        .filter(idx -> !submittedImageIdxs.contains(idx))
+                        .collect(Collectors.toList());
+                    
+                    for (Integer imageIdx : imagesToDelete) {
+                        roomImageRepository.findById(imageIdx).ifPresent(image -> {
+                            image.setStatus(0);
+                            image.setDeletedAt(java.time.LocalDateTime.now());
+                            // UNIQUE 제약조건 충돌 방지를 위해 imageOrder를 roomImageIdx + 10000으로 변경
+                            // (각 삭제된 이미지마다 고유한 imageOrder 보장, 활성 이미지 범위(1-10)와 충돌 방지)
+                            image.setImageOrder(imageIdx + 10000); // roomImageIdx + 10000을 imageOrder로 사용
+                            roomImageRepository.save(image);
+                            log.info("✅ RoomImage 소프트 삭제 완료: contentId={}, roomIdx={}, roomImageIdx={}, imageOrder={}", 
+                                contentId, savedRoomIdx, imageIdx, imageIdx + 10000);
+                        });
+                    }
+                    
+                    // 먼저 기존 이미지의 순서를 업데이트 (신규 이미지 INSERT 전에 충돌 방지)
+                    for (HotelEditFormDto.RoomImageDto imageDto : roomDto.getImages()) {
+                        if (imageDto.getImageUrl() != null && !imageDto.getImageUrl().isEmpty()) {
+                            if (imageDto.getRoomImageIdx() != null) {
+                                // 기존 이미지: 순서만 먼저 업데이트
+                                Integer imageOrder = imageDto.getImageOrder() != null ? imageDto.getImageOrder() : 1;
+                                roomImageRepository.findById(imageDto.getRoomImageIdx()).ifPresent(existingImage -> {
+                                    if (!existingImage.getImageOrder().equals(imageOrder)) {
+                                        existingImage.setImageOrder(imageOrder);
+                                        roomImageRepository.save(existingImage);
+                                        log.info("✅ RoomImage 순서 업데이트: contentId={}, roomIdx={}, roomImageIdx={}, imageOrder={}", 
+                                            contentId, savedRoomIdx, imageDto.getRoomImageIdx(), imageOrder);
+                                    }
+                                });
                             }
                         }
-                        
-                        diningRepository.save(dining);
+                    }
+                    
+                    // 그 다음 신규 이미지 INSERT (기존 이미지 순서 업데이트 완료 후)
+                    for (HotelEditFormDto.RoomImageDto imageDto : roomDto.getImages()) {
+                        if (imageDto.getImageUrl() != null && !imageDto.getImageUrl().isEmpty()) {
+                            if (imageDto.getRoomImageIdx() == null) {
+                                // 신규 이미지: INSERT (프론트엔드에서 전달한 imageOrder 사용)
+                                Integer imageOrder = imageDto.getImageOrder() != null ? imageDto.getImageOrder() : 1;
+                                
+                                // UNIQUE 제약조건 충돌 방지: 해당 imageOrder가 이미 사용 중인지 확인
+                                // (활성 이미지만 확인, 삭제된 이미지는 imageOrder >= 10000이므로 충돌 없음)
+                                final Integer finalImageOrder = imageOrder; // final 변수로 복사
+                                boolean orderExists = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(savedRoomIdx, contentId)
+                                    .stream()
+                                    .anyMatch(img -> img.getImageOrder().equals(finalImageOrder) && img.getStatus() == 1);
+                                
+                                Integer adjustedImageOrder = imageOrder;
+                                if (orderExists) {
+                                    // 충돌 발생 시 사용 가능한 다음 순서 찾기
+                                    List<Integer> usedOrders = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(savedRoomIdx, contentId)
+                                        .stream()
+                                        .filter(img -> img.getStatus() == 1)
+                                        .map(RoomImage::getImageOrder)
+                                        .collect(Collectors.toList());
+                                    
+                                    for (int i = 1; i <= 10; i++) {
+                                        if (!usedOrders.contains(i)) {
+                                            adjustedImageOrder = i;
+                                            break;
+                                        }
+                                    }
+                                    log.warn("⚠️ RoomImage imageOrder 충돌 감지, 자동 조정: contentId={}, roomIdx={}, imageOrder={}", 
+                                        contentId, savedRoomIdx, adjustedImageOrder);
+                                }
+                                
+                                RoomImage roomImage = new RoomImage();
+                                roomImage.setRoomIdx(savedRoomIdx);
+                                roomImage.setContentId(contentId);
+                                roomImage.setImageUrl(imageDto.getImageUrl());
+                                roomImage.setImageOrder(adjustedImageOrder);
+                                roomImage.setStatus(1); // 활성 상태
+                                roomImageRepository.save(roomImage);
+                                log.info("✅ RoomImage 신규 저장 완료: contentId={}, roomIdx={}, imageOrder={}, imageUrl={}", 
+                                    contentId, savedRoomIdx, adjustedImageOrder, imageDto.getImageUrl());
+                            }
+                        }
                     }
                 }
             }
         }
         
-        // HotelImage는 이미지 업로드 시 별도로 처리되므로 여기서는 업데이트하지 않음
+        // HotelImage 업데이트 (고유키 기반 소프트 삭제 및 신규 추가)
+        if (dto.getImages() != null) {
+            // 기존 활성 이미지 목록 조회
+            List<HotelImage> existingActiveImages = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
+            List<Integer> existingActiveImageIds = existingActiveImages.stream()
+                .map(HotelImage::getId)
+                .collect(Collectors.toList());
+            
+            // 전송된 이미지의 고유키 목록 (null이 아닌 것만)
+            List<Integer> submittedImageIds = dto.getImages().stream()
+                .map(HotelEditFormDto.ImageDto::getId)
+                .filter(id -> id != null)
+                .map(Long::intValue) // Long을 Integer로 변환
+                .collect(Collectors.toList());
+            
+            // 제거된 이미지: 기존에는 있지만 전송되지 않은 이미지 → 소프트 삭제
+            List<Integer> imagesToDelete = existingActiveImageIds.stream()
+                .filter(id -> !submittedImageIds.contains(id))
+                .collect(Collectors.toList());
+            
+            for (Integer imageId : imagesToDelete) {
+                hotelImageRepository.findById(imageId).ifPresent(image -> {
+                    image.setStatus(0);
+                    image.setDeletedAt(java.time.LocalDateTime.now());
+                    hotelImageRepository.save(image);
+                    log.info("✅ HotelImage 소프트 삭제 완료: contentId={}, id={}, originUrl={}", 
+                        contentId, imageId, image.getOriginUrl());
+                });
+            }
+            
+            // 새 이미지 저장 (고유키가 없는 이미지만 INSERT)
+            for (HotelEditFormDto.ImageDto imageDto : dto.getImages()) {
+                if (imageDto.getOriginUrl() != null && !imageDto.getOriginUrl().isEmpty()) {
+                    if (imageDto.getId() == null) {
+                        // 신규 이미지: INSERT
+                        HotelImage hotelImage = new HotelImage();
+                        hotelImage.setContentId(contentId);
+                        hotelImage.setOriginUrl(imageDto.getOriginUrl());
+                        hotelImage.setSmallUrl(imageDto.getSmallUrl() != null ? imageDto.getSmallUrl() : imageDto.getOriginUrl());
+                        hotelImage.setStatus(1); // 활성 상태
+                        hotelImageRepository.save(hotelImage);
+                        log.info("✅ HotelImage 신규 저장 완료: contentId={}, originUrl={}", 
+                            contentId, imageDto.getOriginUrl());
+                    }
+                    // 기존 이미지는 그대로 유지 (이미 활성 상태)
+                }
+            }
+        }
+        
+        // Dining 업데이트/생성/삭제
+        if (dto.getDining() != null) {
+            // 기존 다이닝 목록 조회
+            List<Dining> existingDinings = diningRepository.findByContentidAndStatus(contentId);
+            List<Integer> existingDiningIdxs = existingDinings.stream()
+                .map(Dining::getDiningIdx)
+                .collect(Collectors.toList());
+            
+            // 전송된 다이닝의 diningIdx 목록
+            List<Integer> submittedDiningIdxs = dto.getDining().stream()
+                .map(HotelEditFormDto.DiningDto::getDiningIdx)
+                .filter(diningIdx -> diningIdx != null)
+                .collect(Collectors.toList());
+            
+            // 삭제할 다이닝 찾기 (기존에는 있지만 전송된 데이터에는 없는 다이닝)
+            List<Integer> diningsToDelete = existingDiningIdxs.stream()
+                .filter(diningIdx -> !submittedDiningIdxs.contains(diningIdx))
+                .collect(Collectors.toList());
+            
+            // 다이닝 삭제 (soft delete: status를 1로 변경)
+            for (Integer diningIdx : diningsToDelete) {
+                diningRepository.findById(diningIdx).ifPresent(dining -> {
+                    dining.setStatus(1); // 1 = 삭제됨
+                    diningRepository.save(dining);
+                    log.info("✅ Dining 삭제 완료: contentId={}, diningIdx={}", contentId, diningIdx);
+                });
+            }
+            
+            // 다이닝 업데이트/생성
+            for (HotelEditFormDto.DiningDto diningDto : dto.getDining()) {
+                Dining dining;
+                
+                if (diningDto.getDiningIdx() != null && existingDiningIdxs.contains(diningDto.getDiningIdx())) {
+                    // 기존 다이닝 업데이트
+                    dining = diningRepository.findById(diningDto.getDiningIdx())
+                        .orElseThrow(() -> new IllegalArgumentException("다이닝을 찾을 수 없습니다: " + diningDto.getDiningIdx()));
+                } else {
+                    // 신규 다이닝 생성
+                    dining = new Dining();
+                    dining.setContentid(contentId);
+                    dining.setStatus(0); // 0 = 활성
+                }
+                
+                if (diningDto.getName() != null) {
+                    dining.setName(diningDto.getName());
+                }
+                if (diningDto.getDescription() != null) {
+                    dining.setDescription(diningDto.getDescription());
+                }
+                if (diningDto.getBasePrice() != null) {
+                    dining.setBasePrice(diningDto.getBasePrice());
+                }
+                if (diningDto.getTotalSeats() != null) {
+                    dining.setTotalSeats(diningDto.getTotalSeats());
+                }
+                
+                // operatingHours 파싱 (예: "09:00 - 21:00" → openTime, closeTime)
+                if (diningDto.getOperatingHours() != null && !diningDto.getOperatingHours().isEmpty()) {
+                    String[] times = diningDto.getOperatingHours().split(" - ");
+                    if (times.length == 2) {
+                        try {
+                            dining.setOpenTime(java.time.LocalTime.parse(times[0].trim()));
+                            dining.setCloseTime(java.time.LocalTime.parse(times[1].trim()));
+                        } catch (Exception e) {
+                            log.warn("운영시간 파싱 실패: contentId={}, operatingHours={}", 
+                                contentId, diningDto.getOperatingHours());
+                        }
+                    }
+                }
+                
+                diningRepository.save(dining);
+                log.info("✅ Dining 저장 완료: contentId={}, diningIdx={}, name={}", 
+                    contentId, dining.getDiningIdx(), dining.getName());
+            }
+        }
     }
 
     /**
@@ -365,6 +768,7 @@ public class HotelInfoService {
                             roomImage.setContentId(contentId);
                             roomImage.setImageUrl(imageDto.getImageUrl());
                             roomImage.setImageOrder(imageOrder);
+                            roomImage.setStatus(1); // 활성 상태
                             roomImageRepository.save(roomImage);
                             log.info("✅ RoomImage 저장 완료: contentId={}, roomIdx={}, imageOrder={}", contentId, savedRoomIdx, imageOrder);
                             imageOrder++;
@@ -373,15 +777,30 @@ public class HotelInfoService {
                 }
             }
             
-            // 7. HotelImage 저장
+            // 7. HotelImage 저장 또는 업데이트
             if (dto.getImages() != null && !dto.getImages().isEmpty()) {
                 for (HotelEditFormDto.ImageDto imageDto : dto.getImages()) {
-                    HotelImage hotelImage = new HotelImage();
-                    hotelImage.setContentId(contentId);
-                    hotelImage.setOriginUrl(imageDto.getOriginUrl());
-                    hotelImage.setSmallUrl(imageDto.getSmallUrl() != null ? imageDto.getSmallUrl() : imageDto.getOriginUrl());
-                    hotelImageRepository.save(hotelImage);
-                    log.info("✅ HotelImage 저장 완료: contentId={}, originUrl={}", contentId, imageDto.getOriginUrl());
+                    if (imageDto.getId() != null) {
+                        // 이미 DB에 저장된 이미지 (등록 페이지에서 업로드한 이미지): contentId만 업데이트
+                        hotelImageRepository.findById(imageDto.getId().intValue()).ifPresent(existingImage -> {
+                            if (existingImage.getContentId() == null) {
+                                existingImage.setContentId(contentId);
+                                hotelImageRepository.save(existingImage);
+                                log.info("✅ HotelImage contentId 업데이트 완료: id={}, contentId={}, originUrl={}", 
+                                    existingImage.getId(), contentId, existingImage.getOriginUrl());
+                            }
+                        });
+                    } else {
+                        // 신규 이미지: INSERT
+                        HotelImage hotelImage = new HotelImage();
+                        hotelImage.setContentId(contentId);
+                        hotelImage.setOriginUrl(imageDto.getOriginUrl());
+                        hotelImage.setSmallUrl(imageDto.getSmallUrl() != null ? imageDto.getSmallUrl() : imageDto.getOriginUrl());
+                        hotelImage.setStatus(1); // 활성 상태
+                        hotelImageRepository.save(hotelImage);
+                        log.info("✅ HotelImage 신규 저장 완료: contentId={}, originUrl={}", 
+                            contentId, imageDto.getOriginUrl());
+                    }
                 }
             }
             
