@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -67,4 +68,23 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
            "AND YEAR(c.joinDate) = YEAR(CURRENT_DATE) " +
            "AND MONTH(c.joinDate) = MONTH(CURRENT_DATE)")
     Long countNewCustomersThisMonth();
+
+    /**
+     * 고객 등급 업데이트 스케줄러용: customerIdx와 totalPrice만 조회
+     */
+    @Query("SELECT c.customerIdx, c.totalPrice FROM Customer c WHERE c.status = 0")
+    List<Object[]> findAllCustomerIdxAndTotalPrice();
+
+    /**
+     * 특정 고객의 현재 등급 조회
+     */
+    @Query("SELECT c.rank FROM Customer c WHERE c.customerIdx = :customerIdx")
+    String findRankByCustomerIdx(@Param("customerIdx") Integer customerIdx);
+
+    /**
+     * 특정 고객의 등급 업데이트
+     */
+    @Modifying
+    @Query("UPDATE Customer c SET c.rank = :rank WHERE c.customerIdx = :customerIdx")
+    void updateRankByCustomerIdx(@Param("customerIdx") Integer customerIdx, @Param("rank") String rank);
 }

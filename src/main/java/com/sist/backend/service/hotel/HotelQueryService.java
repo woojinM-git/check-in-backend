@@ -16,6 +16,7 @@ import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.HotelResponse;
 import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
+import com.sist.backend.dto.hotel.RoomImageResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelDetail;
@@ -24,10 +25,12 @@ import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.Review;
 import com.sist.backend.entity.ReviewImage;
 import com.sist.backend.entity.Room;
+import com.sist.backend.entity.RoomImage;
 import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
 import com.sist.backend.repository.CustomerRepository;
 import com.sist.backend.repository.ReviewImageRepository;
 import com.sist.backend.repository.ReviewRepository;
+import com.sist.backend.repository.RoomImageRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
@@ -50,6 +53,7 @@ public class HotelQueryService {
     private final ReviewRepository reviewRepository;
     private final ReviewImageRepository reviewImageRepository;
     private final CustomerRepository customerRepository;
+    private final RoomImageRepository roomImageRepository;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -110,6 +114,13 @@ public class HotelQueryService {
     public List<HotelImageResponse> getHotelImages(String contentId) {
         List<HotelImage> images = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
         return images.stream().map(this::mapHotelImage).collect(Collectors.toList());
+    }
+
+    // 객실 이미지 목록 조회
+    @Transactional(readOnly = true)
+    public List<RoomImageResponse> getRoomImages(Integer roomIdx, String contentId) {
+        List<RoomImage> images = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(roomIdx, contentId);
+        return images.stream().map(this::mapRoomImage).collect(Collectors.toList());
     }
 
     // 객실 예약 가능성 조회 (MyBatis) - 날짜 기반 예약 가능 여부 포함
@@ -178,6 +189,17 @@ public class HotelQueryService {
                 .contentId(image.getContentId())
                 .originUrl(image.getOriginUrl())
                 .smallUrl(image.getSmallUrl())
+                .build();
+    }
+
+    // 엔티티(RoomImage) -> 응답 DTO 매핑
+    private RoomImageResponse mapRoomImage(RoomImage image) {
+        return RoomImageResponse.builder()
+                .roomImageIdx(image.getRoomImageIdx())
+                .roomIdx(image.getRoomIdx())
+                .contentId(image.getContentId())
+                .imageUrl(image.getImageUrl())
+                .imageOrder(image.getImageOrder())
                 .build();
     }
 

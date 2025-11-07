@@ -65,6 +65,9 @@ public class HotelInfo {
 
     @Column(name = "status", columnDefinition = "INT")
     private Integer status;
+
+    @Column(name = "count",columnDefinition = "INT")
+    private Integer count;
     
     // 양방향 관계
     @OneToOne(fetch = FetchType.LAZY)
