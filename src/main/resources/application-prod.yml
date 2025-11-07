@@ -36,7 +36,7 @@ server:
 
 # 프로덕션 환경 프론트엔드 URL
 frontend:
-  url: ${FRONTEND_URL:http://15.164.210.141}
+  url: ${FRONTEND_URL}
 
 # 프로덕션용 보안 설정
 management:
