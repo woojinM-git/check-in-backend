@@ -67,6 +67,7 @@ public class MasterManagementController {
     private final ObjectMapper objectMapper;
     private final SettlementService settlementService;
     private final AnswerService answerService;
+    private final StatisticsService statisticsService;
 
     /**
      * 마스터 권한 확인 (type이 false(0)인지 확인)
@@ -701,6 +702,60 @@ public class MasterManagementController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "정산 데이터 생성 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 통계 데이터 조회 */
+    @GetMapping("/statistics")
+    @Operation(summary = "통계 데이터 조회", description = "날짜 범위별 통계 데이터를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getStatistics(
+            @Parameter(description = "날짜 범위 (week: 7일, month: 30일, quarter: 3개월, year: 1년)", example = "month")
+            @RequestParam(value = "dateRange", defaultValue = "month") String dateRange,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            Map<String, Object> statistics = statisticsService.getStatistics(dateRange);
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "통계 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 월별 수수료 수익 조회 (차트용) */
+    @GetMapping("/statistics/monthlyCommission")
+    @Operation(summary = "월별 수수료 수익 조회", description = "최근 12개월간의 월별 수수료 수익을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getMonthlyCommissionRevenue(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            List<Map<String, Object>> monthlyData = statisticsService.getMonthlyCommissionRevenue();
+            return ResponseEntity.ok(monthlyData);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "월별 수수료 수익 조회 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }

@@ -93,5 +93,25 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
            "LEFT JOIN FETCH h.area " +
            "WHERE h.adminIdx = :adminIdx")
     Optional<HotelInfo> findByAdminIdxWithDetails(@Param("adminIdx") Integer adminIdx);
+
+    /**
+     * 운영중인 호텔 수 조회 (status=1)
+     */
+    @Query("SELECT COUNT(h) FROM HotelInfo h WHERE h.status = 1")
+    Long countActiveHotels();
+
+    /**
+     * 이번달 신규 호텔 수 조회 (status=1이고 이번달에 승인된 호텔)
+     * RegistrationRequest의 승인일을 기준으로 조회
+     * adminIdx를 기준으로 JOIN
+     */
+    @Query("SELECT COUNT(DISTINCT h.contentId) FROM HotelInfo h " +
+           "INNER JOIN RegistrationRequest rr ON h.adminIdx = rr.adminIdx " +
+           "WHERE h.status = 1 " +
+           "AND rr.status = 1 " +
+           "AND rr.approvDate IS NOT NULL " +
+           "AND YEAR(rr.approvDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(rr.approvDate) = MONTH(CURRENT_DATE)")
+    Long countNewHotelsThisMonth();
 }
 
