@@ -1,20 +1,22 @@
 package com.sist.backend.service;
 
 import com.sist.backend.dto.master.SettlementDto;
-import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.HotelSettlement;
 import com.sist.backend.repository.HotelSettlementRepository;
 import com.sist.backend.repository.RoomPaymentRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SettlementService {
@@ -27,73 +29,112 @@ public class SettlementService {
     private static final double DEFAULT_WITHHOLDING_TAX_RATE = 0.033; // 3.3%
 
     /**
-     * 특정 월의 정산 데이터 생성 (청크 단위 배치 처리)
+     * 특정 월의 정산 데이터 생성 (결제 기준 집계)
+     * 결제가 발생한 호텔만 처리하여 성능 최적화
+     * 
      * @param year 연도
      * @param month 월 (1-12)
      */
     public void createSettlementForMonth(int year, int month) {
         String settlementMonth = String.format("%04d-%02d", year, month);
         
-        int pageSize = 50; // 한 번에 처리할 호텔 수
-        int page = 0;
-        Page<HotelInfo> hotelPage;
+        log.info("정산 데이터 생성 시작: {}년 {}월", year, month);
         
-        do {
-            // 페이지 단위로 호텔 조회
-            Pageable pageable = Pageable.ofSize(pageSize).withPage(page);
-            hotelPage = hotelInfoRepository.findAll(pageable);
+        // 1. 한 번의 쿼리로 결제가 발생한 모든 호텔의 수익 집계
+        List<Object[]> hotelRevenues = roomPaymentRepository.findMonthlyRevenueByHotel(year, month);
+        
+        log.info("결제 발생 호텔 수: {}개", hotelRevenues.size());
+        
+        if (hotelRevenues.isEmpty()) {
+            log.info("정산할 결제 내역이 없습니다.");
+            return;
+        }
+        
+        // 2. 배치 단위로 정산 데이터 생성 (트랜잭션 분리)
+        int batchSize = 50;
+        List<HotelRevenueData> batch = new ArrayList<>();
+        
+        for (Object[] row : hotelRevenues) {
+            String contentId = (String) row[0];
+            Long totalRevenue = ((Number) row[1]).longValue();
             
-            // 각 호텔별로 정산 처리 (호텔별 트랜잭션 분리)
-            for (HotelInfo hotel : hotelPage.getContent()) {
-                processSettlementForHotel(hotel.getContentId(), settlementMonth, year, month);
+            batch.add(new HotelRevenueData(contentId, totalRevenue));
+            
+            // 배치 크기에 도달하면 처리
+            if (batch.size() >= batchSize) {
+                processSettlementBatch(batch, settlementMonth);
+                batch.clear();
             }
-            
-            page++;
-        } while (hotelPage.hasNext());
+        }
+        
+        // 남은 데이터 처리
+        if (!batch.isEmpty()) {
+            processSettlementBatch(batch, settlementMonth);
+        }
+        
+        log.info("정산 데이터 생성 완료: {}년 {}월", year, month);
     }
 
     /**
-     * 개별 호텔의 정산 처리 (호텔별 트랜잭션 분리)
+     * 배치 단위 정산 처리 (트랜잭션 분리)
      */
     @Transactional
-    public void processSettlementForHotel(String contentId, String settlementMonth, int year, int month) {
-        // 이미 정산 데이터가 있는지 확인
-        if (settlementRepository.findByContentIdAndSettlementMonth(
-                contentId, settlementMonth).isPresent()) {
-            return; // 이미 정산 데이터가 있으면 스킵
+    public void processSettlementBatch(List<HotelRevenueData> hotelRevenues, String settlementMonth) {
+        for (HotelRevenueData hotelData : hotelRevenues) {
+            String contentId = hotelData.contentId;
+            Long totalRevenue = hotelData.totalRevenue;
+            
+            // 이미 정산 데이터가 있는지 확인
+            if (settlementRepository.findByContentIdAndSettlementMonth(
+                    contentId, settlementMonth).isPresent()) {
+                log.debug("이미 정산 데이터 존재: contentId={}, month={}", contentId, settlementMonth);
+                continue;
+            }
+            
+            // 수익이 없으면 스킵
+            if (totalRevenue == null || totalRevenue == 0) {
+                continue;
+            }
+            
+            // 수수료 계산 (10%)
+            Long commissionAmount = Math.round(totalRevenue * DEFAULT_COMMISSION_RATE);
+            
+            // 정산 대상 금액 (수수료 제외)
+            Long settlementAmount = totalRevenue - commissionAmount;
+            
+            // 원천징수 계산 (3.3%)
+            Long withholdingTaxAmount = Math.round(settlementAmount * DEFAULT_WITHHOLDING_TAX_RATE);
+            
+            // 최종 지급 금액 (원천징수 제외)
+            Long finalAmount = settlementAmount - withholdingTaxAmount;
+            
+            // 정산 데이터 생성
+            HotelSettlement settlement = HotelSettlement.builder()
+                .contentId(contentId)
+                .settlementMonth(settlementMonth)
+                .totalRevenue(totalRevenue)
+                .commissionAmount(commissionAmount)
+                .withholdingTaxAmount(withholdingTaxAmount)
+                .finalAmount(finalAmount)
+                .build();
+            
+            settlementRepository.save(settlement);
+            log.debug("정산 데이터 생성 완료: contentId={}, totalRevenue={}, finalAmount={}", 
+                contentId, totalRevenue, finalAmount);
         }
+    }
 
-        // 해당 호텔의 월별 총 수익 계산
-        Long totalRevenue = roomPaymentRepository.findTotalRevenueByContentIdAndMonth(
-            contentId, year, month);
-
-        if (totalRevenue == null || totalRevenue == 0) {
-            return; // 수익이 없으면 정산 데이터 생성하지 않음
+    /**
+     * 호텔별 수익 데이터를 담는 내부 클래스
+     */
+    private static class HotelRevenueData {
+        String contentId;
+        Long totalRevenue;
+        
+        HotelRevenueData(String contentId, Long totalRevenue) {
+            this.contentId = contentId;
+            this.totalRevenue = totalRevenue;
         }
-
-        // 수수료 계산 (10%)
-        Long commissionAmount = Math.round(totalRevenue * DEFAULT_COMMISSION_RATE);
-        
-        // 정산 대상 금액 (수수료 제외)
-        Long settlementAmount = totalRevenue - commissionAmount;
-        
-        // 원천징수 계산 (3.3%)
-        Long withholdingTaxAmount = Math.round(settlementAmount * DEFAULT_WITHHOLDING_TAX_RATE);
-        
-        // 최종 지급 금액 (원천징수 제외)
-        Long finalAmount = settlementAmount - withholdingTaxAmount;
-
-        // 정산 데이터 생성
-        HotelSettlement settlement = HotelSettlement.builder()
-            .contentId(contentId)
-            .settlementMonth(settlementMonth)
-            .totalRevenue(totalRevenue)
-            .commissionAmount(commissionAmount)
-            .withholdingTaxAmount(withholdingTaxAmount)
-            .finalAmount(finalAmount)
-            .build();
-
-        settlementRepository.save(settlement);
     }
 
     /**

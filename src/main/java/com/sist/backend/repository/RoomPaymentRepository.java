@@ -46,6 +46,7 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
     Double findAveragePaymentByContentId(@Param("contentid") String contentid);
 
     /* 특정 호텔의 월별 총 수익 계산 (이용 완료된 예약만, 체크아웃일 기준) */
+    @Deprecated
     @Query("SELECT COALESCE(SUM(rr.totalPrice), 0) FROM RoomReservation rr " +
            "WHERE rr.contentid = :contentId " +
            "AND rr.status = 4 " +
@@ -53,6 +54,27 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
            "AND MONTH(rr.checkoutDate) = :month")
     Long findTotalRevenueByContentIdAndMonth(
         @Param("contentId") String contentId,
+        @Param("year") int year,
+        @Param("month") int month);
+
+    /**
+     * 월별 호텔별 결제 금액 집계 (결제 기준)
+     * RoomReservation.status = 4인 결제만 집계
+     * totalRevenue = price + pointsUsed + cashUsed
+     * 
+     * @param year 연도
+     * @param month 월 (1-12)
+     * @return Map 리스트 (contentId, totalRevenue)
+     */
+    @Query("SELECT rr.contentid as contentId, " +
+           "       COALESCE(SUM(COALESCE(rp.price, 0) + COALESCE(rp.pointsUsed, 0) + COALESCE(rp.cashUsed, 0)), 0) as totalRevenue " +
+           "FROM RoomReservation rr " +
+           "INNER JOIN RoomPayment rp ON rr.orderIdx = rp.orderIdx " +
+           "WHERE rr.status = 4 " +
+           "AND YEAR(rr.checkoutDate) = :year " +
+           "AND MONTH(rr.checkoutDate) = :month " +
+           "GROUP BY rr.contentid")
+    List<Object[]> findMonthlyRevenueByHotel(
         @Param("year") int year,
         @Param("month") int month);
 

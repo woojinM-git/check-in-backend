@@ -62,6 +62,7 @@ public class MasterManagementController {
     private final HotelDraftService hotelDraftService;
     private final CustomerService customerService;
     private final CouponTemplateService couponTemplateService;
+    private final CouponService couponService;
     private final RoomReservationService roomReservationService;
     private final AdminRepository adminRepository;
     private final ObjectMapper objectMapper;
@@ -756,6 +757,165 @@ public class MasterManagementController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "월별 수수료 수익 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 지역별 통계 조회 */
+    @GetMapping("/statistics/region")
+    @Operation(summary = "지역별 통계 조회", description = "호텔 수가 많은 상위 4개 지역의 통계를 조회합니다. (캐싱 적용)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getRegionStatistics(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            List<Map<String, Object>> regionStats = statisticsService.getRegionStatistics();
+            return ResponseEntity.ok(regionStats);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "지역별 통계 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 회원 등급별 통계 조회 */
+    @GetMapping("/statistics/memberGrade")
+    @Operation(summary = "회원 등급별 통계 조회", description = "각 등급별 인원수, 비율, 평균 지출액을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getMemberGradeStatistics(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            List<Map<String, Object>> memberGradeStats = statisticsService.getMemberGradeStatistics();
+            return ResponseEntity.ok(memberGradeStats);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "회원 등급별 통계 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 호텔별 매출 순위 조회 */
+    @GetMapping("/statistics/hotelRankings")
+    @Operation(summary = "호텔별 매출 순위 조회", description = "최근 30일 기준 호텔별 매출 순위를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getHotelRevenueRankings(
+            @Parameter(description = "상위 N개 호텔 (기본값: 4)", required = false) @RequestParam(required = false) Integer limit,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            List<Map<String, Object>> hotelRankings = statisticsService.getHotelRevenueRankings(limit);
+            return ResponseEntity.ok(hotelRankings);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "호텔별 매출 순위 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 쿠폰 일괄 발급 */
+    @PostMapping("/coupon-batch/issue")
+    @Operation(summary = "등급별 쿠폰 일괄 발급", description = "선택한 등급의 모든 활성 고객에게 쿠폰을 일괄 발급합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 발급됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> batchIssueCoupons(
+            @Parameter(description = "등급", required = true) @RequestParam String rank,
+            @Parameter(description = "쿠폰 템플릿 번호", required = true) @RequestParam Integer templateIdx,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            // 마스터 adminIdx 가져오기
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+
+            if (adminIdx == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "관리자 인덱스를 찾을 수 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            // 등급별 쿠폰 일괄 발급
+            int issuedCount = couponService.batchIssueCouponsByRank(rank, templateIdx, adminIdx);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", String.format("등급 '%s'에 해당하는 %d명의 고객에게 쿠폰이 발급되었습니다.", rank, issuedCount));
+            response.put("issuedCount", issuedCount);
+            response.put("rank", rank);
+            response.put("templateIdx", templateIdx);
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "쿠폰 일괄 발급 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /* 등급별 인원수 조회 */
+    @GetMapping("/coupon-batch/rankCounts")
+    @Operation(summary = "등급별 인원수 조회", description = "모든 등급별 활성 고객 수를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getRankCustomerCounts(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+
+        try {
+            Map<String, Long> rankCounts = couponService.getAllRankCustomerCounts();
+            return ResponseEntity.ok(rankCounts);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "등급별 인원수 조회 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
