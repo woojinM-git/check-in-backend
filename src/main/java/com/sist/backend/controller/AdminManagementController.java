@@ -49,6 +49,8 @@ import com.sist.backend.dto.admin.CustomerHistoryStatsDto;
 import com.sist.backend.dto.admin.FeedbackDto;
 import com.sist.backend.dto.admin.FeedbackStatsDto;
 import com.sist.backend.entity.ReviewAnswer;
+import com.sist.backend.entity.Admin;
+import com.sist.backend.repository.admin.AdminRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -72,6 +74,7 @@ public class AdminManagementController {
     private final CouponService couponService;
     private final HotelInfoService hotelInfoService;
     private final com.sist.backend.service.ReviewService reviewService;
+    private final AdminRepository adminRepository;
 
     /**
      * JWT에서 adminIdx를 추출하고 contentId를 조회
@@ -634,6 +637,30 @@ public class AdminManagementController {
         
         if (contentIdOpt.isPresent()) {
             return ResponseEntity.ok(contentIdOpt.get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/type/{adminIdx}")
+    @Operation(summary = "관리자 타입 조회", description = "adminIdx로 해당 관리자의 type을 조회합니다. (false=마스터, true=관리자)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "404", description = "해당 관리자를 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getAdminType(
+        @Parameter(description = "관리자 ID", example = "1")
+        @PathVariable("adminIdx") Integer adminIdx) {
+        
+        Optional<Admin> adminOpt = adminRepository.findByAdminIdxAndStatus(adminIdx, false);
+        
+        if (adminOpt.isPresent()) {
+            Admin admin = adminOpt.get();
+            Map<String, Object> response = new HashMap<>();
+            response.put("adminIdx", adminIdx);
+            response.put("type", admin.getType()); // false=마스터(0), true=관리자(1)
+            return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.notFound().build();
         }
