@@ -87,4 +87,16 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     @Modifying
     @Query("UPDATE Customer c SET c.rank = :rank WHERE c.customerIdx = :customerIdx")
     void updateRankByCustomerIdx(@Param("customerIdx") Integer customerIdx, @Param("rank") String rank);
+
+    /**
+     * 등급별 활성 고객 조회 (status = 0)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.rank = :rank AND c.status = 0")
+    List<Customer> findByRankAndStatus(@Param("rank") String rank);
+
+    /**
+     * 등급별 활성 고객 수 조회 (status = 0)
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.rank = :rank AND c.status = 0")
+    Long countByRankAndStatus(@Param("rank") String rank);
 }
