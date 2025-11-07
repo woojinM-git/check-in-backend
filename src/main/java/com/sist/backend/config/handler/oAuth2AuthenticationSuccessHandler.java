@@ -36,6 +36,9 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
+    
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -105,7 +108,7 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         log.info("OAuth2 로그인 성공 - JWT 토큰 발급 완료. Customer IDX: {}", customer.getCustomerIdx());
                         
                         // 메인 페이지로 리다이렉트
-                        response.sendRedirect("http://localhost:3333");
+                        response.sendRedirect(frontendUrl);
                         return;
                     } else {
                         log.error("OAuth2 로그인 실패 - Customer를 찾을 수 없음: {}", userId);
