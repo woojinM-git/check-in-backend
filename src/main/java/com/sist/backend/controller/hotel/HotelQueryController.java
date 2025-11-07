@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
+import com.sist.backend.dto.hotel.RoomImageResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.service.hotel.HotelQueryService;
 
@@ -125,5 +126,19 @@ public class HotelQueryController {
     @GetMapping("/{contentId}/reviews/summary")
     public ResponseEntity<Map<String, Object>> getReviewSummary(@PathVariable(name = "contentId") String contentId) {
         return ResponseEntity.ok(hotelQueryService.getReviewSummary(contentId));
+    }
+
+    // Swagger: 객실 이미지 목록 조회 API 문서
+    @Operation(summary = "객실 이미지 목록 조회", description = "roomIdx와 contentId로 객실 이미지 목록을 조회합니다. imageOrder 순서대로 정렬됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{contentId}/rooms/{roomIdx}/images")
+    public ResponseEntity<List<RoomImageResponse>> getRoomImages(
+            @PathVariable(name = "contentId") String contentId,
+            @PathVariable(name = "roomIdx") Integer roomIdx
+    ) {
+        return ResponseEntity.ok(hotelQueryService.getRoomImages(roomIdx, contentId));
     }
 }

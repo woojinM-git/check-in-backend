@@ -45,13 +45,12 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
            "WHERE rr.contentid = :contentid AND rp.status = 1")
     Double findAveragePaymentByContentId(@Param("contentid") String contentid);
 
-    /* 특정 호텔의 월별 총 수익 계산 (결제 완료된 것만) */
-    @Query("SELECT COALESCE(SUM(rp.price), 0) FROM RoomPayment rp " +
-           "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx " +
+    /* 특정 호텔의 월별 총 수익 계산 (이용 완료된 예약만, 체크아웃일 기준) */
+    @Query("SELECT COALESCE(SUM(rr.totalPrice), 0) FROM RoomReservation rr " +
            "WHERE rr.contentid = :contentId " +
-           "AND rp.status = 1 " +
-           "AND YEAR(rp.approvedAt) = :year " +
-           "AND MONTH(rp.approvedAt) = :month")
+           "AND rr.status = 4 " +
+           "AND YEAR(rr.checkoutDate) = :year " +
+           "AND MONTH(rr.checkoutDate) = :month")
     Long findTotalRevenueByContentIdAndMonth(
         @Param("contentId") String contentId,
         @Param("year") int year,

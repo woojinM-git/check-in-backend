@@ -14,7 +14,9 @@ import com.sist.backend.dto.admin.RevenueSummaryDto;
 import com.sist.backend.dto.admin.RevenueSummaryDto.MonthRevenueDto;
 import com.sist.backend.dto.admin.DailyRevenueDto;
 import com.sist.backend.entity.RoomPayment;
+import com.sist.backend.entity.HotelSettlement;
 import com.sist.backend.repository.RoomPaymentRepository;
+import com.sist.backend.repository.HotelSettlementRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,21 +25,19 @@ import lombok.RequiredArgsConstructor;
 public class RevenueService {
 
     private final RoomPaymentRepository roomPaymentRepository;
+    private final HotelSettlementRepository hotelSettlementRepository;
 
     public RevenueSummaryDto getRevenueSummary(String contentId) {
+        // 오늘 매출은 RoomPayment에서 계산 (일별 통계는 제거했지만 오늘 매출은 유지)
         List<RoomPayment> payments = roomPaymentRepository.findAllByContentIdWithReservations(contentId);
-
         LocalDate today = LocalDate.now();
 
         long todayRevenue = 0L;
         int todayCount = 0;
 
-        Map<YearMonth, Long> monthToRevenue = new HashMap<>();
-
         for (RoomPayment rp : payments) {
             long price = rp.getPrice() != null ? rp.getPrice().longValue() : 0L;
 
-            // 집계 기준 날짜: RoomPayment.approvedAt (LocalDateTime 가정)
             LocalDate refDate = null;
             if (rp.getApprovedAt() != null) {
                 refDate = rp.getApprovedAt().atZone(ZoneId.systemDefault()).toLocalDate();
@@ -47,10 +47,27 @@ public class RevenueService {
                 todayRevenue += price;
                 todayCount += 1;
             }
+        }
 
-            if (refDate != null) {
-                YearMonth ym = YearMonth.from(refDate);
-                monthToRevenue.merge(ym, price, Long::sum);
+        // 월별 매출은 HotelSettlement 테이블에서 가져오기
+        List<HotelSettlement> settlements = hotelSettlementRepository.findByContentId(contentId);
+        Map<YearMonth, Long> monthToRevenue = new HashMap<>();
+
+        for (HotelSettlement settlement : settlements) {
+            // settlementMonth 형식: "2024-01"
+            String settlementMonth = settlement.getSettlementMonth();
+            String[] parts = settlementMonth.split("-");
+            if (parts.length == 2) {
+                try {
+                    int year = Integer.parseInt(parts[0]);
+                    int month = Integer.parseInt(parts[1]);
+                    YearMonth ym = YearMonth.of(year, month);
+                    // totalRevenue는 총 수익 (정산된 금액)
+                    monthToRevenue.put(ym, settlement.getTotalRevenue());
+                } catch (NumberFormatException e) {
+                    // 잘못된 형식이면 스킵
+                    continue;
+                }
             }
         }
 

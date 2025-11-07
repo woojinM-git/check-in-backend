@@ -3,6 +3,7 @@ package com.sist.backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.sist.backend.repository.hotel.HotelInfoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class ReservationService {
     private final RoomReservationRepository roomReservationRepository;
     private final RoomRepository roomRepository;
     private final QRCodeGenerator qrCodeGenerator;
+    private final HotelInfoRepository hotelInfoRepository;
 
     /**
      * 결제 완료 후 예약 데이터 생성( 트랜잭션 보장해줘야함)
@@ -81,6 +83,11 @@ public class ReservationService {
                 .build();
 
         //DB저장및 반환
-        return roomReservationRepository.save(reservation);
+        RoomReservation savedReservation = roomReservationRepository.save(reservation);
+        // 호텔 예약 수 증가
+        hotelInfoRepository.increaseReservationCount(request.getContentId());
+
+        // 저장된 예약 정보 반환
+        return savedReservation;
     }
 }

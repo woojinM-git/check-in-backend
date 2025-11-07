@@ -16,6 +16,7 @@ public class RoomBookMark {
     
     @Id
     @Column(name = "roomBookIdx")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer roomBookIdx;
     
     @ManyToOne(fetch = FetchType.LAZY)

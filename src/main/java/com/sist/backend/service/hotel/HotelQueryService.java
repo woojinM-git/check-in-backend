@@ -3,7 +3,6 @@ package com.sist.backend.service.hotel;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,32 +16,33 @@ import com.sist.backend.dto.hotel.HotelImageResponse;
 import com.sist.backend.dto.hotel.HotelResponse;
 import com.sist.backend.dto.hotel.ReviewResponse;
 import com.sist.backend.dto.hotel.RoomAvailabilityResponse;
+import com.sist.backend.dto.hotel.RoomImageResponse;
 import com.sist.backend.dto.hotel.RoomResponse;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.entity.HotelDetail;
 import com.sist.backend.entity.HotelImage;
 import com.sist.backend.entity.HotelInfo;
 import com.sist.backend.entity.Review;
+import com.sist.backend.entity.ReviewImage;
 import com.sist.backend.entity.Room;
+import com.sist.backend.entity.RoomImage;
 import com.sist.backend.mapper.hotel.RoomAdvancedMapper;
 import com.sist.backend.repository.CustomerRepository;
 import com.sist.backend.repository.ReviewImageRepository;
 import com.sist.backend.repository.ReviewRepository;
+import com.sist.backend.repository.RoomImageRepository;
 import com.sist.backend.repository.hotel.HotelImageRepository;
 import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
-import com.sist.backend.service.ReviewImageService;
+
+import java.util.ArrayList;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-@Slf4j
 public class HotelQueryService {
-
-    private final ReviewImageRepository reviewImageRepository;
 
     //용준 사용 호텔 디테일 창에서 객실 정보 편의시설 정보 이미지등
     //불러 올때 사용
@@ -51,8 +51,9 @@ public class HotelQueryService {
     private final RoomAdvancedMapper roomAdvancedMapper;
     private final HotelImageRepository hotelImageRepository;
     private final ReviewRepository reviewRepository;
+    private final ReviewImageRepository reviewImageRepository;
     private final CustomerRepository customerRepository;
-    private final ReviewImageService reviewImageService;
+    private final RoomImageRepository roomImageRepository;
 
     // 호텔 상세 조회 (JPA)
     public Optional<HotelResponse> getHotel(String contentId) {
@@ -113,6 +114,13 @@ public class HotelQueryService {
     public List<HotelImageResponse> getHotelImages(String contentId) {
         List<HotelImage> images = hotelImageRepository.findTop10ByContentIdOrderByIdAsc(contentId);
         return images.stream().map(this::mapHotelImage).collect(Collectors.toList());
+    }
+
+    // 객실 이미지 목록 조회
+    @Transactional(readOnly = true)
+    public List<RoomImageResponse> getRoomImages(Integer roomIdx, String contentId) {
+        List<RoomImage> images = roomImageRepository.findByRoomIdxAndContentIdOrderByImageOrderAsc(roomIdx, contentId);
+        return images.stream().map(this::mapRoomImage).collect(Collectors.toList());
     }
 
     // 객실 예약 가능성 조회 (MyBatis) - 날짜 기반 예약 가능 여부 포함
@@ -184,21 +192,32 @@ public class HotelQueryService {
                 .build();
     }
 
+    // 엔티티(RoomImage) -> 응답 DTO 매핑
+    private RoomImageResponse mapRoomImage(RoomImage image) {
+        return RoomImageResponse.builder()
+                .roomImageIdx(image.getRoomImageIdx())
+                .roomIdx(image.getRoomIdx())
+                .contentId(image.getContentId())
+                .imageUrl(image.getImageUrl())
+                .imageOrder(image.getImageOrder())
+                .build();
+    }
+
     // 호텔 리뷰 목록 조회
     public List<ReviewResponse> getReviews(String contentId) {
         List<Review> reviews = reviewRepository.findByContentId(contentId);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         return reviews.stream().map(review -> {
-            // Customer 정보 조회
+            // Customer 정보 조회 (닉네임 우선)
             String userName = "익명";
             Optional<Customer> customerOpt = customerRepository.findById(review.getCustomerIdx());
             if (customerOpt.isPresent()) {
                 Customer customer = customerOpt.get();
-                userName = customer.getName() != null && !customer.getName().isBlank()
-                        ? customer.getName()
-                        : (customer.getNickname() != null && !customer.getNickname().isBlank()
+                userName = customer.getNickname() != null && !customer.getNickname().isBlank()
                         ? customer.getNickname()
+                        : (customer.getName() != null && !customer.getName().isBlank()
+                        ? customer.getName()
                         : "익명");
             }
 
@@ -209,10 +228,10 @@ public class HotelQueryService {
                 roomType = roomOpt.get().getName();
             }
 
-            // star를 0-10 스케일로 변환 (DB는 0-5 스케일)
+            // star를 1-5 스케일로 유지 (DB는 1-5 스케일)
             Double rating = null;
             if (review.getStar() != null) {
-                rating = review.getStar().doubleValue() * 2.0; // 0-5를 0-10으로 변환
+                rating = review.getStar().doubleValue(); // 1-5 스케일 유지
             }
 
             // 날짜 포맷팅
@@ -220,18 +239,31 @@ public class HotelQueryService {
                     ? review.getCreatedAt().format(formatter)
                     : null;
 
-            // 대표이미지 1장
-            String firstImageUrl = review.getImageUrl();
-            log.info("firstImageUrl: {}", firstImageUrl);
-            // 추가 이미지 2~5장 조회
-            List<String> imageUrls = reviewImageService.getReviewImageUrls(review.getReviewIdx());
+            // 리뷰 이미지 수집 (imageUrl + imageUrl2~5 중 null이 아닌 것들)
+            List<String> images = new ArrayList<>();
 
-            // 대표 + 추가 이미지 합치기
-            List<String> allImageUrls = new ArrayList<>();
-            if(firstImageUrl != null && !firstImageUrl.isBlank()) {
-                allImageUrls.add(firstImageUrl);
+            // Review 엔티티의 imageUrl (첫 번째 이미지)
+            if (review.getImageUrl() != null && !review.getImageUrl().isBlank()) {
+                images.add(review.getImageUrl());
             }
-            allImageUrls.addAll(imageUrls);
+
+            // ReviewImage 엔티티의 imageUrl2~5
+            Optional<ReviewImage> reviewImageOpt = reviewImageRepository.findByReviewIdx(review.getReviewIdx());
+            if (reviewImageOpt.isPresent()) {
+                ReviewImage reviewImage = reviewImageOpt.get();
+                if (reviewImage.getImageUrl2() != null && !reviewImage.getImageUrl2().isBlank()) {
+                    images.add(reviewImage.getImageUrl2());
+                }
+                if (reviewImage.getImageUrl3() != null && !reviewImage.getImageUrl3().isBlank()) {
+                    images.add(reviewImage.getImageUrl3());
+                }
+                if (reviewImage.getImageUrl4() != null && !reviewImage.getImageUrl4().isBlank()) {
+                    images.add(reviewImage.getImageUrl4());
+                }
+                if (reviewImage.getImageUrl5() != null && !reviewImage.getImageUrl5().isBlank()) {
+                    images.add(reviewImage.getImageUrl5());
+                }
+            }
 
             return ReviewResponse.builder()
                     .id(review.getReviewIdx())
@@ -240,8 +272,7 @@ public class HotelQueryService {
                     .roomType(roomType)
                     .rating(rating)
                     .comment(review.getContent())
-                    .imageUrl(firstImageUrl)
-                    .imageUrls(allImageUrls)
+                    .images(images)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -251,8 +282,8 @@ public class HotelQueryService {
         BigDecimal avgRating = reviewRepository.findAverageRatingByContentId(contentId);
         Long reviewCount = reviewRepository.countFeedbackByContentId(contentId);
 
-        // 평점을 0-10 스케일로 변환
-        Double rating = avgRating != null ? avgRating.doubleValue() * 2.0 : 0.0;
+        // 평점을 1-5 스케일로 유지 (DB는 1-5 스케일)
+        Double rating = avgRating != null ? avgRating.doubleValue() : 0.0;
 
         Map<String, Object> summary = new HashMap<>();
         summary.put("rating", rating);

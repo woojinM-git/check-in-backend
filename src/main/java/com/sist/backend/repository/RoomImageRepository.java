@@ -13,43 +13,47 @@ import java.util.Optional;
 public interface RoomImageRepository extends JpaRepository<RoomImage, Integer> {
     
     /**
-     * 특정 객실의 모든 이미지를 순서대로 조회
+     * 특정 객실의 모든 이미지를 순서대로 조회 (활성 이미지만)
      */
-    @Query("SELECT r FROM RoomImage r WHERE r.roomIdx = :roomIdx AND r.contentId = :contentId ORDER BY r.imageOrder ASC")
+    @Query("SELECT r FROM RoomImage r WHERE r.roomIdx = :roomIdx AND r.contentId = :contentId AND r.status = 1 ORDER BY r.imageOrder ASC")
     List<RoomImage> findByRoomIdxAndContentIdOrderByImageOrderAsc(
         @Param("roomIdx") Integer roomIdx,
         @Param("contentId") String contentId
     );
     
     /**
-     * 특정 호텔의 모든 객실 이미지 조회
+     * 특정 호텔의 모든 객실 이미지 조회 (활성 이미지만)
      */
-    @Query("SELECT r FROM RoomImage r WHERE r.contentId = :contentId ORDER BY r.roomIdx ASC, r.imageOrder ASC")
+    @Query("SELECT r FROM RoomImage r WHERE r.contentId = :contentId AND r.status = 1 ORDER BY r.roomIdx ASC, r.imageOrder ASC")
     List<RoomImage> findByContentIdOrderByRoomIdxAndImageOrder(
         @Param("contentId") String contentId
     );
     
     /**
-     * 특정 객실의 이미지 개수 조회 (최대 10개 제한 확인용)
+     * 특정 객실의 이미지 개수 조회 (활성 이미지만, 최대 10개 제한 확인용)
      */
-    @Query("SELECT COUNT(r) FROM RoomImage r WHERE r.roomIdx = :roomIdx AND r.contentId = :contentId")
+    @Query("SELECT COUNT(r) FROM RoomImage r WHERE r.roomIdx = :roomIdx AND r.contentId = :contentId AND r.status = 1")
     Long countByRoomIdxAndContentId(
         @Param("roomIdx") Integer roomIdx,
         @Param("contentId") String contentId
     );
     
     /**
-     * 특정 객실의 특정 순서 이미지 조회
+     * 특정 객실의 특정 순서 이미지 조회 (활성 이미지만)
      */
+    @Query("SELECT r FROM RoomImage r WHERE r.roomIdx = :roomIdx AND r.contentId = :contentId AND r.imageOrder = :imageOrder AND r.status = 1")
     Optional<RoomImage> findByRoomIdxAndContentIdAndImageOrder(
-        Integer roomIdx,
-        String contentId,
-        Integer imageOrder
+        @Param("roomIdx") Integer roomIdx,
+        @Param("contentId") String contentId,
+        @Param("imageOrder") Integer imageOrder
     );
     
     /**
-     * 특정 객실의 모든 이미지 삭제
+     * 특정 객실의 모든 이미지 소프트 삭제 (status = 0으로 변경)
+     * 하드 삭제 대신 소프트 삭제를 사용하므로 이 메서드는 사용하지 않음
+     * @deprecated 소프트 삭제를 사용하세요
      */
+    @Deprecated
     void deleteByRoomIdxAndContentId(Integer roomIdx, String contentId);
 }
 

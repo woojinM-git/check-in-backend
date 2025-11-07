@@ -22,3 +22,7 @@ server:
   error:
     include-stacktrace: always
     include-message: always
+
+# 개발 환경 프론트엔드 URL
+frontend:
+  url: http://localhost:3333

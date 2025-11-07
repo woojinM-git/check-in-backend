@@ -43,6 +43,9 @@ public class Center {
     @Column(name = "customerIdx")
     private Integer customerIdx;
     
+    // 호텔 ID (NULL 허용)
+    @Column(name = "contentId", length = 50)
+    private String contentId;
     
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -73,6 +76,12 @@ public class Center {
     @ToString.Exclude
     private Customer customer;
     
+    // 양방향 관계 - 호텔 (NULL 허용)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contentId", referencedColumnName = "contentId", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private HotelInfo hotelInfo;
     
     // 기존 Answer 관계 유지
     @OneToMany(mappedBy = "center", fetch = FetchType.LAZY)
