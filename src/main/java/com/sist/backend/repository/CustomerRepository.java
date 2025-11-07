@@ -58,4 +58,13 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     Optional<Customer> findByEmailAndStatus(String email, Integer status);
 
     Optional<Customer> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
+
+    /**
+     * 이번달 신규 가입 회원 수 조회
+     */
+    @Query("SELECT COUNT(c) FROM Customer c " +
+           "WHERE c.status = 0 " +
+           "AND YEAR(c.joinDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(c.joinDate) = MONTH(CURRENT_DATE)")
+    Long countNewCustomersThisMonth();
 }
