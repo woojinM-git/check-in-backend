@@ -14,6 +14,7 @@ services:
       MYSQL_DATABASE: "checkin"
       MYSQL_USER: "${DB_USERNAME}"
       MYSQL_PASSWORD: "${DB_PASSWORD}"
+      TZ: "Asia/Seoul"
     ports:
       - "4444:3306"
     restart: always
@@ -23,6 +24,8 @@ services:
     container_name: redis
     networks:
       - checkin_net
+    environment:
+      TZ: "Asia/Seoul"
     ports:
       - "6379:6379"
     restart: always
@@ -42,6 +45,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: "Asia/Seoul"
       SPRING_PROFILES_ACTIVE: "prod"
       # Database
       DB_URL: "jdbc:mysql://mysql80:3306/checkin?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci"
