@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
+import com.sist.backend.util.CookieUtils;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -94,9 +95,11 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         
                         String refreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime);
                         
+                        String domainAttribute = CookieUtils.buildDomainAttribute(frontendUrl);
+
                         // 쿠키에 토큰 설정
-                        String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax", accessToken);
-                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", refreshToken, refreshTokenExpireTime);
+                        String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax%s", accessToken, domainAttribute);
+                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", refreshToken, refreshTokenExpireTime, domainAttribute);
                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
                         
