@@ -48,6 +48,6 @@ public class Coupon {
     @Column(name = "endDate", nullable = false)
     private LocalDateTime endDate;
     
-    @Column(name = "status")
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private Boolean status;
 }

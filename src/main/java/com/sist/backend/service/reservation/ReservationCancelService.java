@@ -321,11 +321,14 @@ public class ReservationCancelService {
             couponDiscount = getCouponDiscount(payment.getCouponIdx());
         }
 
-        // 4) 환불 금액 계산
-        int totalPrice = reservation.getTotalPrice() != null ? reservation.getTotalPrice() : 0;
+        // 4) 환불 금액 계산 (사용자 요구사항 로직)
         int pointsUsed = (payment.getPointUsed() != null) ? payment.getPointUsed() : 0;
         int cashUsed = 0; // 다이닝은 캐시 사용 안 함 (필요시 추가)
         int cardPaid = (payment.getPrice() != null) ? payment.getPrice() : 0;
+
+        // totalPrice 재계산: 실제 사용한 모든 금액 합산 (환불 계산용)
+        // DB의 totalPrice는 실제 총액과 다를 수 있으므로, 실제 사용 금액을 합산
+        int totalPrice = cardPaid + cashUsed + pointsUsed;
 
         RefundCalculationResult refundResult = calculateRefund(
                 totalPrice, couponDiscount, cardPaid, cashUsed, pointsUsed, refundRate);

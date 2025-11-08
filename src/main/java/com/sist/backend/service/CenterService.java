@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sist.backend.entity.Center;
 import com.sist.backend.repository.CenterRepository;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -76,11 +78,26 @@ public class CenterService {
         Integer priority,
         Integer customerIdx,
         Integer adminIdx,
+        String contentId,
+        List<String> contentIdList,
         String title,
         Pageable pageable
     ) {
         return centerRepository.findByMultipleConditions(
-            mainCategory, subCategory, status, priority, customerIdx, adminIdx, title, pageable
+            mainCategory, subCategory, status, priority, customerIdx, adminIdx, contentId, contentIdList, title, pageable
         );
+    }
+    
+    /**
+     * 특정 호텔에 대한 신고 존재 여부 확인
+     * @param contentId 호텔 ID
+     * @param customerIdx 고객 ID
+     * @return 신고 존재 여부
+     */
+    public boolean existsReportByContentIdAndCustomerIdx(String contentId, Integer customerIdx) {
+        if (contentId == null || customerIdx == null) {
+            return false;
+        }
+        return centerRepository.existsReportByContentIdAndCustomerIdx(contentId, customerIdx);
     }
 }
