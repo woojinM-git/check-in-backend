@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -58,4 +59,44 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     Optional<Customer> findByEmailAndStatus(String email, Integer status);
 
     Optional<Customer> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
+
+    /**
+     * 이번달 신규 가입 회원 수 조회
+     */
+    @Query("SELECT COUNT(c) FROM Customer c " +
+           "WHERE c.status = 0 " +
+           "AND YEAR(c.joinDate) = YEAR(CURRENT_DATE) " +
+           "AND MONTH(c.joinDate) = MONTH(CURRENT_DATE)")
+    Long countNewCustomersThisMonth();
+
+    /**
+     * 고객 등급 업데이트 스케줄러용: customerIdx와 totalPrice만 조회
+     */
+    @Query("SELECT c.customerIdx, c.totalPrice FROM Customer c WHERE c.status = 0")
+    List<Object[]> findAllCustomerIdxAndTotalPrice();
+
+    /**
+     * 특정 고객의 현재 등급 조회
+     */
+    @Query("SELECT c.rank FROM Customer c WHERE c.customerIdx = :customerIdx")
+    String findRankByCustomerIdx(@Param("customerIdx") Integer customerIdx);
+
+    /**
+     * 특정 고객의 등급 업데이트
+     */
+    @Modifying
+    @Query("UPDATE Customer c SET c.rank = :rank WHERE c.customerIdx = :customerIdx")
+    void updateRankByCustomerIdx(@Param("customerIdx") Integer customerIdx, @Param("rank") String rank);
+
+    /**
+     * 등급별 활성 고객 조회 (status = 0)
+     */
+    @Query("SELECT c FROM Customer c WHERE c.rank = :rank AND c.status = 0")
+    List<Customer> findByRankAndStatus(@Param("rank") String rank);
+
+    /**
+     * 등급별 활성 고객 수 조회 (status = 0)
+     */
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.rank = :rank AND c.status = 0")
+    Long countByRankAndStatus(@Param("rank") String rank);
 }
