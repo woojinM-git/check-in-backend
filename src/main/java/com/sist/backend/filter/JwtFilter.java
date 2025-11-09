@@ -57,8 +57,8 @@ public class JwtFilter extends OncePerRequestFilter {
     private int refreshTokenExpireTime;
     @Value("${jwt.reissue-time}")
     private int reissueTime;
-    @Value("${frontend.url}")
-    private String frontendUrl;
+    @Value("${server.domain}")
+    private String serverDomain;
     
     /**
      * 필터를 적용하지 않을 경로 설정
@@ -450,6 +450,6 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     private String getDomainAttribute() {
-        return CookieUtils.buildDomainAttribute(frontendUrl);
+        return CookieUtils.buildDomainAttribute(serverDomain);
     }
 }

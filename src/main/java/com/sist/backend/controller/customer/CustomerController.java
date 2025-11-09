@@ -39,8 +39,8 @@ public class CustomerController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Value("${frontend.url}")
-    private String frontendUrl;
+    @Value("${server.domain}")
+    private String serverDomain;
 
     @GetMapping("/me")
     @Operation(summary="현재 사용자 정보 조회", description="httpOnly 쿠키에서 사용자 정보를 조회합니다")
@@ -456,7 +456,7 @@ public class CustomerController {
     }
 
     private String getDomainAttribute() {
-        return CookieUtils.buildDomainAttribute(frontendUrl);
+        return CookieUtils.buildDomainAttribute(serverDomain);
     }
 }
 
