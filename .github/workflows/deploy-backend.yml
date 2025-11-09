@@ -37,7 +37,7 @@ jobs:
         CORS_ALLOWED_ORIGINS=${{secrets.CORS_ALLOWED_ORIGINS}}
         SERVER_DOMAIN=${{secrets.SERVER_DOMAIN}}
         NAVER_CLIENT_ID=${{secrets.NAVER_CLIENT_ID}}
-        NAVER_CLIENT_SECRET==${{secrets.NAVER_CLIENT_SECRET}}
+        NAVER_CLIENT_SECRET=${{secrets.NAVER_CLIENT_SECRET}}
         NAVER_STATE=${{secrets.NAVER_STATE}}
         KAKAO_CLIENT_ID=${{secrets.KAKAO_CLIENT_ID}}
         KAKAO_CLIENT_SECRET=${{secrets.KAKAO_CLIENT_SECRET}}
@@ -95,6 +95,12 @@ jobs:
         
         DEPLOY_DIR="/home/ubuntu/checkin_back"
         
+        # 0. EC2 서버 타임존 설정 (한국 시간)
+        echo "=== EC2 서버 타임존 설정 ==="
+        sudo timedatectl set-timezone Asia/Seoul || true
+        echo "현재 서버 타임존: $(timedatectl | grep 'Time zone' || date +%Z)"
+        echo "현재 서버 시간: $(date)"
+        
         # 1. 기존 컨테이너 정리 (volume 유지)
         cd "$DEPLOY_DIR"
         if [ -f docker-compose.yml ]; then
@@ -148,6 +154,12 @@ jobs:
         echo "=== 컨테이너 상태 확인 ==="
         sudo docker ps -a
         sudo docker stats --no-stream
+        
+        # 7-1. 타임존 확인
+        echo "=== 타임존 확인 ==="
+        echo "호스트 서버 시간: $(date)"
+        echo "Backend 컨테이너 시간: $(sudo docker exec backend date 2>/dev/null || echo '컨테이너 시작 중...')"
+        echo "MySQL 컨테이너 시간: $(sudo docker exec mysql80 date 2>/dev/null || echo '컨테이너 시작 중...')"
         
         # 8. Backend 컨테이너 로그 확인 (전체)
         echo "=== Backend 컨테이너 로그 (전체) ==="

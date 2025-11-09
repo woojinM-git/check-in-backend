@@ -5,11 +5,13 @@ import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.jwt.JwtProvider;
+import com.sist.backend.util.CookieUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,6 +38,9 @@ public class CustomerController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Value("${server.domain}")
+    private String serverDomain;
 
     @GetMapping("/me")
     @Operation(summary="현재 사용자 정보 조회", description="httpOnly 쿠키에서 사용자 정보를 조회합니다")
@@ -424,8 +429,9 @@ public class CustomerController {
             
             // 10. 쿠키 삭제 (자동 로그아웃)
             try {
-                String delAccess = "accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
-                String delRefresh = "refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
+                String domainAttribute = getDomainAttribute();
+                String delAccess = String.format("accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
+                String delRefresh = String.format("refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
                 response.setHeader("Set-Cookie", delAccess);
                 response.addHeader("Set-Cookie", delRefresh);
                 System.out.println("쿠키 삭제 완료");
@@ -447,6 +453,10 @@ public class CustomerController {
                 "error", e.getMessage() != null ? e.getMessage() : "알 수 없는 오류"
             ));
         }
+    }
+
+    private String getDomainAttribute() {
+        return CookieUtils.buildDomainAttribute(serverDomain);
     }
 }
 
