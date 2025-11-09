@@ -76,8 +76,8 @@ public class LoginController {
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
 
-    @Value("${frontend.url}")
-    private String frontendUrl;
+    @Value("${server.domain}")
+    private String serverDomain;
 
     
 
@@ -506,6 +506,6 @@ public class LoginController {
     }
 
     private String getDomainAttribute() {
-        return CookieUtils.buildDomainAttribute(frontendUrl);
+        return CookieUtils.buildDomainAttribute(serverDomain);
     }
 }
