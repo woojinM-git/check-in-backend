@@ -41,7 +41,8 @@ jobs:
         NAVER_STATE=${{secrets.NAVER_STATE}}
         KAKAO_CLIENT_ID=${{secrets.KAKAO_CLIENT_ID}}
         KAKAO_CLIENT_SECRET=${{secrets.KAKAO_CLIENT_SECRET}}
-        FRONTEND_URL=${{secrets.FRONTEND_URL}}
+        FRONTEND_URL_DEV=${{secrets.FRONTEND_URL_DEV}}
+        FRONTEND_URL_PROD=${{secrets.FRONTEND_URL_PROD}}
         EOF
 
     # ==========================================================
