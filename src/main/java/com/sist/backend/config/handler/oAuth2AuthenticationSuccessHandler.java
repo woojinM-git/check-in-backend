@@ -41,6 +41,9 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${frontend.url}")
     private String frontendUrl;
 
+    @Value("${server.domain}")
+    private String serverDomain;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         log.info("OAuth2 로그인 성공 처리 시작");
@@ -95,7 +98,7 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         
                         String refreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime);
                         
-                        String domainAttribute = CookieUtils.buildDomainAttribute(frontendUrl);
+                        String domainAttribute = CookieUtils.buildDomainAttribute(serverDomain);
 
                         // 쿠키에 토큰 설정
                         String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax%s", accessToken, domainAttribute);
