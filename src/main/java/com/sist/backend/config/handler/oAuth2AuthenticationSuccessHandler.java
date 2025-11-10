@@ -44,6 +44,12 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${server.domain}")
     private String serverDomain;
 
+    @Value("${cookie.same-site}")
+    private String cookieSameSite;
+
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         log.info("OAuth2 로그인 성공 처리 시작");
@@ -99,10 +105,12 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         String refreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime);
                         
                         String domainAttribute = CookieUtils.buildDomainAttribute(serverDomain);
+                        String sameSiteAttribute = buildSameSiteAttribute();
+                        String secureAttribute = buildSecureAttribute();
 
                         // 쿠키에 토큰 설정
-                        String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax%s", accessToken, domainAttribute);
-                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", refreshToken, refreshTokenExpireTime, domainAttribute);
+                        String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly%s%s%s", accessToken, sameSiteAttribute, secureAttribute, domainAttribute);
+                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", refreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
                         
@@ -136,5 +144,13 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         
         // 실패 시 기본 처리
         super.onAuthenticationSuccess(request, response, authentication);
+    }
+
+    private String buildSameSiteAttribute() {
+        return String.format("; SameSite=%s", cookieSameSite);
+    }
+
+    private String buildSecureAttribute() {
+        return cookieSecure ? "; Secure" : "";
     }
 }

@@ -85,12 +85,18 @@ spring:
 
 server:
   port: 8888
+  # X-Forwarded-* 헤더 신뢰 (로컬 개발 시 nginx 프록시 사용 시)
+  forwarded-headers-strategy: framework
 
 jwt:
   secret: ${JWT_SECRET}
   access-token-expire-time: 1800
   refresh-token-expire-time: 604800
   reissue-time: 1
+
+cookie:
+  same-site: Lax
+  secure: false
 
 # CORS 설정
 cors:
