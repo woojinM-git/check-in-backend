@@ -26,6 +26,8 @@ logging:
 # 프로덕션용 서버 설정
 server:
   domain: ${SERVER_DOMAIN}
+  # X-Forwarded-* 헤더 신뢰 (nginx 프록시를 통해 들어오는 요청 처리)
+  forwarded-headers-strategy: framework
   error:
     include-stacktrace: never
     include-message: never
