@@ -13,9 +13,14 @@ import com.sist.backend.service.UsedPaymentLockService;
 import com.sist.backend.service.hotel.UsedHotelTradeService;
 import com.sist.backend.entity.UsedPay;
 import com.sist.backend.entity.UsedTrade;
+import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.servlet.http.HttpServletRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -419,6 +424,86 @@ public class UsedTradeController {
             log.error("판매자 거래 목록 조회 실패: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                 .body(Map.of("message", "거래 목록 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 판매자의 양도거래 아이템 목록 조회 (마이페이지용)
+     */
+    @GetMapping("/seller/items")
+    @Operation(summary = "판매자 아이템 목록", description = "로그인한 판매자의 양도거래 아이템 목록을 조회합니다.")
+    public ResponseEntity<?> getSellerItems(HttpServletRequest request) {
+        try {
+            // JWT에서 사용자 정보 가져오기
+            Integer customerIdx = getCustomerIdxFromToken(request);
+            
+            if (customerIdx == null) {
+                return ResponseEntity.status(401).body(Map.of(
+                    "message", "인증 정보가 유효하지 않습니다."));
+            }
+
+            List<com.sist.backend.entity.UsedItem> items = usedTradeService.getSellerItems(customerIdx);
+            
+            log.info("조회된 UsedItem 개수: {}", items.size());
+            if (!items.isEmpty()) {
+                com.sist.backend.entity.UsedItem firstItem = items.get(0);
+                log.info("첫 번째 아이템 - usedItemIdx: {}, reservIdx: {}, roomReservation: {}", 
+                    firstItem.getUsedItemIdx(), 
+                    firstItem.getReservIdx(),
+                    firstItem.getRoomReservation() != null ? "존재" : "null");
+                if (firstItem.getRoomReservation() != null) {
+                    log.info("RoomReservation - room: {}, customerIdx: {}", 
+                        firstItem.getRoomReservation().getRoom() != null ? "존재" : "null",
+                        firstItem.getRoomReservation().getCustomerIdx());
+                }
+            }
+            
+            // DTO로 변환
+            List<UsedItemDto> itemDtos = items.stream()
+                    .map(UsedItemDto::fromEntity)
+                    .collect(java.util.stream.Collectors.toList());
+            
+            log.info("변환된 DTO 개수: {}", itemDtos.size());
+            if (!itemDtos.isEmpty()) {
+                UsedItemDto firstDto = itemDtos.get(0);
+                log.info("첫 번째 DTO - reservation: {}, hotel: {}", 
+                    firstDto.getReservation() != null ? "존재" : "null",
+                    firstDto.getHotel() != null ? "존재" : "null");
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "items", itemDtos,
+                "count", itemDtos.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("판매자 아이템 목록 조회 실패: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                .body(Map.of("message", "아이템 목록 조회 중 오류가 발생했습니다.", "error", e.getMessage()));
+        }
+    }
+
+    /**
+     * SecurityContext에서 인증된 사용자의 customerIdx를 반환
+     */
+    private Integer getCustomerIdxFromToken(HttpServletRequest request) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            
+            if (authentication != null) {
+                Object principal = authentication.getPrincipal();
+                
+                if (principal instanceof CustomerAdminSignupDTO) {
+                    CustomerAdminSignupDTO dto = (CustomerAdminSignupDTO) principal;
+                    return dto.getCustomerIdx();
+                }
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            log.error("인증 정보 처리 중 오류 발생: {}", e.getMessage());
+            return null;
         }
     }
 
