@@ -16,6 +16,7 @@ public class RevenueSummaryDto {
     private Long todayRevenue;          // 오늘 매출 합계(원)
     private Integer todayPayments;      // 오늘 결제 건수
     private List<MonthRevenueDto> monthlyRevenue;   // 월별 매출
+    private Integer minYear;            // 최소 연도 (매출 데이터가 있는 가장 오래된 연도)
 
     @Data
     @NoArgsConstructor

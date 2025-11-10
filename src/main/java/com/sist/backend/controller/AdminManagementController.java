@@ -156,13 +156,15 @@ public class AdminManagementController {
     }
 
     @GetMapping("/revenueSummary")
-    @Operation(summary = "매출 요약", description = "오늘 매출/건수, 월별 매출, 객실명별 매출을 조회합니다.")
+    @Operation(summary = "매출 요약", description = "오늘 매출/건수, 월별 매출을 조회합니다. year 파라미터로 특정 연도 데이터 조회 가능.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<?> getRevenueSummary(
+        @Parameter(description = "조회할 연도 (선택사항, 없으면 현재 연도)", example = "2024")
+        @RequestParam(value = "year", required = false) Integer year,
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
 
@@ -171,7 +173,17 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
 
-        RevenueSummaryDto dto = revenueService.getRevenueSummary(contentid);
+        // year가 지정되지 않으면 현재 연도 사용
+        if (year == null) {
+            year = java.time.Year.now().getValue();
+        }
+
+        RevenueSummaryDto dto = revenueService.getRevenueSummary(contentid, year);
+        
+        // 최소 연도 계산 및 추가
+        Integer minYear = revenueService.getMinYear(contentid);
+        dto.setMinYear(minYear);
+        
         return ResponseEntity.ok(dto);
     }
 
@@ -471,6 +483,16 @@ public class AdminManagementController {
                 // 고객 정보
                 if (reservation.getCustomer() != null) {
                     roomStatus.put("customerName", reservation.getCustomer().getName());
+                }
+                
+                // 예약 인원 수
+                if (reservation.getGuest() != null) {
+                    roomStatus.put("guest", reservation.getGuest());
+                }
+                
+                // 요청사항
+                if (reservation.getSpecialRequest() != null && !reservation.getSpecialRequest().trim().isEmpty()) {
+                    roomStatus.put("specialRequest", reservation.getSpecialRequest());
                 }
             } else {
                 roomStatus.put("reservationStatus", "빈 객실");

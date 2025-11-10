@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +66,9 @@ public class HotelInfo {
 
     @Column(name = "count",columnDefinition = "INT")
     private Integer count;
+    
+    @Column(name = "serviceStartDate")
+    private LocalDate serviceStartDate;
     
     // 양방향 관계
     @OneToOne(fetch = FetchType.LAZY)
