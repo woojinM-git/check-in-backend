@@ -1,14 +1,21 @@
 package com.sist.backend.controller.mypage;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.sist.backend.dto.mypage.ReservationResponseDTO;
 import com.sist.backend.dto.mypage.WritableReviewDTO;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
+import com.sist.backend.entity.Coupon;
+import com.sist.backend.entity.CouponTemplate;
 import com.sist.backend.entity.Customer;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.mypage.MyPageService;
+import com.sist.backend.repository.CouponRepository;
+import com.sist.backend.repository.CouponTemplateRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +39,8 @@ public class MypageController {
 
     private final MyPageService myPageService;
     private final CustomerService customerService;
+    private final CouponRepository couponRepository;
+    private final CouponTemplateRepository couponTemplateRepository;
 
     /* 
      * 마이페이지 예약 내역 조회 API
@@ -203,6 +212,52 @@ public class MypageController {
                 "message", "프로필 조회 중 오류가 발생했습니다.",
                 "error", e.getMessage()));
         }
+    }
+
+    /**
+     * 고객 보유 쿠폰 전체 이력 조회
+     */
+    @GetMapping("/coupons")
+    @Operation(summary="내 쿠폰 이력 조회", description="사용 가능/사용 완료/기간 만료 포함 전체 쿠폰 이력을 조회합니다.")
+    public ResponseEntity<?> getMyCoupons(HttpServletRequest request) {
+        Integer customerIdx = getCustomerIdxFromToken(request);
+
+        if (customerIdx == null) {
+            return ResponseEntity.status(401).body(Map.of(
+                "message", "인증 정보가 유효하지 않습니다."
+            ));
+        }
+
+        List<Coupon> coupons = couponRepository.findByCustomerIdx(customerIdx);
+        Set<Integer> templateIds = coupons.stream()
+            .map(Coupon::getTemplateIdx)
+            .filter(templateIdx -> templateIdx != null)
+            .collect(Collectors.toSet());
+        Map<Integer, CouponTemplate> templateMap = couponTemplateRepository.findAllById(templateIds).stream()
+            .collect(Collectors.toMap(CouponTemplate::getTemplateIdx, template -> template));
+        List<Map<String, Object>> data = coupons.stream()
+            .map(coupon -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("couponIdx", coupon.getCouponIdx());
+                map.put("templateIdx", coupon.getTemplateIdx());
+                map.put("customerIdx", coupon.getCustomerIdx());
+                map.put("adminIdx", coupon.getAdminIdx());
+                map.put("createDate", coupon.getCreateDate());
+                map.put("endDate", coupon.getEndDate());
+                map.put("status", coupon.getStatus() != null && coupon.getStatus() ? 1 : 0);
+                CouponTemplate template = coupon.getTemplateIdx() != null
+                    ? templateMap.get(coupon.getTemplateIdx())
+                    : null;
+                map.put("templateName", template != null ? template.getTemplateName() : "");
+                map.put("discount", template != null ? template.getDiscount() : 0);
+                return map;
+            })
+            .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+            "message", "success",
+            "data", data
+        ));
     }
 
     /**
