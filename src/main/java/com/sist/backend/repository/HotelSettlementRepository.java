@@ -33,5 +33,17 @@ public interface HotelSettlementRepository extends JpaRepository<HotelSettlement
            "WHERE hs.settlementMonth = :settlementMonth " +
            "ORDER BY hs.contentId ASC")
     List<HotelSettlement> findBySettlementMonth(@Param("settlementMonth") String settlementMonth);
+
+    /**
+     * 특정 호텔의 특정 연도 정산 데이터 조회
+     * settlementMonth가 "YYYY-MM" 형식이므로 LIKE로 연도 필터링
+     */
+    @Query("SELECT hs FROM HotelSettlement hs " +
+           "WHERE hs.contentId = :contentId " +
+           "AND hs.settlementMonth LIKE CONCAT(:year, '-%') " +
+           "ORDER BY hs.settlementMonth ASC")
+    List<HotelSettlement> findByContentIdAndYear(
+        @Param("contentId") String contentId,
+        @Param("year") String year);
 }
 

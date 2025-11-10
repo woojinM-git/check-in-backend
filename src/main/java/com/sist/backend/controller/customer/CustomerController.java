@@ -42,6 +42,12 @@ public class CustomerController {
     @Value("${server.domain}")
     private String serverDomain;
 
+    @Value("${cookie.same-site}")
+    private String cookieSameSite;
+
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+
     @GetMapping("/me")
     @Operation(summary="현재 사용자 정보 조회", description="httpOnly 쿠키에서 사용자 정보를 조회합니다")
     @ApiResponses(value = {
@@ -430,8 +436,10 @@ public class CustomerController {
             // 10. 쿠키 삭제 (자동 로그아웃)
             try {
                 String domainAttribute = getDomainAttribute();
-                String delAccess = String.format("accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
-                String delRefresh = String.format("refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
+                String sameSiteAttribute = getSameSiteAttribute();
+                String secureAttribute = getSecureAttribute();
+                String delAccess = String.format("accessToken=; Max-Age=0; Path=/; HttpOnly%s%s%s", sameSiteAttribute, secureAttribute, domainAttribute);
+                String delRefresh = String.format("refreshToken=; Max-Age=0; Path=/; HttpOnly%s%s%s", sameSiteAttribute, secureAttribute, domainAttribute);
                 response.setHeader("Set-Cookie", delAccess);
                 response.addHeader("Set-Cookie", delRefresh);
                 System.out.println("쿠키 삭제 완료");
@@ -457,6 +465,14 @@ public class CustomerController {
 
     private String getDomainAttribute() {
         return CookieUtils.buildDomainAttribute(serverDomain);
+    }
+
+    private String getSameSiteAttribute() {
+        return String.format("; SameSite=%s", cookieSameSite);
+    }
+
+    private String getSecureAttribute() {
+        return cookieSecure ? "; Secure" : "";
     }
 }
 

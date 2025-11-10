@@ -24,6 +24,7 @@ public class RoomReservationDto {
     private LocalDate checkoutDate;
     private Integer guest;
     private Integer totalPrice;
+    private String specialRequest;
     private String qrUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -67,6 +68,7 @@ public class RoomReservationDto {
         dto.setCheckoutDate(roomReservation.getCheckoutDate());
         dto.setGuest(roomReservation.getGuest());
         dto.setTotalPrice(roomReservation.getTotalPrice());
+        dto.setSpecialRequest(roomReservation.getSpecialRequest());
         dto.setQrUrl(roomReservation.getQrUrl());
         dto.setCreatedAt(roomReservation.getCreatedAt());
         dto.setUpdatedAt(roomReservation.getUpdatedAt());
