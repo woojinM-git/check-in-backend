@@ -125,4 +125,18 @@ public interface UsedItemRepository extends JpaRepository<UsedItem, Integer> {
         "JOIN FETCH u.roomReservation r " +
         "WHERE u.status = 0 AND r.checkinDate <= :today")
     List<UsedItem> findExpiredUsedItems(@Param("today") LocalDate today);
+
+    /*
+     * 판매자의 양도거래 아이템 목록 조회 (sellerIdx 기준)
+     * roomReservation이 존재하는 경우만 조회 (JOIN FETCH 사용)
+     */
+    @Query("SELECT DISTINCT u FROM UsedItem u " +
+        "JOIN FETCH u.roomReservation r " +
+        "JOIN FETCH r.room room " +
+        "JOIN FETCH room.hotelInfo hotel " +
+        "LEFT JOIN FETCH hotel.area area " +
+        "LEFT JOIN FETCH r.customer customer " +
+        "WHERE u.sellerIdx = :sellerIdx " +
+        "ORDER BY u.createdAt DESC")
+    List<UsedItem> findBySellerIdx(@Param("sellerIdx") Integer sellerIdx);
 }
