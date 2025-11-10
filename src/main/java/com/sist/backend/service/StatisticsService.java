@@ -101,6 +101,22 @@ public class StatisticsService {
     }
 
     /**
+     * 전체 총 매출액 조회 (모든 기간)
+     * hotelSettlement 테이블의 totalRevenue 합계를 조회
+     * 플랫폼을 통한 모든 호텔의 총 거래액을 집계
+     * 
+     * @return 전체 총 매출액
+     */
+    public Long getTotalRevenueAll() {
+        Long result = queryFactory
+            .select(hotelSettlement.totalRevenue.sum())
+            .from(hotelSettlement)
+            .fetchOne();
+
+        return result != null ? result : 0L;
+    }
+
+    /**
      * 총 매출액 조회 (날짜 범위 적용)
      * hotelSettlement 테이블의 totalRevenue 합계를 조회
      * 플랫폼을 통한 모든 호텔의 총 거래액을 집계
