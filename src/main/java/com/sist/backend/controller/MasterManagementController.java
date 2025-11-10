@@ -1,6 +1,7 @@
 package com.sist.backend.controller;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -222,9 +223,9 @@ public class MasterManagementController {
         return ResponseEntity.ok(response);
     }
 
-    /* 승인요청 상세 조회 */
+    /* 승인요청 상세 조회 (기본 정보만 - 빠른 로딩) */
     @GetMapping("/hotelApproval/{registrationIdx}")
-    @Operation(summary = "승인요청 상세 조회", description = "특정 호텔 승인 요청의 상세 정보를 조회합니다.")
+    @Operation(summary = "승인요청 상세 조회 (기본 정보)", description = "특정 호텔 승인 요청의 기본 정보만 조회합니다. (images, rooms, dining 제외)")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -268,10 +269,21 @@ public class MasterManagementController {
             MapType mapType = typeFactory.constructMapType(Map.class, String.class, Object.class);
             Map<String, Object> formDataMap = objectMapper.readValue(draft.getFormData(), mapType);
             
-            // 4. 응답 구성
+            // 4. 기본 정보만 추출 (images, rooms, dining 제외)
+            Map<String, Object> basicData = new HashMap<>();
+            basicData.put("hotelInfo", formDataMap.get("hotelInfo"));
+            basicData.put("hotelDetail", formDataMap.get("hotelDetail"));
+            basicData.put("area", formDataMap.get("area"));
+            // 빈 배열로 초기화 (탭 전환 시 로드)
+            basicData.put("images", List.of());
+            basicData.put("rooms", List.of());
+            basicData.put("events", List.of());
+            basicData.put("dining", List.of());
+            
+            // 5. 응답 구성
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("data", formDataMap);
+            response.put("data", basicData);
             
             return ResponseEntity.ok(response);
             
@@ -284,6 +296,93 @@ public class MasterManagementController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("message", "호텔 상세 정보 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+    
+    /* 승인요청 탭별 데이터 조회 (지연 로딩) */
+    @GetMapping("/hotelApproval/{registrationIdx}/{tab}")
+    @Operation(summary = "승인요청 탭별 데이터 조회", description = "특정 탭(images, rooms, dining)의 데이터만 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "요청을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> getHotelApprovalTabData(
+            @Parameter(description = "등록 요청 ID", example = "1") 
+            @PathVariable Integer registrationIdx,
+            @Parameter(description = "탭 이름", example = "images") 
+            @PathVariable String tab,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        try {
+            // 유효한 탭인지 확인
+            if (!tab.equals("images") && !tab.equals("rooms") && !tab.equals("dining")) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "유효하지 않은 탭 이름입니다: " + tab);
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            // 1. RegistrationRequest 조회
+            RegistrationRequest registrationRequest = registrationRequestService.findById(registrationIdx);
+            
+            // 2. HotelDraft 조회
+            Integer draftIdx = registrationRequest.getDraftIdx();
+            if (draftIdx == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "임시저장 데이터를 찾을 수 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            Optional<HotelDraft> draftOpt = hotelDraftService.findById(draftIdx);
+            if (draftOpt.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "임시저장 데이터를 찾을 수 없습니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            HotelDraft draft = draftOpt.get();
+            
+            // 3. formData를 Map으로 파싱
+            TypeFactory typeFactory = objectMapper.getTypeFactory();
+            MapType mapType = typeFactory.constructMapType(Map.class, String.class, Object.class);
+            Map<String, Object> formDataMap = objectMapper.readValue(draft.getFormData(), mapType);
+            
+            // 4. 해당 탭의 데이터만 추출
+            Map<String, Object> tabData = new HashMap<>();
+            if (tab.equals("images")) {
+                tabData.put("images", formDataMap.getOrDefault("images", List.of()));
+                tabData.put("events", formDataMap.getOrDefault("events", List.of()));
+            } else if (tab.equals("rooms")) {
+                tabData.put("rooms", formDataMap.getOrDefault("rooms", List.of()));
+            } else if (tab.equals("dining")) {
+                tabData.put("dining", formDataMap.getOrDefault("dining", List.of()));
+            }
+            
+            // 5. 응답 구성
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", tabData);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "탭 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
@@ -895,7 +994,13 @@ public class MasterManagementController {
 
         try {
             List<Map<String, Object>> monthlyData = statisticsService.getMonthlyCommissionRevenue();
-            return ResponseEntity.ok(monthlyData);
+            YearMonth serviceStartMonth = statisticsService.getSiteServiceStartMonth();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("monthlyData", monthlyData);
+            response.put("minYear", serviceStartMonth.getYear());
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);

@@ -87,8 +87,12 @@ public class HotelEditFormDto {
         private String name;                // Dining.name
         private String operatingHours;      // 프론트엔드용 (Dining.openTime + closeTime 변환)
         private String description;         // Dining.description
+        private String content;             // Dining.content (상세 정보)
         private Integer basePrice;         // Dining.basePrice
         private Integer totalSeats;         // Dining.totalSeats
+        private Integer slotDuration;       // Dining.slotDuration (예약 시간 단위)
+        private Integer maxGuestsPerSlot;   // Dining.maxGuestsPerSlot (시간대별 최대 인원)
+        private Integer status;             // Dining.status (0: 활성, 1: 비활성)
     }
 
     @Data

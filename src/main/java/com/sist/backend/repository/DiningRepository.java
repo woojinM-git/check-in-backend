@@ -23,13 +23,21 @@ public interface DiningRepository extends JpaRepository<Dining, Integer> {
     Page<Dining> findActiveDinings(Pageable pageable);
     
     /**
-     * 호텔별 다이닝 목록 조회
+     * 호텔별 다이닝 목록 조회 (활성 상태만)
      */
     @Query("SELECT d FROM Dining d " +
            "WHERE d.contentid = :contentid " +
-           "AND d.status = 1 " +
+           "AND d.status = 0 " +
            "ORDER BY d.openTime ASC")
     List<Dining> findByContentidAndStatus(@Param("contentid") String contentid);
+    
+    /**
+     * 호텔별 모든 다이닝 목록 조회 (활성 + 삭제된 것 모두, 수정용)
+     */
+    @Query("SELECT d FROM Dining d " +
+           "WHERE d.contentid = :contentid " +
+           "ORDER BY d.openTime ASC")
+    List<Dining> findAllByContentid(@Param("contentid") String contentid);
     
     /**
      * 다이닝 검색 (호텔 주소, 호텔 이름, 다이닝 이름으로 검색)
