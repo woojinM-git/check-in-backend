@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sist.backend.dto.admin.CustomerListDto;
 import com.sist.backend.dto.master.CustomerDto;
 import com.sist.backend.entity.Customer;
@@ -18,6 +19,8 @@ import com.sist.backend.repository.RoomReservationRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import static com.sist.backend.entity.QCustomer.customer;
+
 @Service
 @RequiredArgsConstructor
 public class CustomerService {
@@ -25,6 +28,7 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final RoomReservationRepository roomReservationRepository;
     private final RoomPaymentRepository roomPaymentRepository;
+    private final JPAQueryFactory queryFactory;
 
     public int findRegistrationCustomerCount(){
         return customerRepository.findRegistrationCustomerCount();
@@ -99,6 +103,121 @@ public class CustomerService {
         
         customer.setStatus(1);
         return customerRepository.save(customer);
+    }
+
+    /* 회원 활성화 처리 (status를 0으로 변경) */
+    @Transactional
+    public Customer activateCustomer(Integer customerIdx) {
+        Customer customer = customerRepository.findByCustomerIdx(customerIdx)
+            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        
+        customer.setStatus(0);
+        return customerRepository.save(customer);
+    }
+
+    /* 회원 비활성화 처리 (status를 1로 변경) */
+    @Transactional
+    public Customer deactivateCustomer(Integer customerIdx) {
+        Customer customer = customerRepository.findByCustomerIdx(customerIdx)
+            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        
+        customer.setStatus(1);
+        return customerRepository.save(customer);
+    }
+
+    /* 회원 일괄 처리 */
+    @Transactional
+    public int batchUpdateCustomerStatus(List<Integer> customerIdxList, Integer status) {
+        if (customerIdxList == null || customerIdxList.isEmpty()) {
+            throw new IllegalArgumentException("회원 목록이 비어있습니다.");
+        }
+
+        int successCount = 0;
+        for (Integer customerIdx : customerIdxList) {
+            try {
+                Customer customer = customerRepository.findByCustomerIdx(customerIdx)
+                    .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다: " + customerIdx));
+                
+                customer.setStatus(status);
+                customerRepository.save(customer);
+                successCount++;
+            } catch (Exception e) {
+                // 개별 회원 처리 실패 시 로그만 남기고 계속 진행
+                System.err.println("회원 처리 실패 (customerIdx: " + customerIdx + "): " + e.getMessage());
+            }
+        }
+
+        return successCount;
+    }
+
+    /**
+     * 회원 검색 및 필터링 (QueryDSL 사용)
+     * 회원명, 이메일, 전화번호로 검색하고 상태로 필터링
+     * 
+     * @param searchTerm 검색어 (회원명, 이메일, 전화번호)
+     * @param statusFilter 상태 필터 ("all", "active", "inactive", "suspended")
+     * @param pageable 페이지 정보
+     * @return 검색된 회원 목록 (Page)
+     */
+    public Page<CustomerDto> searchCustomers(String searchTerm, String statusFilter, Pageable pageable) {
+        // QueryDSL 조건 빌더
+        com.querydsl.core.BooleanBuilder builder = new com.querydsl.core.BooleanBuilder();
+
+        // 검색어 조건 (회원명, 이메일, 전화번호)
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            String searchPattern = "%" + searchTerm.trim() + "%";
+            builder.and(
+                customer.name.likeIgnoreCase(searchPattern)
+                    .or(customer.email.likeIgnoreCase(searchPattern))
+                    .or(customer.phone.likeIgnoreCase(searchPattern))
+            );
+        }
+
+        // 상태 필터 조건
+        if (statusFilter != null && !statusFilter.equals("all")) {
+            switch (statusFilter) {
+                case "active":
+                    builder.and(customer.status.eq(0));
+                    break;
+                case "inactive":
+                case "suspended":
+                    builder.and(customer.status.eq(1));
+                    break;
+            }
+        }
+
+        // QueryDSL 쿼리 실행
+        List<Customer> customerList = queryFactory
+            .selectFrom(customer)
+            .where(builder)
+            .orderBy(customer.customerIdx.desc())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+
+        // 전체 개수 조회
+        Long total = queryFactory
+            .select(customer.count())
+            .from(customer)
+            .where(builder)
+            .fetchOne();
+
+        // CustomerDto로 변환 (예약 건수 포함)
+        List<CustomerDto> customerDtoList = customerList.stream()
+            .map(c -> {
+                CustomerDto dto = CustomerDto.fromEntity(c);
+                Long reservationCount = roomReservationRepository.countByCustomerIdxAndStatus(c.getCustomerIdx(), 4);
+                dto.setReservationCount(reservationCount);
+                return dto;
+            })
+            .collect(Collectors.toList());
+
+        // Page 객체 생성
+        return new org.springframework.data.domain.PageImpl<>(
+            customerDtoList,
+            pageable,
+            total != null ? total : 0L
+        );
     }
 
     /* 특정 호텔을 이용한 고객 목록 조회 (예약 통계 포함) */
