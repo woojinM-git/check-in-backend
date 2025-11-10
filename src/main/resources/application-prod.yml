@@ -36,7 +36,7 @@ server:
 
 # 프로덕션 환경 프론트엔드 URL
 frontend:
-  url: ${FRONTEND_URL}
+  url: ${FRONTEND_URL_PROD}
 
 # 프로덕션용 보안 설정
 management:

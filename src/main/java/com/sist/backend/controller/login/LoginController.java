@@ -30,6 +30,7 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.admin.AdminService;
+import com.sist.backend.util.CookieUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -37,7 +38,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,6 +75,9 @@ public class LoginController {
 
     @Value("${jwt.refresh-token-expire-time}")
     private int refreshTokenExpireTime;
+
+    @Value("${server.domain}")
+    private String serverDomain;
 
     
 
@@ -115,7 +118,8 @@ public class LoginController {
                         refreshpayload.put("tokenID",reTokenID);
 
                         String newRefreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
-                        String newRefreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",newRefreshToken,refreshTokenExpireTime);
+                        String domainAttribute = getDomainAttribute();
+                        String newRefreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s",newRefreshToken,refreshTokenExpireTime, domainAttribute);
                         response.addHeader("Set-Cookie", newRefreshTokenCookieHeader);
 
                         customer_entity.setRefToken(reTokenID);
@@ -174,9 +178,9 @@ public class LoginController {
 
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
 
-
-                    String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax",accessToken);
-                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+                    String domainAttribute = getDomainAttribute();
+                    String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax%s",accessToken, domainAttribute);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s",refreshToken,refreshTokenExpireTime, domainAttribute);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
                     response.addHeader("Set-Cookie", refreshTokenCookieHeader);
@@ -220,9 +224,9 @@ public class LoginController {
 
                     String refreshToken = jwtProvider.getToken(refreshpayload, refreshTokenExpireTime);
 
-
-                    String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax",accessToken);
-                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",refreshToken,refreshTokenExpireTime);
+                    String domainAttribute = getDomainAttribute();
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly; SameSite=Lax%s",accessToken, domainAttribute);
+                    String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s",refreshToken,refreshTokenExpireTime, domainAttribute);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
                     response.addHeader("Set-Cookie", refreshTokenCookieHeader);
@@ -455,13 +459,9 @@ public class LoginController {
             }
         }
         // 쿠키 삭제: 기존과 동일한 Path/Domain/SameSite/Secure 조합 유지
-        String delAccess = "accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
-        String delRefresh = "refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
-
-        // 필요 시 Domain, Secure도 기존과 동일하게 추가
-        // String delAccess = "accessToken=; Max-Age=0; Path=/; Domain=your.domain; HttpOnly; SameSite=None; Secure";
-        // String delRefresh = "refreshToken=; Max-Age=0; Path=/; Domain=your.domain; HttpOnly; SameSite=None; Secure";
-
+        String domainAttribute = getDomainAttribute();
+        String delAccess = String.format("accessToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
+        String delRefresh = String.format("refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax%s", domainAttribute);
         response.setHeader("Set-Cookie", delAccess);
         response.addHeader("Set-Cookie", delRefresh);
 
@@ -505,4 +505,7 @@ public class LoginController {
         return phone;
     }
 
+    private String getDomainAttribute() {
+        return CookieUtils.buildDomainAttribute(serverDomain);
+    }
 }

@@ -26,6 +26,7 @@ import com.sist.backend.entity.Customer;
 import com.sist.backend.jwt.JwtProvider;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.admin.AdminService;
+import com.sist.backend.util.CookieUtils;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -56,6 +57,8 @@ public class JwtFilter extends OncePerRequestFilter {
     private int refreshTokenExpireTime;
     @Value("${jwt.reissue-time}")
     private int reissueTime;
+    @Value("${server.domain}")
+    private String serverDomain;
     
     /**
      * 필터를 적용하지 않을 경로 설정
@@ -193,8 +196,9 @@ public class JwtFilter extends OncePerRequestFilter {
                                 customerService.save(customer_entity);
 
                                 // 쿠키로 둘 다 내려주기
-                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
-                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                String domainAttribute = getDomainAttribute();
+                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax%s", newAccessToken, domainAttribute);
+                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", newRefreshToken, 604800, domainAttribute);
                                 response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
@@ -224,8 +228,9 @@ public class JwtFilter extends OncePerRequestFilter {
                                         String newRefreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime); // 7d
 
                                         // 쿠키로 둘 다 내려주기 (refreshToken도 갱신하여 클라이언트가 최신 상태 유지)
-                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
-                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                        String domainAttribute = getDomainAttribute();
+                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax%s", newAccessToken, domainAttribute);
+                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", newRefreshToken, 604800, domainAttribute);
                                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
@@ -288,8 +293,9 @@ public class JwtFilter extends OncePerRequestFilter {
                                 adminService.save(admin_entity);
 
                                 // 쿠키로 둘 다 내려주기
-                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
-                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                String domainAttribute = getDomainAttribute();
+                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax%s", newAccessToken, domainAttribute);
+                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", newRefreshToken, 604800, domainAttribute);
                                 response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
         
@@ -312,8 +318,9 @@ public class JwtFilter extends OncePerRequestFilter {
                                         String newRefreshToken = jwtProvider.getToken(refreshPayload, refreshTokenExpireTime); // 7d
 
                                         // 쿠키로 둘 다 내려주기 (refreshToken도 갱신하여 클라이언트가 최신 상태 유지)
-                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax", newAccessToken);
-                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax", newRefreshToken, 604800);
+                                        String domainAttribute = getDomainAttribute();
+                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly; SameSite=Lax%s", newAccessToken, domainAttribute);
+                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax%s", newRefreshToken, 604800, domainAttribute);
                                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
                 
@@ -440,5 +447,9 @@ public class JwtFilter extends OncePerRequestFilter {
         public AuthenticationFailedException(String message) {
             super(message);
         }
+    }
+
+    private String getDomainAttribute() {
+        return CookieUtils.buildDomainAttribute(serverDomain);
     }
 }
