@@ -719,10 +719,11 @@ public class AdminManagementController {
     }
 
     @PostMapping("/roomStatus")
-    @Operation(summary = "객실 비활성화", description = "객실을 비활성화 처리합니다.")
+    @Operation(summary = "객실 상태 변경", description = "객실의 사용 가능 여부를 변경합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "성공적으로 비활성화됨"),
+        @ApiResponse(responseCode = "200", description = "성공적으로 상태 변경됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> updateRoomStatus(
@@ -731,20 +732,41 @@ public class AdminManagementController {
         HttpServletRequest request) {
         
         Map<String, Object> map = new HashMap<>();
-        // JWT에서 adminIdx 추출
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
-        Integer adminIdx = principal.getAdminIdx();
-        if (adminIdx == null) {
+        
+        // contentId 검증 (호텔 소유권 확인)
+        String contentId = getContentIdOrRedirect();
+        if (contentId == null) {
             map.put("success", false);
-            map.put("message", "인증 정보가 유효하지 않습니다.");
+            map.put("message", "호텔이 등록되지 않은 관리자입니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+        }
+
+        // 객실 조회 및 소유권 확인
+        Optional<Room> roomOpt = roomService.findByRoomIdx(dto.getRoomIdx());
+        if (roomOpt.isEmpty()) {
+            map.put("success", false);
+            map.put("message", "객실을 찾을 수 없습니다.");
             return ResponseEntity.badRequest().body(map);
         }
 
-        Room room = roomService.updateRoomStatus(dto.getRoomIdx(), dto.getStatus());
+        Room room = roomOpt.get();
+        
+        // 해당 호텔의 객실인지 확인
+        if (!room.getContentId().equals(contentId)) {
+            map.put("success", false);
+            map.put("message", "해당 호텔의 객실이 아닙니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+        }
+
+        // 상태 변경
+        Room updatedRoom = roomService.updateRoomStatus(dto.getRoomIdx(), dto.getStatus());
+        
+        // 동적 메시지 생성
+        String statusMessage = dto.getStatus() == 1 ? "사용 가능" : "사용 불가";
+        
         map.put("success", true);
-        map.put("message", "객실 비활성화 처리가 완료되었습니다.");
-        map.put("room", room);
+        map.put("message", String.format("객실 상태가 '%s'로 변경되었습니다.", statusMessage));
+        map.put("room", updatedRoom);
         return ResponseEntity.ok(map);
     }
 
