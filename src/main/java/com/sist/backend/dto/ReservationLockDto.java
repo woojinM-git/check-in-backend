@@ -21,6 +21,7 @@ public class ReservationLockDto {
     private String contentId;
     private Integer roomId;
     private String checkIn; // 예약 일자(락 키 포함)
+    private String lockId;
 
     // 응답 필드
     private Boolean success;

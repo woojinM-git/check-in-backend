@@ -1,8 +1,21 @@
 package com.sist.backend.controller;
 
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sist.backend.dto.ReservationLockDto;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.service.ReservationLockService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,12 +23,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 예약 락 컨트롤러
@@ -87,7 +94,8 @@ public class ReservationLockController {
                     customerIdx,
                     request.getContentId(),
                     request.getRoomId(),
-                    request.getCheckIn()
+                    request.getCheckIn(),
+                    request.getLockId()
             );
 
             if (result.getSuccess()) {
@@ -157,7 +165,8 @@ public class ReservationLockController {
                     request.getContentId(),
                     request.getRoomId(),
                     request.getCheckIn(),
-                    customerIdx
+                    customerIdx,
+                    request.getLockId()
             );
 
             return ResponseEntity.ok(result);
