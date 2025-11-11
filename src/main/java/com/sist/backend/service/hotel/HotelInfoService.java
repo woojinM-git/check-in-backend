@@ -128,7 +128,7 @@ public class HotelInfoService {
             );
             
             CompletableFuture<List<Dining>> diningsFuture = CompletableFuture.supplyAsync(() ->
-                diningRepository.findByContentidAndStatus(contentId)
+                diningRepository.findAllByContentid(contentId)
             );
             
             CompletableFuture<List<HotelImage>> hotelImagesFuture = CompletableFuture.supplyAsync(() ->
@@ -213,18 +213,24 @@ public class HotelInfoService {
                     .build()
             ).collect(Collectors.toList());
             
-            List<HotelEditFormDto.DiningDto> diningDtos = dinings.stream().map(dining ->
-                HotelEditFormDto.DiningDto.builder()
-                    .diningIdx(dining.getDiningIdx())
-                    .name(dining.getName())
-                    .operatingHours(dining.getOpenTime() != null && dining.getCloseTime() != null 
-                        ? dining.getOpenTime().toString() + " - " + dining.getCloseTime().toString()
-                        : "")
-                    .description(dining.getDescription())
-                    .basePrice(dining.getBasePrice())
-                    .totalSeats(dining.getTotalSeats())
-                    .build()
-            ).collect(Collectors.toList());
+            List<HotelEditFormDto.DiningDto> diningDtos = dinings.stream()
+                .filter(dining -> dining.getStatus() == null || dining.getStatus() == 0 || dining.getStatus() == 1) // 모든 상태 포함
+                .map(dining ->
+                    HotelEditFormDto.DiningDto.builder()
+                        .diningIdx(dining.getDiningIdx())
+                        .name(dining.getName())
+                        .operatingHours(dining.getOpenTime() != null && dining.getCloseTime() != null 
+                            ? dining.getOpenTime().toString() + " - " + dining.getCloseTime().toString()
+                            : "")
+                        .description(dining.getDescription())
+                        .content(dining.getContent())
+                        .basePrice(dining.getBasePrice())
+                        .totalSeats(dining.getTotalSeats())
+                        .slotDuration(dining.getSlotDuration())
+                        .maxGuestsPerSlot(dining.getMaxGuestsPerSlot())
+                        .status(dining.getStatus())
+                        .build()
+                ).collect(Collectors.toList());
             
             // Room DTO 변환 (RoomImage 포함)
             List<HotelEditFormDto.RoomDto> roomDtos = rooms.stream().map(room -> {
@@ -584,8 +590,8 @@ public class HotelInfoService {
         
         // Dining 업데이트/생성/삭제
         if (dto.getDining() != null) {
-            // 기존 다이닝 목록 조회
-            List<Dining> existingDinings = diningRepository.findByContentidAndStatus(contentId);
+            // 기존 다이닝 목록 조회 (모든 상태 포함 - 비활성화된 다이닝도 포함)
+            List<Dining> existingDinings = diningRepository.findAllByContentid(contentId);
             List<Integer> existingDiningIdxs = existingDinings.stream()
                 .map(Dining::getDiningIdx)
                 .collect(Collectors.toList());
@@ -628,28 +634,64 @@ public class HotelInfoService {
                 if (diningDto.getName() != null) {
                     dining.setName(diningDto.getName());
                 }
-                if (diningDto.getDescription() != null) {
-                    dining.setDescription(diningDto.getDescription());
-                }
+                // description은 null이 아니면 항상 업데이트 (빈 문자열도 허용)
+                dining.setDescription(diningDto.getDescription() != null ? diningDto.getDescription() : "");
+                // content는 null이 아니면 항상 업데이트 (빈 문자열도 허용)
+                dining.setContent(diningDto.getContent() != null ? diningDto.getContent() : "");
                 if (diningDto.getBasePrice() != null) {
                     dining.setBasePrice(diningDto.getBasePrice());
                 }
                 if (diningDto.getTotalSeats() != null) {
                     dining.setTotalSeats(diningDto.getTotalSeats());
                 }
+                if (diningDto.getSlotDuration() != null) {
+                    dining.setSlotDuration(diningDto.getSlotDuration());
+                }
+                if (diningDto.getMaxGuestsPerSlot() != null) {
+                    dining.setMaxGuestsPerSlot(diningDto.getMaxGuestsPerSlot());
+                }
+                // status 업데이트 (비활성화된 다이닝을 다시 활성화할 수 있도록)
+                if (diningDto.getStatus() != null) {
+                    dining.setStatus(diningDto.getStatus());
+                }
                 
                 // operatingHours 파싱 (예: "09:00 - 21:00" → openTime, closeTime)
                 if (diningDto.getOperatingHours() != null && !diningDto.getOperatingHours().isEmpty()) {
-                    String[] times = diningDto.getOperatingHours().split(" - ");
+                    // " - " 또는 "-" 형식 모두 지원
+                    String[] times = diningDto.getOperatingHours().split("\\s*-\\s*");
                     if (times.length == 2) {
                         try {
                             dining.setOpenTime(java.time.LocalTime.parse(times[0].trim()));
                             dining.setCloseTime(java.time.LocalTime.parse(times[1].trim()));
+                            log.info("✅ 운영시간 파싱 성공: openTime={}, closeTime={}", 
+                                dining.getOpenTime(), dining.getCloseTime());
                         } catch (Exception e) {
-                            log.warn("운영시간 파싱 실패: contentId={}, operatingHours={}", 
-                                contentId, diningDto.getOperatingHours());
+                            log.warn("운영시간 파싱 실패: contentId={}, operatingHours={}, error={}", 
+                                contentId, diningDto.getOperatingHours(), e.getMessage());
+                            // 파싱 실패 시 null로 설정
+                            dining.setOpenTime(null);
+                            dining.setCloseTime(null);
                         }
+                    } else if (times.length == 1 && !times[0].trim().isEmpty()) {
+                        // 단일 시간만 있는 경우 openTime으로만 설정
+                        try {
+                            dining.setOpenTime(java.time.LocalTime.parse(times[0].trim()));
+                            dining.setCloseTime(null);
+                            log.info("✅ 운영시간 파싱 성공 (단일 시간): openTime={}", dining.getOpenTime());
+                        } catch (Exception e) {
+                            log.warn("운영시간 파싱 실패: contentId={}, operatingHours={}, error={}", 
+                                contentId, diningDto.getOperatingHours(), e.getMessage());
+                            dining.setOpenTime(null);
+                            dining.setCloseTime(null);
+                        }
+                    } else {
+                        dining.setOpenTime(null);
+                        dining.setCloseTime(null);
                     }
+                } else {
+                    // operatingHours가 없으면 null로 설정
+                    dining.setOpenTime(null);
+                    dining.setCloseTime(null);
                 }
                 
                 diningRepository.save(dining);

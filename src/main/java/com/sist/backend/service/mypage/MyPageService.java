@@ -27,6 +27,9 @@ import com.sist.backend.repository.DiningCancelLogRepository;
 import com.sist.backend.repository.DiningPaymentRepository;
 import com.sist.backend.repository.RoomPaymentRepository;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.UsedTradeRepository;
+import com.sist.backend.repository.UsedItemRepository;
+import com.sist.backend.entity.UsedItem;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,6 +44,8 @@ public class MyPageService {
     private final DiningCancelLogRepository diningCancelLogRepository;
     private final DiningPaymentRepository diningPaymentRepository;
     private final ReviewRepository reviewRepository;
+    private final UsedTradeRepository usedTradeRepository;
+    private final UsedItemRepository usedItemRepository;
 
     // 날짜 포맷터 (YYYY.MM.DD)
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
@@ -59,6 +64,10 @@ public class MyPageService {
                 // 💡 해결: Integer[]로 인식되도록 명시적 객체 생성
                 return Arrays.asList(new Integer[]{2, 3});
 
+            case "used":
+                // 중고거래: 모든 상태의 예약 포함 (UsedItem이 있는 예약만 조회)
+                return Arrays.asList(new Integer[]{0, 1, 2, 3, 4});
+
             default:
                 return Arrays.asList(new Integer[]{0, 1, 2, 3, 4});
         }
@@ -69,12 +78,49 @@ public class MyPageService {
         // 1. 상태 문자열을 코드로 매핑
         List<Integer> statusCodes = mapStatusToCodes(status);
 
-        // 2. Repository에서 데이터 조회 (Hotel, Room 정보 포함)
-        List<RoomReservation> reservations = roomReservationRepository
+        // 2. 일반 예약 조회 (customerIdx 기준)
+        List<RoomReservation> normalReservations = roomReservationRepository
                 .findByReservationsByCustomerAndStatus(customerIdx, statusCodes);
 
-        // 3. Entity → DTO 변환
-        return reservations.stream()
+        // 3. 판매완료된 예약 조회 (UsedTrade의 sellerIdx 기준) - customerIdx가 변경되었어도 조회
+        List<RoomReservation> soldReservations = roomReservationRepository
+                .findSoldReservationsBySellerIdx(customerIdx, statusCodes);
+
+        // 4. UsedItem의 sellerIdx 기준으로 예약 조회 (판매중/거래중인 예약 포함)
+        List<RoomReservation> usedItemReservations = roomReservationRepository
+                .findReservationsByUsedItemSellerIdx(customerIdx, statusCodes);
+
+        // 5. 세 결과를 합치고 중복 제거 (reservIdx 기준)
+        List<RoomReservation> allReservations = new java.util.ArrayList<>(normalReservations);
+        
+        // 판매완료된 예약 추가
+        for (RoomReservation soldReservation : soldReservations) {
+            boolean isDuplicate = allReservations.stream()
+                    .anyMatch(r -> r.getReservIdx().equals(soldReservation.getReservIdx()));
+            if (!isDuplicate) {
+                allReservations.add(soldReservation);
+            }
+        }
+        
+        // UsedItem의 sellerIdx 기준 예약 추가
+        for (RoomReservation usedItemReservation : usedItemReservations) {
+            boolean isDuplicate = allReservations.stream()
+                    .anyMatch(r -> r.getReservIdx().equals(usedItemReservation.getReservIdx()));
+            if (!isDuplicate) {
+                allReservations.add(usedItemReservation);
+            }
+        }
+
+        // 5. 체크인 날짜 기준으로 정렬
+        allReservations.sort((r1, r2) -> {
+            if (r1.getCheckinDate() == null && r2.getCheckinDate() == null) return 0;
+            if (r1.getCheckinDate() == null) return 1;
+            if (r2.getCheckinDate() == null) return -1;
+            return r2.getCheckinDate().compareTo(r1.getCheckinDate()); // 내림차순
+        });
+
+        // 6. Entity → DTO 변환
+        return allReservations.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -90,15 +136,100 @@ public class MyPageService {
         // 1. 상태 문자열을 코드로 매핑
         List<Integer> statusCodes = mapStatusToCodes(status);
 
-        // 2. Pageable 객체 생성
-        Pageable pageable = PageRequest.of(page, size);
+        // 중고거래 탭인 경우: UsedItem의 sellerIdx 기준으로만 조회
+        if ("used".equals(status.toLowerCase())) {
+            // UsedItem의 sellerIdx 기준으로 예약 조회 (판매중/거래중/판매완료 포함)
+            List<RoomReservation> usedItemReservations = roomReservationRepository
+                    .findReservationsByUsedItemSellerIdx(customerIdx, statusCodes);
 
-        // 3. Repository에서 페이지네이션된 데이터 조회 (Hotel, Room 정보 포함)
-        Page<RoomReservation> reservationsPage = roomReservationRepository
+            // 체크인 날짜 기준으로 정렬
+            usedItemReservations.sort((r1, r2) -> {
+                if (r1.getCheckinDate() == null && r2.getCheckinDate() == null) return 0;
+                if (r1.getCheckinDate() == null) return 1;
+                if (r2.getCheckinDate() == null) return -1;
+                return r2.getCheckinDate().compareTo(r1.getCheckinDate()); // 내림차순
+            });
+
+            // 페이지네이션 적용
+            Pageable pageable = PageRequest.of(page, size);
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), usedItemReservations.size());
+            List<RoomReservation> pagedReservations = start < usedItemReservations.size() 
+                    ? usedItemReservations.subList(start, end)
+                    : new java.util.ArrayList<>();
+
+            // Entity → DTO 변환
+            List<ReservationResponseDTO> dtoList = pagedReservations.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+
+            // Page 객체 생성
+            return new org.springframework.data.domain.PageImpl<>(
+                    dtoList,
+                    pageable,
+                    usedItemReservations.size()
+            );
+        }
+
+        // 일반 탭 (upcoming, completed, cancelled): 기존 로직
+        // 2. 일반 예약 조회 (customerIdx 기준)
+        Pageable pageable = PageRequest.of(page, size);
+        Page<RoomReservation> normalReservationsPage = roomReservationRepository
                 .findByReservationsByCustomerAndStatusWithPagination(customerIdx, statusCodes, pageable);
 
-        // 4. Entity → DTO 변환 (Page 객체 유지)
-        return reservationsPage.map(this::convertToDTO);
+        // 3. 판매완료된 예약 조회 (UsedTrade의 sellerIdx 기준) - customerIdx가 변경되었어도 조회
+        List<RoomReservation> soldReservations = roomReservationRepository
+                .findSoldReservationsBySellerIdx(customerIdx, statusCodes);
+
+        // 4. UsedItem의 sellerIdx 기준으로 예약 조회 (판매중/거래중인 예약 포함)
+        List<RoomReservation> usedItemReservations = roomReservationRepository
+                .findReservationsByUsedItemSellerIdx(customerIdx, statusCodes);
+
+        // 5. 세 결과를 합치고 중복 제거 (reservIdx 기준)
+        List<RoomReservation> allReservations = new java.util.ArrayList<>(normalReservationsPage.getContent());
+        
+        // 판매완료된 예약 추가
+        for (RoomReservation soldReservation : soldReservations) {
+            boolean isDuplicate = allReservations.stream()
+                    .anyMatch(r -> r.getReservIdx().equals(soldReservation.getReservIdx()));
+            if (!isDuplicate) {
+                allReservations.add(soldReservation);
+            }
+        }
+        
+        // UsedItem의 sellerIdx 기준 예약 추가
+        for (RoomReservation usedItemReservation : usedItemReservations) {
+            boolean isDuplicate = allReservations.stream()
+                    .anyMatch(r -> r.getReservIdx().equals(usedItemReservation.getReservIdx()));
+            if (!isDuplicate) {
+                allReservations.add(usedItemReservation);
+            }
+        }
+
+        // 5. 체크인 날짜 기준으로 정렬
+        allReservations.sort((r1, r2) -> {
+            if (r1.getCheckinDate() == null && r2.getCheckinDate() == null) return 0;
+            if (r1.getCheckinDate() == null) return 1;
+            if (r2.getCheckinDate() == null) return -1;
+            return r2.getCheckinDate().compareTo(r1.getCheckinDate()); // 내림차순
+        });
+
+        // 6. 페이지네이션 적용
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allReservations.size());
+        List<RoomReservation> pagedReservations = allReservations.subList(start, end);
+
+        // 7. Entity → DTO 변환
+        List<ReservationResponseDTO> dtoList = pagedReservations.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+
+        // 8. Page 객체 생성
+        return new org.springframework.data.domain.PageImpl<>(
+                dtoList,
+                pageable,
+                allReservations.size()
+        );
     }
 
     /**
@@ -142,7 +273,10 @@ public class MyPageService {
             }
         }
 
-        return ReservationResponseDTO.builder()
+        // UsedItem 정보 조회 (중고거래 탭용)
+        UsedItem usedItem = usedItemRepository.findByReservIdx(reservation.getReservIdx());
+        
+        ReservationResponseDTO.ReservationResponseDTOBuilder builder = ReservationResponseDTO.builder()
                 // 기본 예약 정보
                 .id(reservation.getReservIdx())
                 .reservationNumber(reservation.getOrderNum() != null && !reservation.getOrderNum().isEmpty()
@@ -189,8 +323,16 @@ public class MyPageService {
                         : "")
                 .updatedAt(reservation.getUpdatedAt() != null
                         ? reservation.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"))
-                        : "")
-                .build();
+                        : "");
+        
+        // UsedItem 정보 추가
+        if (usedItem != null) {
+            builder.usedItemIdx(usedItem.getUsedItemIdx())
+                   .usedItemStatus(usedItem.getStatus())
+                   .usedItemPrice(usedItem.getPrice());
+        }
+        
+        return builder.build();
     }
 
     private int toSafeInt(Integer value) {
@@ -205,16 +347,53 @@ public class MyPageService {
      * @return ReservationResponseDTO
      */
     public ReservationResponseDTO getReservationDetail(Integer reservationId, Integer customerIdx) {
-        // 1. 예약 정보 조회 (권한 검증 포함)
+        // 1. 예약 정보 조회
         RoomReservation reservation = roomReservationRepository.findById(reservationId)
                 .orElse(null);
 
-        // 2. 예약이 없거나 다른 고객의 예약인 경우 null 반환
-        if (reservation == null || !reservation.getCustomerIdx().equals(customerIdx)) {
+        if (reservation == null) {
+            System.out.println("❌ 예약 상세 조회 실패: 예약이 존재하지 않음 - reservationId=" + reservationId);
+            return null;
+        }
+
+        System.out.println("✅ 예약 조회 성공 - reservationId=" + reservationId + ", 현재 customerIdx=" + reservation.getCustomerIdx() + ", 요청한 customerIdx=" + customerIdx);
+
+        // 2. 권한 검증: customerIdx가 일치하거나, 판매완료된 예약의 판매자이거나, UsedItem의 sellerIdx인 경우 허용
+        boolean hasAccess = false;
+        
+        // 일반 예약: customerIdx가 일치하는 경우
+        if (reservation.getCustomerIdx().equals(customerIdx)) {
+            hasAccess = true;
+            System.out.println("✅ 권한 확인: 일반 예약 (customerIdx 일치)");
+        } else {
+            // 판매완료된 예약: UsedTrade의 sellerIdx가 customerIdx와 일치하고 reservIdx가 일치하는 경우
+            System.out.println("🔍 판매완료된 예약 확인 중 - reservationId=" + reservationId + ", sellerIdx=" + customerIdx);
+            java.util.Optional<com.sist.backend.entity.UsedTrade> trade = 
+                usedTradeRepository.findByReservIdxAndSellerIdx(reservationId, customerIdx);
+            if (trade.isPresent()) {
+                hasAccess = true;
+                System.out.println("✅ 권한 확인: 판매완료된 예약의 판매자 (UsedTrade)");
+            } else {
+                // UsedItem의 sellerIdx가 customerIdx와 일치하는 경우
+                System.out.println("🔍 UsedItem의 sellerIdx 확인 중 - reservationId=" + reservationId + ", sellerIdx=" + customerIdx);
+                boolean isUsedItemSeller = roomReservationRepository
+                    .existsUsedItemByReservIdxAndSellerIdx(reservationId, customerIdx);
+                if (isUsedItemSeller) {
+                    hasAccess = true;
+                    System.out.println("✅ 권한 확인: UsedItem의 판매자");
+                } else {
+                    System.out.println("❌ 권한 없음: 판매자 아님");
+                }
+            }
+        }
+
+        if (!hasAccess) {
+            System.out.println("❌ 예약 상세 조회 실패: 권한 없음 - reservationId=" + reservationId + ", customerIdx=" + customerIdx);
             return null;
         }
 
         // 3. Entity → DTO 변환
+        System.out.println("✅ 예약 상세 조회 성공 - reservationId=" + reservationId);
         return convertToDTO(reservation);
     }
 

@@ -31,6 +31,15 @@ public class UsedItem {
     @Column(name = "reservIdx", nullable = false)
     private Integer reservIdx;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sellerIdx", referencedColumnName = "customerIdx", insertable = false, updatable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    private Customer seller;
+    
+    @Column(name = "sellerIdx")
+    private Integer sellerIdx;
+    
     @Column(name = "price", nullable = false)
     private Integer price;
     

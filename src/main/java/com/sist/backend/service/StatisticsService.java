@@ -53,13 +53,13 @@ public class StatisticsService {
             () -> getTotalReservationCount(startDate, endDate)
         );
         CompletableFuture<Long> activeHotelsFuture = CompletableFuture.supplyAsync(
-            () -> getActiveHotelsCount()
+            () -> getActiveHotelsCount(startDate, endDate)
         );
-        CompletableFuture<Long> newHotelsThisMonthFuture = CompletableFuture.supplyAsync(
-            () -> getNewHotelsThisMonthCount()
+        CompletableFuture<Long> newHotelsFuture = CompletableFuture.supplyAsync(
+            () -> getNewHotelsCount(startDate, endDate)
         );
-        CompletableFuture<Long> newCustomersThisMonthFuture = CompletableFuture.supplyAsync(
-            () -> getNewCustomersThisMonthCount()
+        CompletableFuture<Long> newCustomersFuture = CompletableFuture.supplyAsync(
+            () -> getNewCustomersCount(startDate, endDate)
         );
 
         // 모든 Future 완료 대기
@@ -67,8 +67,8 @@ public class StatisticsService {
             totalRevenueFuture,
             totalReservationCountFuture,
             activeHotelsFuture,
-            newHotelsThisMonthFuture,
-            newCustomersThisMonthFuture
+            newHotelsFuture,
+            newCustomersFuture
         ).join();
 
         Map<String, Object> result = new HashMap<>();
@@ -76,8 +76,8 @@ public class StatisticsService {
             result.put("totalRevenue", totalRevenueFuture.get());
             result.put("totalReservationCount", totalReservationCountFuture.get());
             result.put("activeHotels", activeHotelsFuture.get());
-            result.put("newHotelsThisMonth", newHotelsThisMonthFuture.get());
-            result.put("newCustomersThisMonth", newCustomersThisMonthFuture.get());
+            result.put("newHotels", newHotelsFuture.get());
+            result.put("newCustomers", newCustomersFuture.get());
         } catch (Exception e) {
             log.error("통계 데이터 조회 중 오류 발생", e);
             throw new RuntimeException("통계 데이터 조회 실패", e);
@@ -177,30 +177,15 @@ public class StatisticsService {
     }
 
     /**
-     * 운영중인 호텔 수 조회
-     * status = 0: 운영중인 호텔 (등록됨)
-     * status = 1: 비활성화된 호텔
+     * 운영중인 호텔 수 조회 (날짜 범위 적용)
+     * 날짜 범위 내에 승인된 호텔 수 (registrationRequest 기준)
+     * status = 1: 승인됨
      */
-    private Long getActiveHotelsCount() {
-        Long result = queryFactory
-            .select(hotelInfo.count())
-            .from(hotelInfo)
-            .where(hotelInfo.status.eq(0))
-            .fetchOne();
+    private Long getActiveHotelsCount(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
 
-        return result != null ? result : 0L;
-    }
-
-    /**
-     * 이번달 신규 호텔 수 조회
-     */
-    private Long getNewHotelsThisMonthCount() {
-        LocalDate now = LocalDate.now();
-        LocalDate startOfMonth = now.withDayOfMonth(1);
-        LocalDateTime startOfMonthDateTime = startOfMonth.atStartOfDay();
-        LocalDateTime endOfMonthDateTime = now.atTime(23, 59, 59);
-
-        // RegistrationRequest에서 이번달에 승인된 호텔 수 조회
+        // RegistrationRequest에서 날짜 범위 내에 승인된 호텔 수 조회
         // status=1은 승인됨을 의미
         Long result = queryFactory
             .select(registrationRequest.count())
@@ -208,8 +193,8 @@ public class StatisticsService {
             .where(
                 registrationRequest.status.eq(1)
                     .and(registrationRequest.approvDate.isNotNull())
-                    .and(registrationRequest.approvDate.goe(startOfMonthDateTime))
-                    .and(registrationRequest.approvDate.loe(endOfMonthDateTime))
+                    .and(registrationRequest.approvDate.goe(startDateTime))
+                    .and(registrationRequest.approvDate.loe(endDateTime))
             )
             .fetchOne();
 
@@ -217,25 +202,76 @@ public class StatisticsService {
     }
 
     /**
-     * 이번달 신규 가입 회원 수 조회
+     * 신규 호텔 수 조회 (날짜 범위 적용)
+     * 날짜 범위 내에 승인된 호텔 수
      */
-    private Long getNewCustomersThisMonthCount() {
-        LocalDate now = LocalDate.now();
-        LocalDate startOfMonth = now.withDayOfMonth(1);
-        LocalDateTime startOfMonthDateTime = startOfMonth.atStartOfDay();
-        LocalDateTime endOfMonthDateTime = now.atTime(23, 59, 59);
+    private Long getNewHotelsCount(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+
+        // RegistrationRequest에서 날짜 범위 내에 승인된 호텔 수 조회
+        // status=1은 승인됨을 의미
+        Long result = queryFactory
+            .select(registrationRequest.count())
+            .from(registrationRequest)
+            .where(
+                registrationRequest.status.eq(1)
+                    .and(registrationRequest.approvDate.isNotNull())
+                    .and(registrationRequest.approvDate.goe(startDateTime))
+                    .and(registrationRequest.approvDate.loe(endDateTime))
+            )
+            .fetchOne();
+
+        return result != null ? result : 0L;
+    }
+
+    /**
+     * 신규 가입 회원 수 조회 (날짜 범위 적용)
+     * 날짜 범위 내에 가입한 회원 수
+     */
+    private Long getNewCustomersCount(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
 
         Long result = queryFactory
             .select(customer.count())
             .from(customer)
             .where(
                 customer.status.eq(0)
-                    .and(customer.joinDate.goe(startOfMonthDateTime))
-                    .and(customer.joinDate.loe(endOfMonthDateTime))
+                    .and(customer.joinDate.goe(startDateTime))
+                    .and(customer.joinDate.loe(endDateTime))
             )
             .fetchOne();
 
         return result != null ? result : 0L;
+    }
+
+    /**
+     * 사이트 서비스 시작 월 조회 (HotelSettlement의 최초 정산 월)
+     * @return 최초 정산이 이루어진 YearMonth, 데이터가 없으면 현재 월
+     */
+    public YearMonth getSiteServiceStartMonth() {
+        String minSettlementMonth = queryFactory
+            .select(hotelSettlement.settlementMonth.min())
+            .from(hotelSettlement)
+            .fetchOne();
+        
+        if (minSettlementMonth == null || minSettlementMonth.isEmpty()) {
+            return YearMonth.now(); // 데이터가 없으면 현재 월
+        }
+        
+        try {
+            String[] parts = minSettlementMonth.split("-");
+            if (parts.length == 2) {
+                int year = Integer.parseInt(parts[0]);
+                int month = Integer.parseInt(parts[1]);
+                return YearMonth.of(year, month);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("최초 정산 월 파싱 실패: {}", minSettlementMonth, e);
+        }
+        
+        return YearMonth.now(); // 파싱 실패 시 현재 월
     }
 
     /**
