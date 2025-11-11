@@ -15,6 +15,8 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
     // contentId(호텔 기본키)로 객실 전체 조회
     List<Room> findByContentId(String contentId);
 
+    List<Room> findByContentIdIn(List<String> contentIds);
+
     // 이름 부분일치(대소문자 무시)로 객실 검색
     List<Room> findByContentIdAndNameContainingIgnoreCase(String contentId, String name);
 
