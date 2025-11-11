@@ -14,6 +14,7 @@ public class HotelResponse {
     private String contentId;
     private String title;
     private String adress;
+    private String tel;  // 전화번호 추가
     private String imageUrl;
     private String areaCode;
 

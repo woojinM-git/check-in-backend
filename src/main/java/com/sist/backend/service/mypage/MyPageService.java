@@ -274,7 +274,9 @@ public class MyPageService {
         }
 
         // UsedItem 정보 조회 (중고거래 탭용)
-        UsedItem usedItem = usedItemRepository.findByReservIdx(reservation.getReservIdx());
+        // 하나의 reservIdx에 여러 UsedItem이 있을 수 있으므로, 최신 항목만 사용
+        List<UsedItem> usedItems = usedItemRepository.findByReservIdx(reservation.getReservIdx());
+        UsedItem usedItem = usedItems != null && !usedItems.isEmpty() ? usedItems.get(0) : null;
         
         ReservationResponseDTO.ReservationResponseDTOBuilder builder = ReservationResponseDTO.builder()
                 // 기본 예약 정보

@@ -105,11 +105,12 @@ public class S3ImageService {
     String originalFilename = image.getOriginalFilename(); //원본 파일 명
     String extention = originalFilename.substring(originalFilename.lastIndexOf(".")); //확장자 명
 
-    // 객실 이미지는 원본 파일명 사용 (예: hotel_deluxe.jpg)
-    // 호텔 이미지는 UUID 추가
+    // 모든 이미지에 UUID 추가하여 파일명 충돌 방지
+    // 동일한 폴더에서 같은 파일명이 업로드되어도 덮어씌워지지 않도록 함
+    String uuidPrefix = UUID.randomUUID().toString().replace("-", ""); // UUID 전체 사용 (32자)
     String s3FileName = returnFileNameOnly 
-        ? originalFilename  // 객실 이미지: 원본 파일명 그대로
-        : UUID.randomUUID().toString().substring(0, 10) + originalFilename;  // 호텔 이미지: UUID 추가
+        ? uuidPrefix + "_" + originalFilename  // 객실 이미지: UUID + 원본 파일명
+        : uuidPrefix + originalFilename;  // 호텔 이미지: UUID + 원본 파일명
     
     // 폴더 경로가 있으면 경로 앞에 추가
     String s3Key = folderPath != null && !folderPath.trim().isEmpty() 
