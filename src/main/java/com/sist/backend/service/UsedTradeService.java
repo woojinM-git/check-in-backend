@@ -93,7 +93,9 @@ public class UsedTradeService {
     @Transactional
     public UsedItem registerUsedItem(Integer reservIdx, Integer price, String comment) {
         // 기존 항목이 있는지 확인
-        UsedItem existingItem = usedItemRepository.findByReservIdx(reservIdx);
+        // 하나의 reservIdx에 여러 UsedItem이 있을 수 있으므로, 최신 항목만 사용
+        List<UsedItem> existingItems = usedItemRepository.findByReservIdx(reservIdx);
+        UsedItem existingItem = existingItems != null && !existingItems.isEmpty() ? existingItems.get(0) : null;
         
         if (existingItem != null) {
             // status가 2(거래완료) 또는 4(취소)인 경우 새로 등록 가능
@@ -129,7 +131,9 @@ public class UsedTradeService {
      * @return UsedItem 또는 null
      */
     public UsedItem findByReservIdx(Integer reservIdx) {
-        return usedItemRepository.findByReservIdx(reservIdx);
+        // 하나의 reservIdx에 여러 UsedItem이 있을 수 있으므로, 최신 항목만 반환
+        List<UsedItem> usedItems = usedItemRepository.findByReservIdx(reservIdx);
+        return usedItems != null && !usedItems.isEmpty() ? usedItems.get(0) : null;
     }
 
     /**
