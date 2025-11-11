@@ -123,17 +123,11 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 					}
 				}
 				
-				// 카카오 전화번호 변환 (+82 10-xxxx-xxxx → 010-xxxx-xxxx)
 				Object phoneObj = userAttributes.get("phone_number");
-				if (phoneObj != null) {
-					String phoneStr = phoneObj.toString();
-					// "+82 10-xxxx-xxxx" 형식이면 "010-xxxx-xxxx"로 변환
-					if (phoneStr.startsWith("+82 ")) {
-						String phoneWithoutCountryCode = phoneStr.substring(4); // "+82 " 제거
-						String formattedPhone = "0" + phoneWithoutCountryCode; // 앞에 "0" 추가
-						userAttributes.put("phone_number", formattedPhone);
-						log.info("카카오 전화번호 변환: {} → {}", phoneStr, formattedPhone);
-					}
+				String normalizedPhone = normalizePhoneNumber(phoneObj);
+				if (normalizedPhone != null) {
+					userAttributes.put("phone_number", normalizedPhone);
+					log.info("카카오 전화번호 변환: {} → {}", phoneObj, normalizedPhone);
 				}
 				
 				log.info("userAttributes: {}", userAttributes);
@@ -184,7 +178,8 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 				customer.setId(userAttributes.get("id").toString());
 				customer.setName(userAttributes.get("name").toString());
 				customer.setEmail(userAttributes.get("email").toString());
-				customer.setPhone(userAttributes.get("phone_number").toString());
+				String normalizedPhone = normalizePhoneNumber(userAttributes.get("phone_number"));
+				customer.setPhone(normalizedPhone);
 				customer.setNickname(userAttributes.get("nickname").toString());
 				
 				// 생일 변환 (네이버에서 "2025-11-05" 형식으로 받음)
@@ -226,4 +221,21 @@ public class customOAuth2UserService extends DefaultOAuth2UserService {
 				customerService.save(customer);
 		}
 	}
+
+    private String normalizePhoneNumber(Object phoneObj) {
+        if (phoneObj == null) {
+            return null;
+        }
+
+        String digitsOnly = phoneObj.toString().replaceAll("[^0-9]", "");
+        if (digitsOnly.isEmpty()) {
+            return null;
+        }
+
+        if (digitsOnly.startsWith("82") && digitsOnly.length() > 2) {
+            digitsOnly = "0" + digitsOnly.substring(2);
+        }
+
+        return digitsOnly;
+    }
 }
