@@ -47,8 +47,10 @@ public class RoomImageService {
         // 해당 순서에 이미지가 이미 존재하는지 확인
         roomImageRepository.findByRoomIdxAndContentIdAndImageOrder(roomIdx, contentId, imageOrder)
             .ifPresent(existing -> {
-                // 기존 이미지 삭제
-                s3ImageService.deleteImageFromS3(existing.getImageUrl());
+                // 기존 이미지 삭제 (파일명을 전체 URL로 변환하여 삭제)
+                String s3Key = S3_FOLDER_PATH + "/" + existing.getImageUrl();
+                String fullUrl = "https://sist-checkin.s3.ap-northeast-2.amazonaws.com/" + s3Key;
+                s3ImageService.deleteImageFromS3(fullUrl);
                 roomImageRepository.delete(existing);
             });
         
