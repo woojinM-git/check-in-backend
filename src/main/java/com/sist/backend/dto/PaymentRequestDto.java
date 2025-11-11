@@ -48,4 +48,7 @@ public class PaymentRequestDto {
     // 중고 호텔 거래 관련 필드
     private Integer usedTradeIdx;
     private Integer usedItemIdx;
+
+    // 예약 락 식별자
+    private String lockId;
 }

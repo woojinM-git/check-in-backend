@@ -3,6 +3,7 @@ package com.sist.backend.service;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -41,7 +42,7 @@ public class ReservationLockService {
      * @param roomId 객실 ID
      * @return 락 생성 성공 여부 및 메시지
      */
-    public ReservationLockDto createLock(Integer customerIdx, String contentId, Integer roomId, String checkIn) {
+    public ReservationLockDto createLock(Integer customerIdx, String contentId, Integer roomId, String checkIn, String lockId) {
         String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
 
         try {
@@ -70,8 +71,12 @@ public class ReservationLockService {
             lockData.put("contentId", contentId);
             lockData.put("roomId", roomId);
             lockData.put("checkIn", checkIn);
-            lockData.put("createdAt", LocalDateTime.now().toString());
-            lockData.put("expireTime", LocalDateTime.now().plusMinutes(LOCK_TTL_MINUTES).toString());
+            LocalDateTime createdAt = LocalDateTime.now();
+            LocalDateTime expireAt = createdAt.plusMinutes(LOCK_TTL_MINUTES);
+            String resolvedLockId = (lockId == null || lockId.isBlank()) ? UUID.randomUUID().toString() : lockId;
+            lockData.put("lockId", resolvedLockId);
+            lockData.put("createdAt", createdAt.toString());
+            lockData.put("expireTime", expireAt.toString());
 
             String lockValue = objectMapper.writeValueAsString(lockData);
 
@@ -84,8 +89,9 @@ public class ReservationLockService {
                 return ReservationLockDto.builder()
                         .success(true)
                         .message("예약 락이 생성되었습니다.")
-                        .expireTime(LocalDateTime.now().plusMinutes(LOCK_TTL_MINUTES))
+                        .expireTime(expireAt)
                         .lockKey(lockKey)
+                        .lockId(resolvedLockId)
                         .build();
             } else {
                 log.warn("예약 락 생성 실패 (이미 존재): roomId={}, contentId={}, checkIn={}", roomId, contentId, checkIn);
@@ -118,7 +124,7 @@ public class ReservationLockService {
      * @param customerIdx 고객 식별자 (소유권 검증용)
      * @return 락 해제 성공 여부
      */
-    public ReservationLockDto releaseLock(String contentId, Integer roomId, String checkIn, Integer customerIdx) {
+    public ReservationLockDto releaseLock(String contentId, Integer roomId, String checkIn, Integer customerIdx, String lockId) {
         String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
 
         try {
@@ -136,8 +142,18 @@ public class ReservationLockService {
             @SuppressWarnings("unchecked")
             Map<String, Object> lockData = objectMapper.readValue(lockValue, Map.class);
             Integer lockOwner = (Integer) lockData.get("customerIdx");
+            String storedLockId = (String) lockData.get("lockId");
 
-            if (!customerIdx.equals(lockOwner)) {
+            if (lockId != null && storedLockId != null && !lockId.equals(storedLockId)) {
+                log.warn("예약 락 해제 실패: lockId 불일치 - roomId={}, contentId={}, requestLockId={}, storedLockId={}",
+                        roomId, contentId, lockId, storedLockId);
+                return ReservationLockDto.builder()
+                        .success(false)
+                        .message("락 해제 권한이 없습니다. (lockId 불일치)")
+                        .build();
+            }
+
+            if (customerIdx != null && lockOwner != null && !customerIdx.equals(lockOwner)) {
                 log.warn("예약 락 해제 실패: 소유권 불일치 - roomId={}, contentId={}, requestCustomer={}, lockOwner={}",
                         roomId, contentId, customerIdx, lockOwner);
                 return ReservationLockDto.builder()
@@ -154,6 +170,7 @@ public class ReservationLockService {
                 return ReservationLockDto.builder()
                         .success(true)
                         .message("예약 락이 해제되었습니다.")
+                        .lockId(storedLockId)
                         .build();
             } else {
                 log.warn("예약 락 해제 실패: 삭제 실패 - roomId={}, contentId={}, checkIn={}", roomId, contentId, checkIn);
