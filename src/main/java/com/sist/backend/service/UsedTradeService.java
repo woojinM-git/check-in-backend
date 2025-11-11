@@ -14,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.sist.backend.dto.UsedItemDto;
 import com.sist.backend.entity.UsedItem;
+import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.UsedItemRepository;
+import com.sist.backend.repository.RoomReservationRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,7 @@ import com.sist.backend.repository.UsedItemRepository;
 public class UsedTradeService {
 
     final private UsedItemRepository usedItemRepository;
+    final private RoomReservationRepository roomReservationRepository;
 
     public Page<UsedItem> findAllByStatusOrderByUpdatedAtDesc(Pageable pageable) {
         return usedItemRepository.findAllByStatusOrderByUpdatedAtDesc(pageable);
@@ -104,11 +107,16 @@ public class UsedTradeService {
             }
         }
         
+        // RoomReservation 조회하여 sellerIdx 설정
+        RoomReservation reservation = roomReservationRepository.findById(reservIdx)
+                .orElseThrow(() -> new RuntimeException("예약 정보를 찾을 수 없습니다."));
+        
         // 새로 등록
         UsedItem usedItem = new UsedItem();
         usedItem.setReservIdx(reservIdx);
         usedItem.setPrice(price);
         usedItem.setComment(comment);
+        usedItem.setSellerIdx(reservation.getCustomerIdx()); // 판매자 ID 설정
         // status: 0 = 판매중, 1 = 거래중, 2 = 거래완료(판매완료), 3 = 만료, 4 = 취소
         usedItem.setStatus(0); // 판매중 상태로 등록
         
@@ -183,5 +191,17 @@ public class UsedTradeService {
         
         log.info("만료 처리 완료: {}개의 양도매물이 만료되었습니다.", expiredCount);
         return expiredCount;
+    }
+
+    /**
+     * 판매자의 양도거래 아이템 목록 조회
+     * @param sellerIdx 판매자 ID
+     * @return 판매자의 UsedItem 목록
+     */
+    @Transactional(readOnly = true)
+    public List<UsedItem> getSellerItems(Integer sellerIdx) {
+        List<UsedItem> items = usedItemRepository.findBySellerIdx(sellerIdx);
+        log.info("판매자 아이템 조회 - sellerIdx: {}, 조회된 개수: {}", sellerIdx, items.size());
+        return items;
     }
 }

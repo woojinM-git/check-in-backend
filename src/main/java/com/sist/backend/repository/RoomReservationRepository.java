@@ -225,4 +225,54 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
            "AND r.checkoutDate <= :targetDate")
     int updateExpiredReservationsToCompleted(@Param("targetDate") java.time.LocalDate targetDate);
 
+    /* 판매완료된 예약 조회 (UsedTrade의 sellerIdx 기준) - customerIdx가 변경되었어도 조회 */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+           "LEFT JOIN FETCH r.room room " +
+           "LEFT JOIN FETCH room.hotelInfo hotel " +
+           "LEFT JOIN FETCH hotel.area area " +
+           "JOIN UsedTrade ut ON ut.reservIdx = r.reservIdx " +
+           "WHERE ut.sellerIdx = :sellerIdx " +
+           "AND ut.ststus = 1 " + // 거래완료 상태
+           "AND r.status IN :statusList " +
+           "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findSoldReservationsBySellerIdx(
+        @Param("sellerIdx") Integer sellerIdx,
+        @Param("statusList") List<Integer> statusList);
+
+    /* 판매완료된 예약 조회 (UsedTrade의 sellerIdx 기준) - 페이지네이션 지원 */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+           "LEFT JOIN FETCH r.room room " +
+           "LEFT JOIN FETCH room.hotelInfo hotel " +
+           "LEFT JOIN FETCH hotel.area area " +
+           "JOIN UsedTrade ut ON ut.reservIdx = r.reservIdx " +
+           "WHERE ut.sellerIdx = :sellerIdx " +
+           "AND ut.ststus = 1 " + // 거래완료 상태
+           "AND r.status IN :statusList " +
+           "ORDER BY r.checkinDate DESC")
+    Page<RoomReservation> findSoldReservationsBySellerIdxWithPagination(
+        @Param("sellerIdx") Integer sellerIdx,
+        @Param("statusList") List<Integer> statusList,
+        Pageable pageable);
+
+    /* UsedItem의 sellerIdx 기준으로 예약 조회 (판매중/거래중인 예약 포함) */
+    @Query("SELECT DISTINCT r FROM RoomReservation r " +
+           "LEFT JOIN FETCH r.room room " +
+           "LEFT JOIN FETCH room.hotelInfo hotel " +
+           "LEFT JOIN FETCH hotel.area area " +
+           "JOIN UsedItem ui ON ui.reservIdx = r.reservIdx " +
+           "WHERE ui.sellerIdx = :sellerIdx " +
+           "AND r.status IN :statusList " +
+           "ORDER BY r.checkinDate DESC")
+    List<RoomReservation> findReservationsByUsedItemSellerIdx(
+        @Param("sellerIdx") Integer sellerIdx,
+        @Param("statusList") List<Integer> statusList);
+
+    /* 특정 예약의 UsedItem sellerIdx 확인 (권한 검증용) */
+    @Query("SELECT COUNT(ui) > 0 FROM UsedItem ui " +
+           "WHERE ui.reservIdx = :reservIdx " +
+           "AND ui.sellerIdx = :sellerIdx")
+    boolean existsUsedItemByReservIdxAndSellerIdx(
+        @Param("reservIdx") Integer reservIdx,
+        @Param("sellerIdx") Integer sellerIdx);
+
 }
