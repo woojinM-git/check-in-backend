@@ -27,7 +27,7 @@ public interface DiningRepository extends JpaRepository<Dining, Integer> {
      */
     @Query("SELECT d FROM Dining d " +
            "WHERE d.contentid = :contentid " +
-           "AND d.status = 0 " +
+           "AND d.status = 1 " +
            "ORDER BY d.openTime ASC")
     List<Dining> findByContentidAndStatus(@Param("contentid") String contentid);
     
