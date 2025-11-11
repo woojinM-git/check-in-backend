@@ -47,4 +47,9 @@ public class ReservationResponseDTO {
     // 생성/수정 시간
     private String createdAt;              // 예약 생성일
     private String updatedAt;              // 최종 수정일
+
+    // 중고거래 정보 (UsedItem이 있는 경우)
+    private Integer usedItemIdx;           // UsedItem ID
+    private Integer usedItemStatus;        // UsedItem 상태 (0: 판매중, 1: 거래중, 2: 판매완료, 3: 만료, 4: 취소)
+    private Integer usedItemPrice;         // 판매 가격
 }

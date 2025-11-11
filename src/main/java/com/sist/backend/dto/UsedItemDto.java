@@ -66,8 +66,11 @@ public class UsedItemDto {
         dto.setCreatedAt(usedItem.getCreatedAt());
         dto.setUpdatedAt(usedItem.getUpdatedAt());
         dto.setComment(usedItem.getComment());
+        
         // 예약 정보 설정
         if (usedItem.getRoomReservation() != null) {
+            // roomReservation이 존재하는 경우 강제로 초기화 (LAZY 로딩 방지)
+            usedItem.getRoomReservation().getCheckinDate();
             ReservationInfo reservation = new ReservationInfo();
             reservation.setCheckinDate(usedItem.getRoomReservation().getCheckinDate());
             reservation.setCheckoutDate(usedItem.getRoomReservation().getCheckoutDate());

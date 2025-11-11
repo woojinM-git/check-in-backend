@@ -67,6 +67,21 @@ public interface UsedTradeRepository extends JpaRepository<UsedTrade, Integer> {
     List<UsedTrade> findBySellerIdx(@Param("sellerIdx") Integer sellerIdx);
 
     /**
+     * 특정 예약과 판매자로 거래 조회 (판매완료된 예약 권한 확인용)
+     * @param reservIdx 예약 ID
+     * @param sellerIdx 판매자 ID
+     * @return 거래 정보 (존재하는 경우)
+     */
+    @Query("SELECT ut FROM UsedTrade ut " +
+           "WHERE ut.reservIdx = :reservIdx " +
+           "AND ut.sellerIdx = :sellerIdx " +
+           "AND ut.ststus = 1 " + // 거래완료 상태
+           "ORDER BY ut.usedTradeIdx DESC")
+    Optional<UsedTrade> findByReservIdxAndSellerIdx(
+            @Param("reservIdx") Integer reservIdx,
+            @Param("sellerIdx") Integer sellerIdx);
+
+    /**
      * 오래된 대기 거래 조회 (정리용)
      * @param cutoffTime 기준 시간
      * @return 오래된 대기 거래 목록
