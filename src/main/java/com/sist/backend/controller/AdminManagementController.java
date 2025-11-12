@@ -75,10 +75,11 @@ public class AdminManagementController {
     private final HotelInfoService hotelInfoService;
     private final com.sist.backend.service.ReviewService reviewService;
     private final AdminRepository adminRepository;
+    private final com.sist.backend.service.RegistrationRequestService registrationRequestService;
 
     /**
      * JWT에서 adminIdx를 추출하고 contentId를 조회
-     * contentId가 없으면 메인 화면으로 리다이렉트
+     * contentId가 없으면 RegistrationRequest 확인 후 적절한 리다이렉트 응답 반환
      * @return contentId 문자열, 리다이렉트가 필요한 경우 null (이 경우 즉시 리다이렉트 응답 반환 필요)
      */
     private String getContentIdOrRedirect() {
@@ -92,7 +93,16 @@ public class AdminManagementController {
         
         Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
         if (contentIdOpt.isEmpty()) {
-            // contentId가 없으면 호텔이 등록되지 않은 관리자이므로 메인 화면으로 리다이렉트
+            // contentId가 없으면 RegistrationRequest 확인
+            Optional<com.sist.backend.entity.RegistrationRequest> requestOpt = 
+                registrationRequestService.findPendingRequestByAdminIdx(adminIdx);
+            
+            if (requestOpt.isPresent()) {
+                // 승인 대기 중인 요청이 있으면 특별한 값 반환 (리다이렉트 타입 구분용)
+                // 실제로는 null을 반환하되, createRedirectResponse에서 구분할 수 있도록 처리
+                return null; // 리다이렉트 필요 (승인 대기 중)
+            }
+            // 호텔 미등록
             return null; // 리다이렉트 필요
         }
         
@@ -102,11 +112,35 @@ public class AdminManagementController {
     /**
      * contentId가 없을 때 프론트엔드에서 리다이렉트할 수 있도록 403 Forbidden 반환
      * 모든 엔드포인트에서 사용할 수 있는 공통 에러 응답
+     * RegistrationRequest 상태에 따라 리다이렉트 타입 구분
      */
     private ResponseEntity<Map<String, Object>> createRedirectResponse() {
         Map<String, Object> map = new HashMap<>();
+        
+        // JWT에서 adminIdx 추출하여 RegistrationRequest 확인
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+        Integer adminIdx = principal.getAdminIdx();
+        
+        if (adminIdx != null) {
+            // 승인 대기 중인 요청 확인
+            Optional<com.sist.backend.entity.RegistrationRequest> requestOpt = 
+                registrationRequestService.findPendingRequestByAdminIdx(adminIdx);
+            
+            if (requestOpt.isPresent()) {
+                // 승인 대기 중인 경우
+                map.put("success", false);
+                map.put("redirect", true);
+                map.put("redirectType", "PENDING_APPROVAL");
+                map.put("message", "호텔 등록 승인 대기 중입니다. 승인 완료 후 이용 가능합니다.");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+            }
+        }
+        
+        // 호텔 미등록인 경우
         map.put("success", false);
         map.put("redirect", true);
+        map.put("redirectType", "NO_HOTEL");
         map.put("message", "호텔이 등록되지 않은 관리자입니다. 메인 화면으로 이동합니다.");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
     }
@@ -130,14 +164,14 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
         
-        // 오늘 체크인한 사람의 수
-        Integer todayCheckinCount = roomReservationService.getTodayCheckinCount();
-        // 오늘 체크아웃한 사람의 수
-        Integer todayCheckoutCount = roomReservationService.getTodayCheckoutCount();
-        // 예약 확정 사람 수
-        Integer reservationCount = roomReservationService.findByStatus();
-        // 이번달 매출
-        Long thisMonthSales = roomPaymentService.findByPrice();
+        // 오늘 체크인한 사람의 수 (특정 호텔)
+        Integer todayCheckinCount = roomReservationService.getTodayCheckinCount(contentid);
+        // 오늘 체크아웃한 사람의 수 (특정 호텔)
+        Integer todayCheckoutCount = roomReservationService.getTodayCheckoutCount(contentid);
+        // 오늘 예약한 사람의 수 (특정 호텔)
+        Integer reservationCount = roomReservationService.findTodayReservationCount(contentid);
+        // 오늘 매출 (특정 호텔, 결제 승인일 기준)
+        Long thisMonthSales = roomPaymentService.findByPrice(contentid);
 
         /* 최근 예약 현황 조회 (5개만) - Room과 Customer 정보 포함 */
         List<RoomReservationDto> roomReservationList = roomReservationService.findByStatusWithDetails(contentid);
@@ -646,23 +680,51 @@ public class AdminManagementController {
     }
 
     @GetMapping("/hotel/{adminIdx}")
-    @Operation(summary = "관리자별 호텔 정보 조회", description = "adminIdx로 해당 관리자의 호텔 정보를 조회합니다.")
+    @Operation(summary = "관리자별 호텔 정보 조회", description = "adminIdx로 해당 관리자의 호텔 정보를 조회합니다. contentId가 없으면 RegistrationRequest를 확인합니다.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "200", description = "조회 성공 (contentId 반환 또는 상태 정보 반환)"),
         @ApiResponse(responseCode = "404", description = "해당 관리자의 호텔 없음"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<String> findContentIdByAdminIdx(
+    public ResponseEntity<Map<String, Object>> findContentIdByAdminIdx(
         @Parameter(description = "관리자 ID", example = "1")
         @PathVariable("adminIdx") Integer adminIdx) {
         
+        Map<String, Object> map = new HashMap<>();
+        
+        // 1. contentId 먼저 조회
         Optional<String> contentIdOpt = hotelInfoService.findContentIdByAdminIdx(adminIdx);
         
         if (contentIdOpt.isPresent()) {
-            return ResponseEntity.ok(contentIdOpt.get());
-        } else {
-            return ResponseEntity.notFound().build();
+            // contentId가 있으면 contentId 반환
+            map.put("success", true);
+            map.put("contentId", contentIdOpt.get());
+            map.put("status", "APPROVED"); // 승인 완료
+            return ResponseEntity.ok(map);
         }
+        
+        // 2. contentId가 없으면 RegistrationRequest 확인
+        Optional<com.sist.backend.entity.RegistrationRequest> requestOpt = 
+            registrationRequestService.findPendingRequestByAdminIdx(adminIdx);
+        
+        if (requestOpt.isPresent()) {
+            // 승인 대기 중인 요청이 있음
+            com.sist.backend.entity.RegistrationRequest request = requestOpt.get();
+            map.put("success", false);
+            map.put("status", "PENDING_APPROVAL");
+            map.put("hasPendingRequest", true);
+            map.put("registrationIdx", request.getRegistrationIdx());
+            map.put("regiDate", request.getRegiDate());
+            map.put("message", "호텔 등록 승인 대기 중입니다.");
+            return ResponseEntity.ok(map); // 200으로 반환하되 status로 구분
+        }
+        
+        // 3. 호텔 미등록
+        map.put("success", false);
+        map.put("status", "NO_HOTEL");
+        map.put("hasPendingRequest", false);
+        map.put("message", "호텔이 등록되지 않았습니다.");
+        return ResponseEntity.ok(map); // 200으로 반환하되 status로 구분
     }
 
     @GetMapping("/type/{adminIdx}")
@@ -1192,6 +1254,62 @@ public class AdminManagementController {
             map.put("message", "호텔 정보 수정 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.internalServerError().body(map);
     }
+    }
+
+    /**
+     * 승인 대기 중인 호텔 등록 요청 조회
+     * @param request HTTP 요청
+     * @return 승인 대기 중인 RegistrationRequest 정보
+     */
+    @GetMapping("/pendingRegistration")
+    @Operation(summary = "승인 대기 중인 호텔 등록 요청 조회", description = "로그인한 관리자의 승인 대기 중인 호텔 등록 요청을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "404", description = "승인 대기 중인 요청 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getPendingRegistration(
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "관리자 인덱스를 찾을 수 없습니다.");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+            }
+            
+            // 승인 대기 중인 요청 조회
+            Optional<com.sist.backend.entity.RegistrationRequest> requestOpt = 
+                registrationRequestService.findPendingRequestByAdminIdx(adminIdx);
+            
+            if (requestOpt.isEmpty()) {
+                map.put("success", false);
+                map.put("hasPendingRequest", false);
+                map.put("message", "승인 대기 중인 요청이 없습니다.");
+                return ResponseEntity.ok(map);
+            }
+            
+            com.sist.backend.entity.RegistrationRequest registrationRequest = requestOpt.get();
+            map.put("success", true);
+            map.put("hasPendingRequest", true);
+            map.put("registrationIdx", registrationRequest.getRegistrationIdx());
+            map.put("regiDate", registrationRequest.getRegiDate());
+            map.put("status", registrationRequest.getStatus());
+            
+            return ResponseEntity.ok(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "승인 대기 요청 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
+        }
     }
 
 }

@@ -24,9 +24,9 @@ public class RoomPaymentService {
     @Autowired
     RoomPaymentRepository roomPaymentRepository;
 
-    //총 결제 금액 합계 조회
-    public Long findByPrice() {
-        return roomPaymentRepository.findByPrice();
+    // 특정 호텔의 오늘 매출 조회 (결제 승인일 기준)
+    public Long findByPrice(String contentId) {
+        return roomPaymentRepository.findByPrice(contentId);
     }
 
     //체크인 시간 기준 결제 내역 조회
