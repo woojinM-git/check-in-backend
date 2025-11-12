@@ -20,9 +20,12 @@ public class ReservationLockDto {
     private Integer customerIdx;
     private String contentId;
     private Integer roomId;
-    private String checkIn; // 예약 일자(락 키 포함)
+    private String checkIn; // 예약 일자
     private String checkOut;
-    private String lockId;
+    private String lockId;//락 키 포함 탭ID 포함
+    private String sessionId;
+    private String tabId;
+    private String initialLockAt;
 
     // 응답 필드
     private Boolean success;

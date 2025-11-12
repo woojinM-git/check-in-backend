@@ -251,7 +251,9 @@ public class PaymentService {
                             request.getCheckIn(),
                             request.getCheckOut(),
                             request.getCustomerIdx(),
-                            request.getLockId()
+                            request.getLockId(),
+                            request.getSessionId(),
+                            request.getTabId()
                     );
                     log.info("예약 락 해제 완료: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
                 } catch (Exception e) {
