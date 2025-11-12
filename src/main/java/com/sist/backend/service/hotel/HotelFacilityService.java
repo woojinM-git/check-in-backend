@@ -1,16 +1,22 @@
 package com.sist.backend.service.hotel;
 
 import com.sist.backend.dto.hotel.HotelFacilityResponse;
+import com.sist.backend.dto.hotel.HotelShareListResponse;
 import com.sist.backend.entity.HotelDetail;
 import com.sist.backend.entity.HotelLocation;
 import com.sist.backend.repository.hotel.HotelDetailRepository;
+import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.HotelLocationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +25,7 @@ public class HotelFacilityService {
 
     private final HotelDetailRepository hotelDetailRepository;
     private final HotelLocationRepository hotelLocationRepository;
+    private final HotelInfoRepository hotelInfoRepository;
 
     /**
      * 호텔 편의시설 및 위치 정보 조회
@@ -53,5 +60,23 @@ public class HotelFacilityService {
                 .build();
 
         return Optional.of(response);
+    }
+
+    public List<HotelShareListResponse> getHotelShareList(List<String> contentIds) {
+        if (contentIds == null || contentIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<HotelShareListResponse> rawResults = hotelInfoRepository.findHotelShareListByContentIds(contentIds);
+
+        Map<String, HotelShareListResponse> byContentId = new LinkedHashMap<>();
+        for (HotelShareListResponse response : rawResults) {
+            byContentId.put(response.getContentId(), response);
+        }
+
+        return contentIds.stream()
+            .map(byContentId::get)
+            .filter(result -> result != null)
+            .collect(Collectors.toList());
     }
 }

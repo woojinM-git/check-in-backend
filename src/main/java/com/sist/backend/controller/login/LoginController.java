@@ -483,40 +483,16 @@ public class LoginController {
     }
     
     /**
-     * 전화번호 포맷팅 메서드
-     * 010xxxxxxxx → 010-xxxx-xxxx 형식으로 변환
-     * 이미 포맷팅된 경우는 그대로 반환
+     * 전화번호에서 숫자만 추출하여 반환
+     * 하이픈 등 구분자는 모두 제거하여 01012345678 형태로 저장
      */
     private String formatPhoneNumber(String phone) {
         if (phone == null || phone.isEmpty()) {
             return phone;
         }
-        
-        // 이미 "-"가 있으면 그대로 반환
-        if (phone.contains("-")) {
-            return phone;
-        }
-        
-        // 숫자만 추출
+
         String digitsOnly = phone.replaceAll("[^0-9]", "");
-        
-        // 길이에 따라 포맷팅
-        if (digitsOnly.length() == 11) {
-            // 01012345678 → 010-1234-5678
-            return digitsOnly.substring(0, 3) + "-" + digitsOnly.substring(3, 7) + "-" + digitsOnly.substring(7);
-        } else if (digitsOnly.length() == 10) {
-            // 0111234567 → 011-123-4567 (3자리 지역번호)
-            if (digitsOnly.startsWith("02")) {
-                // 서울: 02-1234-5678
-                return digitsOnly.substring(0, 2) + "-" + digitsOnly.substring(2, 6) + "-" + digitsOnly.substring(6);
-            } else {
-                // 기타: 011-123-4567
-                return digitsOnly.substring(0, 3) + "-" + digitsOnly.substring(3, 6) + "-" + digitsOnly.substring(6);
-            }
-        }
-        
-        // 변환 불가능한 형식은 그대로 반환
-        return phone;
+        return digitsOnly.isEmpty() ? phone : digitsOnly;
     }
 
     private String getDomainAttribute() {

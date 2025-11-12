@@ -12,6 +12,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import com.sist.backend.dto.hotel.HotelShareListResponse;
+
 @Repository
 public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
 
@@ -127,5 +129,32 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
     @Modifying
     @Query(value = "UPDATE hotelInfo SET count = COALESCE(count, 0) + 1 WHERE contentId = :contentId", nativeQuery = true)
     int increaseReservationCount(@Param("contentId") String contentId);
+
+    Optional<HotelInfo> findByContentId(String contentId);
+
+    Optional<HotelInfo> findByContentIdAndStatus(String contentId, Integer status);
+
+    Optional<HotelInfo> findByTitle(String title);
+
+    @Query("""
+        SELECT new com.sist.backend.dto.hotel.HotelShareListResponse(
+            h.contentId,
+            h.title,
+            h.adress,
+            h.imageUrl,
+            h.areaCode,
+            loc.mapX,
+            loc.mapY,
+            MIN(CASE WHEN r.status = 1 THEN r.basePrice ELSE NULL END)
+        )
+        FROM HotelInfo h
+        LEFT JOIN h.hotelLocation loc
+        LEFT JOIN h.rooms r
+        WHERE h.contentId IN :contentIds
+          AND h.status = 0
+        GROUP BY h.contentId, h.title, h.adress, h.imageUrl, h.areaCode, loc.mapX, loc.mapY
+        ORDER BY h.contentId
+        """)
+    List<HotelShareListResponse> findHotelShareListByContentIds(@Param("contentIds") List<String> contentIds);
 }
 

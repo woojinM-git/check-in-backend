@@ -1,8 +1,21 @@
 package com.sist.backend.controller;
 
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.sist.backend.dto.ReservationLockDto;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.service.ReservationLockService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,12 +23,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 예약 락 컨트롤러
@@ -72,13 +79,13 @@ public class ReservationLockController {
             }
 
             // 필수 파라미터 검증
-            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null) {
-                log.warn("예약 락 생성 실패: 필수 파라미터 누락 - contentId={}, roomId={}",
-                        request.getContentId(), request.getRoomId());
+            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null || request.getCheckOut() == null) {
+                log.warn("예약 락 생성 실패: 필수 파라미터 누락 - contentId={}, roomId={}, checkIn={}, checkOut={}",
+                        request.getContentId(), request.getRoomId(), request.getCheckIn(), request.getCheckOut());
                 return ResponseEntity.badRequest()
                         .body(ReservationLockDto.builder()
                                 .success(false)
-                                .message("호텔 ID, 객실 ID, 체크인 날짜는 필수입니다.")
+                                .message("호텔 ID, 객실 ID, 체크인/체크아웃 날짜는 필수입니다.")
                                 .build());
             }
 
@@ -87,7 +94,9 @@ public class ReservationLockController {
                     customerIdx,
                     request.getContentId(),
                     request.getRoomId(),
-                    request.getCheckIn()
+                    request.getCheckIn(),
+                    request.getCheckOut(),
+                    request.getLockId()
             );
 
             if (result.getSuccess()) {
@@ -143,12 +152,12 @@ public class ReservationLockController {
             }
 
             // 필수 파라미터 검증
-            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null) {
+            if (request.getContentId() == null || request.getRoomId() == null || request.getCheckIn() == null || request.getCheckOut() == null) {
                 log.warn("예약 락 해제 실패: 필수 파라미터 누락");
                 return ResponseEntity.badRequest()
                         .body(ReservationLockDto.builder()
                                 .success(false)
-                                .message("호텔 ID, 객실 ID, 체크인 날짜는 필수입니다.")
+                                .message("호텔 ID, 객실 ID, 체크인/체크아웃 날짜는 필수입니다.")
                                 .build());
             }
 
@@ -157,7 +166,9 @@ public class ReservationLockController {
                     request.getContentId(),
                     request.getRoomId(),
                     request.getCheckIn(),
-                    customerIdx
+                    request.getCheckOut(),
+                    customerIdx,
+                    request.getLockId()
             );
 
             return ResponseEntity.ok(result);
@@ -187,11 +198,12 @@ public class ReservationLockController {
     public ResponseEntity<?> getLockStatus(
             @Parameter(description = "호텔 ID") @RequestParam(name = "contentId") String contentId,
             @Parameter(description = "객실 ID") @RequestParam(name = "roomId") Integer roomId,
-            @Parameter(description = "체크인 날짜(yyyy-MM-dd)") @RequestParam(name = "checkIn") String checkIn
+            @Parameter(description = "체크인 날짜(yyyy-MM-dd)") @RequestParam(name = "checkIn") String checkIn,
+            @Parameter(description = "체크아웃 날짜(yyyy-MM-dd)") @RequestParam(name = "checkOut") String checkOut
     ) {
         try {
-            boolean isLocked = reservationLockService.isLocked(contentId, roomId, checkIn);
-            Map<String, Object> lockInfo = reservationLockService.getLockInfo(contentId, roomId, checkIn);
+            boolean isLocked = reservationLockService.isLocked(contentId, roomId, checkIn, checkOut);
+            Map<String, Object> lockInfo = reservationLockService.getLockInfo(contentId, roomId, checkIn, checkOut);
 
             return ResponseEntity.ok(Map.of(
                     "isLocked", isLocked,

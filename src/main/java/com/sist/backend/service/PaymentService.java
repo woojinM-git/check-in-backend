@@ -158,7 +158,7 @@ public class PaymentService {
             Optional<com.sist.backend.entity.UsedPay> existingUsedPayOpt = usedPayRepository.findByPaymentKey(request.getPaymentKey());
             if (existingUsedPayOpt.isPresent()) {
                 com.sist.backend.entity.UsedPay existingUsedPay = existingUsedPayOpt.get();
-                log.warn("이미 처리된 중고 호텔 결제입니다: paymentKey={}, usedPayIdx={}", 
+                log.warn("이미 처리된 중고 호텔 결제입니다: paymentKey={}, usedPayIdx={}",
                         request.getPaymentKey(), existingUsedPay.getUsedPayIdx());
                 return PaymentResponseDto.builder()
                         .success(true)
@@ -217,8 +217,11 @@ public class PaymentService {
                     throw new RuntimeException("필수 파라미터 누락(roomId/contentId/checkIn)");
                 }
                 LocalDate checkinDate = LocalDate.parse(request.getCheckIn());
-                boolean exists = roomReservationRepository.existsActiveReservation(
-                        request.getRoomId(), request.getContentId(), checkinDate);
+                boolean exists = roomReservationRepository.existsActiveReservationInRange(
+                        request.getRoomId(),
+                        request.getContentId(),
+                        checkinDate,
+                        java.time.LocalDate.parse(request.getCheckOut()));
                 if (exists) {
                     throw new RuntimeException("이미 다른 인원이 결제/예약을 완료한 객실입니다.");
                 }
@@ -246,7 +249,9 @@ public class PaymentService {
                             request.getContentId(),
                             request.getRoomId(),
                             request.getCheckIn(),
-                            request.getCustomerIdx()
+                            request.getCheckOut(),
+                            request.getCustomerIdx(),
+                            request.getLockId()
                     );
                     log.info("예약 락 해제 완료: contentId={}, roomId={}", request.getContentId(), request.getRoomId());
                 } catch (Exception e) {
@@ -285,11 +290,11 @@ public class PaymentService {
                             java.time.LocalTime.parse(request.getDiningTime()),
                             guestCount
                     );
-                    log.info("다이닝 정원 예약 성공: diningIdx={}, date={}, time={}, guests={}", 
+                    log.info("다이닝 정원 예약 성공: diningIdx={}, date={}, time={}, guests={}",
                             request.getDiningIdx(), request.getDiningDate(), request.getDiningTime(), guestCount);
                 } catch (RuntimeException e) {
                     // 정원 초과 시 예외 발생
-                    log.warn("다이닝 정원 초과로 결제 실패: diningIdx={}, date={}, time={}, guests={}, error={}", 
+                    log.warn("다이닝 정원 초과로 결제 실패: diningIdx={}, date={}, time={}, guests={}, error={}",
                             request.getDiningIdx(), request.getDiningDate(), request.getDiningTime(), guestCount, e.getMessage());
                     throw e;
                 }
@@ -302,7 +307,6 @@ public class PaymentService {
 
                     // 정원은 유지 (DB 저장 완료 후 정원 카운터 유지)
                     // 취소 시에만 releaseCapacity 호출
-
                     return PaymentResponseDto.builder()
                             .success(true)
                             .message("결제가 성공적으로 완료되었습니다.")
@@ -324,7 +328,7 @@ public class PaymentService {
                                 java.time.LocalTime.parse(request.getDiningTime()),
                                 guestCount
                         );
-                        log.info("다이닝 정원 해제 완료 (예외 처리): diningIdx={}, date={}, time={}", 
+                        log.info("다이닝 정원 해제 완료 (예외 처리): diningIdx={}, date={}, time={}",
                                 request.getDiningIdx(), request.getDiningDate(), request.getDiningTime());
                     } catch (Exception releaseEx) {
                         log.warn("다이닝 정원 해제 실패 (예외 처리 중): {}", releaseEx.getMessage());
@@ -356,8 +360,8 @@ public class PaymentService {
 
                 // 중고 호텔 결제 처리 (트랜잭션 내에서 처리)
                 usedHotelTradeService.createPayment(
-                    request.getUsedTradeIdx(),
-                    paymentData
+                        request.getUsedTradeIdx(),
+                        paymentData
                 );
 
                 // 고객 캐시/포인트 차감 처리
@@ -493,13 +497,12 @@ public class PaymentService {
             Customer customer = customerRepository.findById(request.getCustomerIdx())
                     .orElseThrow(() -> new RuntimeException("고객 정보를 찾을 수 없습니다: customerIdx=" + request.getCustomerIdx()));
 
-
             // 실 결제 금액은 amount와 동일하게 처리 (요청에 따라 amount==totalPrice)
             int realPrice = request.getAmount() != null ? request.getAmount() : 0;
 
             //캐시도 포함
             int cashUsed = request.getCashUsed() != null ? request.getCashUsed() : 0; // 캐시 포함
-            log.info("적립 기준 금액 계산: 실결제={} 캐시={}", realPrice,cashUsed);
+            log.info("적립 기준 금액 계산: 실결제={} 캐시={}", realPrice, cashUsed);
 
             // 현재 등급의 적립률 계산 (실 결제 금액 기준)
             String currentRank = customer.getRank() != null ? customer.getRank() : "Traveler";
@@ -526,7 +529,7 @@ public class PaymentService {
 
             // 누적 결제 금액 업데이트 (실 결제 금액만 누적)
             int currentTotalPrice = customer.getTotalPrice() != null ? customer.getTotalPrice() : 0;
-            customer.setTotalPrice(currentTotalPrice + realPrice+cashUsed);
+            customer.setTotalPrice(currentTotalPrice + realPrice + cashUsed);
 
             // 등급 자동 업데이트
             String oldRank = customer.getRank();
