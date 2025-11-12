@@ -51,6 +51,9 @@ public class CustomerService {
     public Optional<Customer> findByCustomerIdx(Integer customerIdx){
         return customerRepository.findByCustomerIdx(customerIdx);
     }
+    public Optional<Customer> findByIdAndEmailAndName(String id, String email, String name) {
+        return customerRepository.findByIdAndEmailAndName(id, email, name);
+    }
         
     /* 대시보드의 최근 가입한 고객 목록 (상위 5개) */
     public List<Customer> findByJoinDate(){

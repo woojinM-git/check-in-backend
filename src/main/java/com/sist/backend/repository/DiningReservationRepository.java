@@ -4,6 +4,7 @@ import com.sist.backend.entity.DiningReservation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -54,5 +55,15 @@ public interface DiningReservationRepository extends JpaRepository<DiningReserva
             @Param("customerIdx") Integer customerIdx,
             @Param("statusList") List<Integer> statusList,
             Pageable pageable);
+
+    /**
+     * 예약 날짜가 지정된 날짜 이하인 예약의 상태를 이용완료(4)로 일괄 업데이트
+     * 예약 날짜가 어제 이하인 확정(status=1) 예약을 이용완료(status=4)로 변경
+     */
+    @Modifying
+    @Query("UPDATE DiningReservation dr SET dr.status = 4, dr.updatedAt = CURRENT_TIMESTAMP " +
+           "WHERE dr.status = 1 " +
+           "AND dr.reservationDate <= :targetDate")
+    int updateExpiredReservationsToCompleted(@Param("targetDate") LocalDate targetDate);
 }
 
