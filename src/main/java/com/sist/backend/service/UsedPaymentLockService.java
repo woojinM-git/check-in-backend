@@ -156,7 +156,43 @@ public class UsedPaymentLockService {
                         .lockKey(lockKey)
                         .build();
             } else {
-                log.warn("결제 락 생성 실패 (이미 존재): lockKey={}, usedTradeIdx={}", lockKey, usedTradeIdx);
+                // 락이 이미 존재하는 경우: 같은 사용자인지 확인 (새로고침 시)
+                log.warn("결제 락 생성 실패 (이미 존재): lockKey={}, usedTradeIdx={}, buyerIdx={}", 
+                        lockKey, usedTradeIdx, buyerIdx);
+                
+                // 기존 락의 buyerIdx 확인
+                if (buyerIdx != null) {
+                    try {
+                        String existingLockValue = redisTemplate.opsForValue().get(lockKey);
+                        if (existingLockValue != null) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> existingLockData = objectMapper.readValue(existingLockValue, Map.class);
+                            Integer existingBuyerIdx = (Integer) existingLockData.get("buyerIdx");
+                            
+                            // 같은 사용자가 새로고침한 경우 성공으로 처리
+                            if (buyerIdx.equals(existingBuyerIdx)) {
+                                log.info("결제 락이 이미 존재하지만 같은 사용자 (새로고침으로 추정): lockKey={}, buyerIdx={}", 
+                                        lockKey, buyerIdx);
+                                return UsedPaymentLockDto.builder()
+                                        .success(true)
+                                        .message("결제 락이 이미 존재합니다 (새로고침).")
+                                        .lockKey(lockKey)
+                                        .build();
+                            } else {
+                                log.warn("결제 락이 다른 사용자에 의해 점유됨: lockKey={}, requestBuyer={}, lockOwner={}", 
+                                        lockKey, buyerIdx, existingBuyerIdx);
+                                return UsedPaymentLockDto.builder()
+                                        .success(false)
+                                        .message("다른 사용자가 이미 결제를 처리 중입니다. 잠시 후 다시 시도해주세요.")
+                                        .build();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("기존 락 데이터 확인 중 오류 (기본 메시지 반환): {}", e.getMessage());
+                    }
+                }
+                
+                // buyerIdx가 없거나 확인 실패 시 기본 메시지 반환
                 return UsedPaymentLockDto.builder()
                         .success(false)
                         .message("다른 요청이 이미 결제를 처리 중입니다. 잠시 후 다시 시도해주세요.")

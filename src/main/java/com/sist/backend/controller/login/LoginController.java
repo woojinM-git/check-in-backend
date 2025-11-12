@@ -24,6 +24,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
+import com.sist.backend.dto.login.PasswordResetRequest;
+import com.sist.backend.dto.login.PasswordResetSendCodeRequest;
+import com.sist.backend.dto.login.PasswordResetVerifyCodeRequest;
 import com.sist.backend.dto.signup.CustomerAdminSignupDTO;
 import com.sist.backend.entity.Admin;
 import com.sist.backend.entity.Customer;
@@ -446,6 +449,253 @@ public class LoginController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/findid")
+    @Operation(summary = "아이디 찾기", description = "이름과 이메일을 확인한 뒤 인증코드를 발송하거나 검증하여 아이디를 반환합니다")
+    public ResponseEntity<Map<String, Object>> findId(@RequestBody FindIdRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        Optional<Customer> customerOpt = customerService.findByEmail(request.getEmail());
+        if (customerOpt.isEmpty() || customerOpt.get().getName() == null || !customerOpt.get().getName().equals(request.getName())) {
+            result.put("status", "fail");
+            result.put("message", "이름 또는 이메일이 일치하는 회원이 없습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        String key = buildFindIdRedisKey(request.getEmail());
+
+        if (request.getCode() == null || request.getCode().isEmpty()) {
+            int verificationCode = (int) (Math.random() * 900000) + 100000;
+            try {
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom(fromEmail);
+                helper.setTo(request.getEmail());
+                helper.setSubject("[Check-In] 아이디 찾기 인증 코드");
+                helper.setText("아이디 찾기 인증 코드: " + verificationCode);
+
+                mailSender.send(message);
+                redisTemplate.opsForValue().set(key, String.valueOf(verificationCode), 5, TimeUnit.MINUTES);
+
+                result.put("status", "success");
+                result.put("message", "인증 코드가 이메일로 발송되었습니다.");
+            } catch (MessagingException e) {
+                log.error("아이디 찾기 인증 메일 발송 실패 - email: {}", request.getEmail(), e);
+                result.put("status", "fail");
+                result.put("message", "인증 코드 발송 중 오류가 발생했습니다.");
+            }
+            return ResponseEntity.ok(result);
+        }
+
+        String storedCode = redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 만료되었거나 존재하지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (!storedCode.equals(request.getCode())) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 일치하지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        redisTemplate.delete(key);
+        result.put("status", "success");
+        Customer customer = customerOpt.get();
+        if (customer.getProvider() == null) {
+            result.put("message", "아이디 찾기에 성공했습니다.");
+            result.put("id", customer.getId());
+        } else {
+            result.put("message", "소셜 로그인 사용자입니다.");
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/findpassword/send-code")
+    @Operation(summary = "비밀번호 재설정 코드 발송", description = "입력한 회원 정보를 검증하고 인증 코드를 이메일로 발송합니다.")
+    public ResponseEntity<Map<String, Object>> sendPasswordResetCode(@RequestBody PasswordResetSendCodeRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        if (!hasBasicPasswordResetInfo(request.getName(), request.getUserId(), request.getEmail())) {
+            result.put("status", "fail");
+            result.put("message", "필수 정보를 모두 입력해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        Optional<Customer> customerOpt = customerService.findByIdAndEmailAndName(
+            request.getUserId().trim(),
+            request.getEmail().trim(),
+            request.getName().trim()
+        );
+
+        if (customerOpt.isEmpty()) {
+            result.put("status", "fail");
+            result.put("message", "일치하는 정보가 없습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        Customer customer = customerOpt.get();
+        if (customer.getStatus() != null && customer.getStatus() == 1) {
+            result.put("status", "fail");
+            result.put("message", "탈퇴한 회원입니다. 다시 회원가입을 진행해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (customer.getProvider() != null) {
+            result.put("status", "fail");
+            result.put("message", "소셜 로그인 사용자입니다. 해당 플랫폼에서 비밀번호를 변경해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        int verificationCode = (int) (Math.random() * 900000) + 100000;
+        String codeKey = buildPasswordResetCodeKey(request.getUserId(), request.getEmail());
+        String verifiedKey = buildPasswordResetVerifiedKey(request.getUserId());
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo(request.getEmail().trim());
+            helper.setSubject("[Check-In] 비밀번호 재설정 인증 코드");
+            helper.setText("비밀번호 재설정 인증 코드: " + verificationCode);
+
+            mailSender.send(message);
+            redisTemplate.opsForValue().set(codeKey, String.valueOf(verificationCode), 5, TimeUnit.MINUTES);
+            redisTemplate.delete(verifiedKey);
+
+            result.put("status", "success");
+            result.put("message", "인증 코드가 발송되었습니다.");
+        } catch (MessagingException exception) {
+            log.error("비밀번호 재설정 인증 메일 발송 실패 - userId: {}, email: {}", request.getUserId(), request.getEmail(), exception);
+            result.put("status", "fail");
+            result.put("message", "인증 코드 발송 중 오류가 발생했습니다.");
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/findpassword/verify-code")
+    @Operation(summary = "비밀번호 재설정 코드 검증", description = "입력한 인증 코드를 검증합니다.")
+    public ResponseEntity<Map<String, Object>> verifyPasswordResetCode(@RequestBody PasswordResetVerifyCodeRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        if (!hasBasicPasswordResetInfo(request.getName(), request.getUserId(), request.getEmail())) {
+            result.put("status", "fail");
+            result.put("message", "필수 정보를 모두 입력해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (isBlank(request.getCode())) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드를 입력해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        Optional<Customer> customerOpt = customerService.findByIdAndEmailAndName(
+            request.getUserId().trim(),
+            request.getEmail().trim(),
+            request.getName().trim()
+        );
+
+        if (customerOpt.isEmpty()) {
+            result.put("status", "fail");
+            result.put("message", "일치하는 정보가 없습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        Customer customer = customerOpt.get();
+        if (customer.getStatus() != null && customer.getStatus() == 1) {
+            result.put("status", "fail");
+            result.put("message", "탈퇴한 회원입니다. 다시 회원가입을 진행해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (customer.getProvider() != null) {
+            result.put("status", "fail");
+            result.put("message", "소셜 로그인 사용자입니다. 해당 플랫폼에서 비밀번호를 변경해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        String codeKey = buildPasswordResetCodeKey(request.getUserId(), request.getEmail());
+        String storedCode = redisTemplate.opsForValue().get(codeKey);
+
+        if (storedCode == null) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 만료되었거나 존재하지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (!storedCode.equals(request.getCode().trim())) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 올바르지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        redisTemplate.delete(codeKey);
+        String verifiedKey = buildPasswordResetVerifiedKey(request.getUserId());
+        redisTemplate.opsForValue().set(verifiedKey, request.getEmail().trim(), 10, TimeUnit.MINUTES);
+
+        result.put("status", "success");
+        result.put("message", "인증이 완료되었습니다. 새 비밀번호를 설정해주세요.");
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/findpassword/reset")
+    @Operation(summary = "비밀번호 재설정", description = "인증 이후 새 비밀번호로 변경합니다.")
+    public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody PasswordResetRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        if (isBlank(request.getUserId()) || isBlank(request.getNewPassword())) {
+            result.put("status", "fail");
+            result.put("message", "필수 정보를 모두 입력해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        String userId = request.getUserId().trim();
+        String newPassword = request.getNewPassword().trim();
+
+        if (newPassword.length() < 8) {
+            result.put("status", "fail");
+            result.put("message", "비밀번호는 8자 이상이어야 합니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        Optional<Customer> customerOpt = customerService.findById(userId);
+        if (customerOpt.isEmpty()) {
+            result.put("status", "fail");
+            result.put("message", "회원 정보를 찾을 수 없습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        Customer customer = customerOpt.get();
+        if (customer.getStatus() != null && customer.getStatus() == 1) {
+            result.put("status", "fail");
+            result.put("message", "탈퇴한 회원입니다. 다시 회원가입을 진행해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (customer.getProvider() != null) {
+            result.put("status", "fail");
+            result.put("message", "소셜 로그인 사용자입니다. 해당 플랫폼에서 비밀번호를 변경해주세요.");
+            return ResponseEntity.ok(result);
+        }
+
+        String verifiedKey = buildPasswordResetVerifiedKey(userId);
+        String verifiedValue = redisTemplate.opsForValue().get(verifiedKey);
+        if (verifiedValue == null) {
+            result.put("status", "fail");
+            result.put("message", "인증이 완료되지 않았습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        customer.setPassword(passwordEncoder.encode(newPassword));
+        customer.setRefToken(null);
+        customer.setRefTokenUpdatedAt(null);
+        customerService.save(customer);
+
+        redisTemplate.delete(verifiedKey);
+
+        result.put("status", "success");
+        result.put("message", "비밀번호가 성공적으로 변경되었습니다.");
+        return ResponseEntity.ok(result);
+    }
+ 
     @GetMapping("/logout")
     @Operation(summary="로그아웃", description="쿠키 삭제")
     public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response) {
@@ -495,6 +745,22 @@ public class LoginController {
         return digitsOnly.isEmpty() ? phone : digitsOnly;
     }
 
+    private boolean hasBasicPasswordResetInfo(String name, String userId, String email) {
+        return !isBlank(name) && !isBlank(userId) && !isBlank(email);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String buildPasswordResetCodeKey(String userId, String email) {
+        return "password:reset:code:" + userId.trim() + ":" + email.trim();
+    }
+
+    private String buildPasswordResetVerifiedKey(String userId) {
+        return "password:reset:verified:" + userId.trim();
+    }
+
     private String getDomainAttribute() {
         return CookieUtils.buildDomainAttribute(serverDomain);
     }
@@ -505,5 +771,40 @@ public class LoginController {
 
     private String getSecureAttribute() {
         return cookieSecure ? "; Secure" : "";
+    }
+
+    private String buildFindIdRedisKey(String email) {
+        return "email:findid:" + email;
+    }
+
+    @SuppressWarnings("unused")
+    private static class FindIdRequest {
+        private String name;
+        private String email;
+        private String code;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public void setCode(String code) {
+            this.code = code;
+        }
     }
 }

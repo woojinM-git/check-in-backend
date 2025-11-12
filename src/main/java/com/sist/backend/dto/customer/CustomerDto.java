@@ -24,4 +24,5 @@ public class CustomerDto {
     private BigDecimal totalPrice;
     private String rank;
     private LocalDateTime joinDate;
+    private Integer provider;
 }
