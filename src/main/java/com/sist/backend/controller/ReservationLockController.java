@@ -96,7 +96,10 @@ public class ReservationLockController {
                     request.getRoomId(),
                     request.getCheckIn(),
                     request.getCheckOut(),
-                    request.getLockId()
+                    request.getLockId(),
+                    request.getSessionId(),
+                    request.getTabId(),
+                    request.getInitialLockAt()
             );
 
             if (result.getSuccess()) {
@@ -168,7 +171,9 @@ public class ReservationLockController {
                     request.getCheckIn(),
                     request.getCheckOut(),
                     customerIdx,
-                    request.getLockId()
+                    request.getLockId(),
+                    request.getSessionId(),
+                    request.getTabId()
             );
 
             return ResponseEntity.ok(result);
