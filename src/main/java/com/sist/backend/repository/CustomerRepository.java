@@ -31,6 +31,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     Optional<Customer> findByCustomerIdx(Integer customerIdx);
 
+    Optional<Customer> findByIdAndEmailAndName(String id, String email, String name);
+
     @Query("SELECT c FROM Customer c " +
         "LEFT JOIN FETCH c.rankEntity")
     Page<Customer> findCustomerAndRank(Pageable pageable);
