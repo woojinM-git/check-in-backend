@@ -446,6 +446,67 @@ public class LoginController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/findid")
+    @Operation(summary = "아이디 찾기", description = "이름과 이메일을 확인한 뒤 인증코드를 발송하거나 검증하여 아이디를 반환합니다")
+    public ResponseEntity<Map<String, Object>> findId(@RequestBody FindIdRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        Optional<Customer> customerOpt = customerService.findByEmail(request.getEmail());
+        if (customerOpt.isEmpty() || customerOpt.get().getName() == null || !customerOpt.get().getName().equals(request.getName())) {
+            result.put("status", "fail");
+            result.put("message", "이름 또는 이메일이 일치하는 회원이 없습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        String key = buildFindIdRedisKey(request.getEmail());
+
+        if (request.getCode() == null || request.getCode().isEmpty()) {
+            int verificationCode = (int) (Math.random() * 900000) + 100000;
+            try {
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom(fromEmail);
+                helper.setTo(request.getEmail());
+                helper.setSubject("[Check-In] 아이디 찾기 인증 코드");
+                helper.setText("아이디 찾기 인증 코드: " + verificationCode);
+
+                mailSender.send(message);
+                redisTemplate.opsForValue().set(key, String.valueOf(verificationCode), 5, TimeUnit.MINUTES);
+
+                result.put("status", "success");
+                result.put("message", "인증 코드가 이메일로 발송되었습니다.");
+            } catch (MessagingException e) {
+                log.error("아이디 찾기 인증 메일 발송 실패 - email: {}", request.getEmail(), e);
+                result.put("status", "fail");
+                result.put("message", "인증 코드 발송 중 오류가 발생했습니다.");
+            }
+            return ResponseEntity.ok(result);
+        }
+
+        String storedCode = redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 만료되었거나 존재하지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        if (!storedCode.equals(request.getCode())) {
+            result.put("status", "fail");
+            result.put("message", "인증 코드가 일치하지 않습니다.");
+            return ResponseEntity.ok(result);
+        }
+
+        redisTemplate.delete(key);
+        result.put("status", "success");
+        Customer customer = customerOpt.get();
+        if (customer.getProvider() == null) {
+            result.put("message", "아이디 찾기에 성공했습니다.");
+            result.put("id", customer.getId());
+        } else {
+            result.put("message", "소셜 로그인 사용자입니다.");
+        }
+        return ResponseEntity.ok(result);
+    }
+ 
     @GetMapping("/logout")
     @Operation(summary="로그아웃", description="쿠키 삭제")
     public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response) {
@@ -505,5 +566,40 @@ public class LoginController {
 
     private String getSecureAttribute() {
         return cookieSecure ? "; Secure" : "";
+    }
+
+    private String buildFindIdRedisKey(String email) {
+        return "email:findid:" + email;
+    }
+
+    @SuppressWarnings("unused")
+    private static class FindIdRequest {
+        private String name;
+        private String email;
+        private String code;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public void setCode(String code) {
+            this.code = code;
+        }
     }
 }
