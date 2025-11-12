@@ -51,4 +51,7 @@ public class PaymentRequestDto {
 
     // 예약 락 식별자
     private String lockId;
+    private String sessionId;
+    private String tabId;
+    private String lockInitialAt;
 }
