@@ -140,6 +140,7 @@ public class HotelQueryService {
                 .contentId(info.getContentId())
                 .title(info.getTitle())
                 .adress(info.getAdress())
+                .tel(info.getTel())  // tel 필드 추가
                 .imageUrl(info.getImageUrl())
                 .areaCode(info.getAreaCode())
                 .roomcount(detail != null ? detail.getRoomcount() : null)
