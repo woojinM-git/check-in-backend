@@ -146,7 +146,9 @@ public class RegistrationRequestService {
             Map<String, Object> hotelInfoMap = (Map<String, Object>) formData.get("hotelInfo");
             hotelInfoDto = HotelEditFormDto.HotelInfoDto.builder()
                 .title((String) hotelInfoMap.get("title"))
-                .adress((String) hotelInfoMap.get("adress"))
+                .adress((String) hotelInfoMap.get("adress")) // 하위 호환성 유지
+                .baseAddress((String) hotelInfoMap.get("baseAddress")) // 도로명 주소
+                .detailAddress((String) hotelInfoMap.get("detailAddress")) // 상세 주소
                 // phone → tel 매핑 (프론트엔드에서 phone으로 보내지만 백엔드는 tel로 저장)
                 .tel(hotelInfoMap.get("tel") != null 
                     ? (String) hotelInfoMap.get("tel") 

@@ -39,7 +39,9 @@ public class HotelEditFormDto {
     @Builder
     public static class HotelInfoDto {
         private String title;          // HotelInfo.title
-        private String adress;          // HotelInfo.adress
+        private String adress;          // HotelInfo.adress (기존 필드, 하위 호환성 유지)
+        private String baseAddress;     // 도로명 주소 (신규 필드)
+        private String detailAddress;   // 상세 주소 (신규 필드)
         private String tel;             // HotelInfo.tel (기존 phone → tel로 변경)
         private String imageUrl;        // HotelInfo.imageUrl (대표 이미지 URL)
         private String latitude;        // 위도 (mapY) - HotelLocation.mapY

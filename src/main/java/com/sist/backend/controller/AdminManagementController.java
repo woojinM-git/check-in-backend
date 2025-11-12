@@ -1079,6 +1079,44 @@ public class AdminManagementController {
         }
     }
 
+    @GetMapping("/hotelTitle")
+    @Operation(summary = "호텔명 조회", description = "로그인한 관리자가 소유한 호텔의 이름을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "호텔 정보 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getHotelTitle(
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        String contentid = getContentIdOrRedirect();
+        if (contentid == null) {
+            map.put("success", false);
+            map.put("message", "호텔이 등록되지 않은 관리자입니다.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+        }
+        
+        try {
+            com.sist.backend.entity.HotelInfo hotelInfo = hotelInfoService.findById(contentid);
+            map.put("success", true);
+            map.put("title", hotelInfo.getTitle());
+            
+            return ResponseEntity.ok(map);
+        } catch (IllegalArgumentException e) {
+            map.put("success", false);
+            map.put("message", "호텔 정보를 찾을 수 없습니다.");
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "호텔명 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
+
     @GetMapping("/hotelInfoForEdit")
     @Operation(summary = "호텔 정보 조회 (수정용)", description = "정규화된 테이블에서 호텔 정보를 조회하여 등록 폼 구조로 반환합니다.")
     @ApiResponses(value = {
@@ -1088,8 +1126,8 @@ public class AdminManagementController {
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> getHotelInfoForEdit(
-        @Parameter(description = "HTTP 요청", hidden = true)
-        HttpServletRequest request) {
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
         
         Map<String, Object> map = new HashMap<>();
         
