@@ -90,6 +90,11 @@ public class RecentViewedHotelService {
         recentViewedHotelRepository.deleteByCustomerIdx(customerIdx);
     }
 
+    @Transactional
+    public long deleteRecentViewedHotelsOlderThan(LocalDateTime cutoff) {
+        return recentViewedHotelRepository.deleteAllByCreatedAtBefore(cutoff);
+    }
+
     private RecentViewedHotelResponse mapToResponse(RecentViewedHotel entity) {
         RecentViewedHotelResponse.RecentViewedHotelResponseBuilder builder = RecentViewedHotelResponse.builder()
             .recentViewedIdx(entity.getRecentViewedIdx())
