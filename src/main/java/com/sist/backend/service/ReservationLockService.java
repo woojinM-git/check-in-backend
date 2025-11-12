@@ -42,8 +42,8 @@ public class ReservationLockService {
      * @param roomId 객실 ID
      * @return 락 생성 성공 여부 및 메시지
      */
-    public ReservationLockDto createLock(Integer customerIdx, String contentId, Integer roomId, String checkIn, String lockId) {
-        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
+    public ReservationLockDto createLock(Integer customerIdx, String contentId, Integer roomId, String checkIn, String checkOut, String lockId) {
+        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn + ":" + checkOut;
 
         try {
             // DB 사전 검증: 동일 일자 예약 존재 여부 확인
@@ -54,15 +54,65 @@ public class ReservationLockService {
                         .build();
             }
 
-            boolean exists = roomReservationRepository.existsActiveReservation(
-                    roomId, contentId, java.time.LocalDate.parse(checkIn)
-            );
-            if (exists) {
-                log.warn("DB 예약 존재: roomId={}, contentId={}, checkIn={}", roomId, contentId, checkIn);
+            if (checkOut == null || checkOut.isBlank()) {
                 return ReservationLockDto.builder()
                         .success(false)
-                        .message("이미 예약 완료된 객실입니다.")
+                        .message("checkOut은 필수입니다.")
                         .build();
+            }
+
+            boolean exists = roomReservationRepository.existsActiveReservationInRange(
+                    roomId,
+                    contentId,
+                    java.time.LocalDate.parse(checkIn),
+                    java.time.LocalDate.parse(checkOut)
+            );
+            if (exists) {
+                log.warn("DB 예약 존재: roomId={}, contentId={}, checkIn={}, checkOut={}", roomId, contentId, checkIn, checkOut);
+                return ReservationLockDto.builder()
+                        .success(false)
+                        .message("이미 예약 완료된 기간입니다.")
+                        .build();
+            }
+
+            // 기존 락과 기간 겹침 확인
+            String lockPrefix = LOCK_PREFIX + contentId + ":" + roomId + ":";
+            java.time.LocalDate newCheckInDate = java.time.LocalDate.parse(checkIn);
+            java.time.LocalDate newCheckOutDate = java.time.LocalDate.parse(checkOut);
+
+            var existingLockKeys = redisTemplate.keys(lockPrefix + "*");
+            if (existingLockKeys != null) {
+                for (String existingKey : existingLockKeys) {
+                    String existingValue = redisTemplate.opsForValue().get(existingKey);
+                    if (existingValue == null) {
+                        continue;
+                    }
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> existingData = objectMapper.readValue(existingValue, Map.class);
+                        String existingCheckIn = (String) existingData.get("checkIn");
+                        String existingCheckOut = (String) existingData.get("checkOut");
+                        if (existingCheckIn == null || existingCheckOut == null) {
+                            continue;
+                        }
+                        java.time.LocalDate existingCheckInDate = java.time.LocalDate.parse(existingCheckIn);
+                        java.time.LocalDate existingCheckOutDate = java.time.LocalDate.parse(existingCheckOut);
+
+                        boolean overlaps
+                                = newCheckInDate.isBefore(existingCheckOutDate)
+                                && newCheckOutDate.isAfter(existingCheckInDate);
+
+                        if (overlaps) {
+                            log.warn("Redis 락 존재: roomId={}, contentId={}, new({}-{}), existingKey={}", roomId, contentId, checkIn, checkOut, existingKey);
+                            return ReservationLockDto.builder()
+                                    .success(false)
+                                    .message("이미 다른 사용자가 동일 기간에 예약 진행 중입니다.")
+                                    .build();
+                        }
+                    } catch (Exception ex) {
+                        log.warn("기존 락 정보 파싱 실패(무시): key={}, error={}", existingKey, ex.getMessage());
+                    }
+                }
             }
 
             // 락 데이터 구성
@@ -71,6 +121,7 @@ public class ReservationLockService {
             lockData.put("contentId", contentId);
             lockData.put("roomId", roomId);
             lockData.put("checkIn", checkIn);
+            lockData.put("checkOut", checkOut);
             LocalDateTime createdAt = LocalDateTime.now();
             LocalDateTime expireAt = createdAt.plusMinutes(LOCK_TTL_MINUTES);
             String resolvedLockId = (lockId == null || lockId.isBlank()) ? UUID.randomUUID().toString() : lockId;
@@ -91,6 +142,7 @@ public class ReservationLockService {
                         .message("예약 락이 생성되었습니다.")
                         .expireTime(expireAt)
                         .lockKey(lockKey)
+                        .checkOut(checkOut)
                         .lockId(resolvedLockId)
                         .build();
             } else {
@@ -124,8 +176,8 @@ public class ReservationLockService {
      * @param customerIdx 고객 식별자 (소유권 검증용)
      * @return 락 해제 성공 여부
      */
-    public ReservationLockDto releaseLock(String contentId, Integer roomId, String checkIn, Integer customerIdx, String lockId) {
-        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
+    public ReservationLockDto releaseLock(String contentId, Integer roomId, String checkIn, String checkOut, Integer customerIdx, String lockId) {
+        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn + ":" + checkOut;
 
         try {
             String lockValue = redisTemplate.opsForValue().get(lockKey);
@@ -135,6 +187,7 @@ public class ReservationLockService {
                 return ReservationLockDto.builder()
                         .success(true)
                         .message("락이 이미 해제되었거나 만료되었습니다.")
+                        .checkOut(checkOut)
                         .build();
             }
 
@@ -143,6 +196,16 @@ public class ReservationLockService {
             Map<String, Object> lockData = objectMapper.readValue(lockValue, Map.class);
             Integer lockOwner = (Integer) lockData.get("customerIdx");
             String storedLockId = (String) lockData.get("lockId");
+            String storedCheckOut = (String) lockData.get("checkOut");
+
+            if (storedCheckOut != null && checkOut != null && !storedCheckOut.equals(checkOut)) {
+                log.warn("예약 락 해제 실패: checkOut 불일치 - roomId={}, contentId={}, requestCheckOut={}, storedCheckOut={}",
+                        roomId, contentId, checkOut, storedCheckOut);
+                return ReservationLockDto.builder()
+                        .success(false)
+                        .message("락 해제 권한이 없습니다. (기간 불일치)")
+                        .build();
+            }
 
             if (lockId != null && storedLockId != null && !lockId.equals(storedLockId)) {
                 log.warn("예약 락 해제 실패: lockId 불일치 - roomId={}, contentId={}, requestLockId={}, storedLockId={}",
@@ -170,6 +233,7 @@ public class ReservationLockService {
                 return ReservationLockDto.builder()
                         .success(true)
                         .message("예약 락이 해제되었습니다.")
+                        .checkOut(checkOut)
                         .lockId(storedLockId)
                         .build();
             } else {
@@ -196,8 +260,8 @@ public class ReservationLockService {
      * @param roomId 객실 ID
      * @return 락 존재 여부
      */
-    public boolean isLocked(String contentId, Integer roomId, String checkIn) {
-        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
+    public boolean isLocked(String contentId, Integer roomId, String checkIn, String checkOut) {
+        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn + ":" + checkOut;
         return Boolean.TRUE.equals(redisTemplate.hasKey(lockKey));
     }
 
@@ -208,8 +272,8 @@ public class ReservationLockService {
      * @param roomId 객실 ID
      * @return 락 정보 (없으면 null)
      */
-    public Map<String, Object> getLockInfo(String contentId, Integer roomId, String checkIn) {
-        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn;
+    public Map<String, Object> getLockInfo(String contentId, Integer roomId, String checkIn, String checkOut) {
+        String lockKey = LOCK_PREFIX + contentId + ":" + roomId + ":" + checkIn + ":" + checkOut;
         String lockValue = redisTemplate.opsForValue().get(lockKey);
 
         if (lockValue == null) {

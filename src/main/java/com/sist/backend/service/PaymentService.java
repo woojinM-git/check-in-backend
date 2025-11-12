@@ -217,8 +217,11 @@ public class PaymentService {
                     throw new RuntimeException("필수 파라미터 누락(roomId/contentId/checkIn)");
                 }
                 LocalDate checkinDate = LocalDate.parse(request.getCheckIn());
-                boolean exists = roomReservationRepository.existsActiveReservation(
-                        request.getRoomId(), request.getContentId(), checkinDate);
+                boolean exists = roomReservationRepository.existsActiveReservationInRange(
+                        request.getRoomId(),
+                        request.getContentId(),
+                        checkinDate,
+                        java.time.LocalDate.parse(request.getCheckOut()));
                 if (exists) {
                     throw new RuntimeException("이미 다른 인원이 결제/예약을 완료한 객실입니다.");
                 }
@@ -246,6 +249,7 @@ public class PaymentService {
                             request.getContentId(),
                             request.getRoomId(),
                             request.getCheckIn(),
+                            request.getCheckOut(),
                             request.getCustomerIdx(),
                             request.getLockId()
                     );
