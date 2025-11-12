@@ -407,7 +407,8 @@ public class AdminManagementController {
         // Pageable 생성
         Pageable pageable = Pageable.ofSize(size).withPage(page);
         
-        map.put("couponTemplates", couponTemplateService.findByStatus());
+        // 지정발급형식(type=0) 쿠폰 템플릿만 조회
+        map.put("couponTemplates", couponTemplateService.findByStatusAndType(0));
         map.put("coupons", couponService.findByAdminIdx(adminIdx, pageable));
         
         return ResponseEntity.ok(map);

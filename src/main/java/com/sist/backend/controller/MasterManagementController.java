@@ -58,7 +58,6 @@ public class MasterManagementController {
     
     /* 서비스 호출 */
     private final HotelInfoService hotelInfoService;
-    private final RoomPaymentService roomPaymentService;
     private final RegistrationRequestService registrationRequestService;
     private final HotelDraftService hotelDraftService;
     private final CustomerService customerService;
@@ -428,20 +427,89 @@ public class MasterManagementController {
 
     /* 쿠폰 템플릿 관리 */
     @RequestMapping("/couponTemplates")
-    @Operation(summary = "쿠폰 템플릿 관리", description = "쿠폰 템플릿 목록을 보여줍니다.")
+    @Operation(summary = "쿠폰 템플릿 관리", description = "쿠폰 템플릿 목록을 보여줍니다. type 파라미터로 필터링 가능 (0: 지정발급형식, 1: 단체 발급형식)")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<?> findAll(
+            @Parameter(description = "쿠폰 타입 (0: 지정발급형식, 1: 단체 발급형식)", required = false)
+            @RequestParam(value = "type", required = false) Integer type,
             @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
         ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
         if (authCheck != null) {
             return authCheck;
         }
         
+        if (type != null) {
+            return ResponseEntity.ok(couponTemplateService.findByStatusAndType(type));
+        }
+        
         return ResponseEntity.ok(couponTemplateService.findByStatus());
+    }
+
+    @GetMapping("/couponTemplates/inactive")
+    @Operation(summary = "비활성 쿠폰 템플릿 조회", description = "비활성화된 쿠폰 템플릿 목록을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> findInactiveTemplates(
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        return ResponseEntity.ok(couponTemplateService.findByInactiveStatus());
+    }
+
+    @PostMapping("/activateTemplate")
+    @Operation(summary = "쿠폰 템플릿 활성화", description = "비활성화된 쿠폰 템플릿을 활성화합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 활성화됨"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "템플릿을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<?> activateTemplate(
+            @RequestBody Map<String, Object> requestData,
+            @Parameter(description = "HTTP 요청", hidden = true) HttpServletRequest request) {
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        try {
+            Integer templateIdx = (Integer) requestData.get("templateIdx");
+            if (templateIdx == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "템플릿 ID가 필요합니다.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            CouponTemplate activatedTemplate = couponTemplateService.activateTemplate(templateIdx);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "템플릿이 성공적으로 활성화되었습니다.");
+            response.put("template", activatedTemplate);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "템플릿 활성화 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 
     @PostMapping("/createTemplate")
@@ -464,6 +532,7 @@ public class MasterManagementController {
             Integer discount = (Integer) requestData.get("discount");
             Integer validDays = (Integer) requestData.get("validDays");
             Integer status = (Integer) requestData.get("status");
+            Integer type = (Integer) requestData.get("type");
             Integer adminIdx = (Integer) requestData.get("adminIdx");
 
             CouponTemplate couponTemplate = new CouponTemplate();
@@ -471,6 +540,7 @@ public class MasterManagementController {
             couponTemplate.setDiscount(discount);
             couponTemplate.setValidDays(validDays);
             couponTemplate.setStatus(status);
+            couponTemplate.setType(type != null ? type : 0); // 기본값 0 (지정발급형식)
             couponTemplate.setAdminIdx(adminIdx);
             couponTemplate.setCreatedAt(LocalDateTime.now());
             couponTemplate.setUpdatedAt(LocalDateTime.now());
@@ -586,12 +656,16 @@ public class MasterManagementController {
             Integer status = requestData.get("status") instanceof Number 
                 ? ((Number) requestData.get("status")).intValue() 
                 : null;
+            Integer type = requestData.get("type") instanceof Number 
+                ? ((Number) requestData.get("type")).intValue() 
+                : null;
 
             CouponTemplate updateData = new CouponTemplate();
             updateData.setTemplateName(templateName);
             updateData.setDiscount(discount);
             updateData.setValidDays(validDays);
             updateData.setStatus(status);
+            updateData.setType(type);
             
             CouponTemplate updatedTemplate = couponTemplateService.updateTemplate(templateIdx, updateData);
             
