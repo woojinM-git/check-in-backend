@@ -37,13 +37,15 @@ public class StatisticsService {
 
     /**
      * 날짜 범위에 따른 통계 데이터 조회 (병렬 처리)
+     * 정산은 다음 달 1일에 이루어지므로 현재 월은 제외하고 전 달까지만 조회
      * 
      * @param dateRange "week"(7일), "month"(30일), "quarter"(3개월), "year"(1년)
      * @return 통계 데이터 Map
      */
     public Map<String, Object> getStatistics(String dateRange) {
         LocalDate startDate = calculateStartDate(dateRange);
-        LocalDate endDate = LocalDate.now();
+        // 현재 월을 제외하고 전 달 마지막 날까지만 조회
+        LocalDate endDate = LocalDate.now().withDayOfMonth(1).minusDays(1);
 
         // 병렬 처리로 모든 통계 데이터 조회
         CompletableFuture<Long> totalRevenueFuture = CompletableFuture.supplyAsync(
@@ -277,14 +279,17 @@ public class StatisticsService {
     /**
      * 월별 수수료 수익 조회 (최근 12개월)
      * 마스터 화면의 차트용 데이터
+     * 정산은 다음 달 1일에 이루어지므로 현재 월은 제외하고 전 달까지만 조회
      */
     public List<Map<String, Object>> getMonthlyCommissionRevenue() {
-        // 최근 12개월 데이터 조회
+        // 현재 월을 제외하고 최근 12개월 데이터 조회
         YearMonth now = YearMonth.now();
+        YearMonth lastMonth = now.minusMonths(1); // 전 달
         List<Map<String, Object>> result = new ArrayList<>();
         
+        // 전 달부터 역순으로 12개월 조회 (현재 월 제외)
         for (int i = 11; i >= 0; i--) {
-            YearMonth targetMonth = now.minusMonths(i);
+            YearMonth targetMonth = lastMonth.minusMonths(i);
             String settlementMonth = String.format("%04d-%02d", targetMonth.getYear(), targetMonth.getMonthValue());
             
             Long commissionAmount = queryFactory
@@ -557,8 +562,8 @@ public class StatisticsService {
      * @return 회원 등급별 통계 리스트 (grade, count, percentage, avgSpending)
      */
     public List<Map<String, Object>> getMemberGradeStatistics() {
-        // 등급 목록 (우선순위 순서)
-        List<String> grades = List.of("Explorer", "First Class", "Sky Suite", "Traveler", "VIP");
+        // 등급 목록 (우선순위 순서: Traveler -> Explorer -> VIP -> First Class -> Sky Suite)
+        List<String> grades = List.of("Traveler", "Explorer", "VIP", "First Class", "Sky Suite");
         
         // 전체 활성 회원 수 조회 (status = 0)
         Long totalMembers = queryFactory

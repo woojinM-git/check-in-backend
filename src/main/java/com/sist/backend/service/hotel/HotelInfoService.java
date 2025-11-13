@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +83,22 @@ public class HotelInfoService {
         }
         
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
+    }
+    
+    /**
+     * 호텔 통계 조회 (운영중, 정지, 총 호텔 수)
+     */
+    public Map<String, Long> getHotelStatistics() {
+        Long operatingCount = hotelInfoRepository.countOperatingHotels();
+        Long suspendedCount = hotelInfoRepository.countSuspendedHotels();
+        Long totalCount = operatingCount + suspendedCount;
+        
+        Map<String, Long> statistics = new HashMap<>();
+        statistics.put("operatingCount", operatingCount != null ? operatingCount : 0L);
+        statistics.put("suspendedCount", suspendedCount != null ? suspendedCount : 0L);
+        statistics.put("totalCount", totalCount);
+        
+        return statistics;
     }
 
     public Optional<String> findContentIdByAdminIdx(Integer adminIdx) {
