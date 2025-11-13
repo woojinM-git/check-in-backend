@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+//아무도 사용 안하는듯
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
