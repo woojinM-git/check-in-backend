@@ -104,10 +104,16 @@ public interface HotelInfoRepository extends JpaRepository<HotelInfo, String> {
     Optional<HotelInfo> findByAdminIdxWithDetails(@Param("adminIdx") Integer adminIdx);
 
     /**
-     * 운영중인 호텔 수 조회 (status=1)
+     * 운영중인 호텔 수 조회 (status=0)
+     */
+    @Query("SELECT COUNT(h) FROM HotelInfo h WHERE h.status = 0")
+    Long countOperatingHotels();
+    
+    /**
+     * 정지된 호텔 수 조회 (status=1)
      */
     @Query("SELECT COUNT(h) FROM HotelInfo h WHERE h.status = 1")
-    Long countActiveHotels();
+    Long countSuspendedHotels();
 
     /**
      * 이번달 신규 호텔 수 조회 (status=1이고 이번달에 승인된 호텔)
