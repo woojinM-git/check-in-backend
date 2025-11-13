@@ -14,6 +14,7 @@ import com.sist.backend.service.CouponTemplateService;
 import com.sist.backend.service.CustomerService;
 import com.sist.backend.service.ReservationTimeService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,12 +57,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
+@Tag(name = "호텔등록자", description = "사업자 관련 API")
 public class AdminManagementController {
 
     private final RoomReservationService roomReservationService;
@@ -174,7 +177,7 @@ public class AdminManagementController {
         Long thisMonthSales = roomPaymentService.findByPrice(contentid);
 
         /* 최근 예약 현황 조회 (5개만) - Room과 Customer 정보 포함 */
-        List<RoomReservationDto> roomReservationList = roomReservationService.findByStatusWithDetails(contentid);
+        List<RoomReservationDto> roomReservationList = roomReservationService.findTop5ByStatusWithDetails(contentid);
         com.sist.backend.dto.admin.DashboardDto.Today today = com.sist.backend.dto.admin.DashboardDto.Today.builder()
             .checkinCount(todayCheckinCount != null ? todayCheckinCount : 0)
             .checkoutCount(todayCheckoutCount != null ? todayCheckoutCount : 0)
@@ -863,13 +866,17 @@ public class AdminManagementController {
     }
 
     @GetMapping("/customers")
-    @Operation(summary = "고객 목록 조회", description = "특정 호텔을 이용한 고객 목록을 조회합니다.")
+    @Operation(summary = "고객 목록 조회", description = "특정 호텔을 이용한 고객 목록을 조회합니다. (페이징 지원)")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<Map<String, Object>> getCustomers(
+        @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+        @RequestParam(value = "page", defaultValue = "0") int page, 
+        @Parameter(description = "페이지당 데이터 개수", example = "10") 
+        @RequestParam(value = "size", defaultValue = "10") int size,
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
         
@@ -880,17 +887,23 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
         
-        // 고객 목록 조회
-        List<CustomerListDto> customers = customerService.findCustomersByContentId(contentid);
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        
+        // 고객 목록 조회 (페이징 지원, customerIdx 내림차순 정렬)
+        Page<CustomerListDto> customerPage = customerService.findCustomersByContentIdWithPagination(contentid, pageable);
         
         map.put("success", true);
-        map.put("customers", customers);
+        map.put("content", customerPage.getContent());
+        map.put("totalElements", customerPage.getTotalElements());
+        map.put("totalPages", customerPage.getTotalPages());
+        map.put("currentPage", customerPage.getNumber());
+        map.put("size", customerPage.getSize());
         
         return ResponseEntity.ok(map);
     }
 
     @GetMapping("/customerHistory")
-    @Operation(summary = "고객 이용 이력 조회", description = "특정 호텔의 고객 이용 이력과 리뷰를 조회합니다.")
+    @Operation(summary = "고객 이용 이력 조회", description = "특정 호텔의 고객 이용 이력과 리뷰를 조회합니다. (페이징 지원)")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -903,6 +916,10 @@ public class AdminManagementController {
         @RequestParam(value = "status", required = false) Integer statusFilter,
         @Parameter(description = "평점 필터 (null: 전체, 1-5: 해당 평점)", example = "5")
         @RequestParam(value = "rating", required = false) Integer ratingFilter,
+        @Parameter(description = "페이지 번호 (0부터 시작)", example = "0") 
+        @RequestParam(value = "page", defaultValue = "0") int page, 
+        @Parameter(description = "페이지당 데이터 개수", example = "10") 
+        @RequestParam(value = "size", defaultValue = "10") int size,
         @Parameter(description = "HTTP 요청", hidden = true)
         HttpServletRequest request) {
         
@@ -913,12 +930,18 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
         
-        // 고객 이용 이력 조회
-        List<CustomerHistoryDto> history = roomReservationService.findCustomerHistory(
-            contentid, customerId, statusFilter, ratingFilter);
+        Pageable pageable = Pageable.ofSize(size).withPage(page);
+        
+        // 고객 이용 이력 조회 (페이징 지원)
+        Page<CustomerHistoryDto> historyPage = roomReservationService.findCustomerHistoryWithPagination(
+            contentid, customerId, statusFilter, ratingFilter, pageable);
         
         map.put("success", true);
-        map.put("history", history);
+        map.put("content", historyPage.getContent());
+        map.put("totalElements", historyPage.getTotalElements());
+        map.put("totalPages", historyPage.getTotalPages());
+        map.put("currentPage", historyPage.getNumber());
+        map.put("size", historyPage.getSize());
         
         return ResponseEntity.ok(map);
     }
