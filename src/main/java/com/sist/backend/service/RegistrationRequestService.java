@@ -84,6 +84,13 @@ public class RegistrationRequestService {
         return rrRepository.findTodayRejectedCount();
     }
 
+    /* adminIdx로 승인 대기 중인 RegistrationRequest 조회 */
+    public Optional<RegistrationRequest> findPendingRequestByAdminIdx(Integer adminIdx) {
+        List<RegistrationRequest> requests = rrRepository.findByAdminIdxAndStatusPending(adminIdx);
+        // 가장 최근 요청 반환 (여러 개 있을 경우)
+        return requests.isEmpty() ? Optional.empty() : Optional.of(requests.get(0));
+    }
+
     /**
      * 호텔 승인 처리: HotelDraft의 JSON을 파싱하여 정규화된 테이블에 저장
      * @param registrationIdx 등록 요청 인덱스
@@ -146,7 +153,9 @@ public class RegistrationRequestService {
             Map<String, Object> hotelInfoMap = (Map<String, Object>) formData.get("hotelInfo");
             hotelInfoDto = HotelEditFormDto.HotelInfoDto.builder()
                 .title((String) hotelInfoMap.get("title"))
-                .adress((String) hotelInfoMap.get("adress"))
+                .adress((String) hotelInfoMap.get("adress")) // 하위 호환성 유지
+                .baseAddress((String) hotelInfoMap.get("baseAddress")) // 도로명 주소
+                .detailAddress((String) hotelInfoMap.get("detailAddress")) // 상세 주소
                 // phone → tel 매핑 (프론트엔드에서 phone으로 보내지만 백엔드는 tel로 저장)
                 .tel(hotelInfoMap.get("tel") != null 
                     ? (String) hotelInfoMap.get("tel") 
