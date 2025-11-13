@@ -52,4 +52,7 @@ public class ReservationResponseDTO {
     private Integer usedItemIdx;           // UsedItem ID
     private Integer usedItemStatus;        // UsedItem 상태 (0: 판매중, 1: 거래중, 2: 판매완료, 3: 만료, 4: 취소)
     private Integer usedItemPrice;         // 판매 가격
+
+    // QR 코드 정보
+    private String qrUrl;                 // QR 코드 이미지 URL
 }
