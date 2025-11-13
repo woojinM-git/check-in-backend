@@ -136,6 +136,7 @@ public class CustomerController {
                 .totalPrice(customerEntity.getTotalPrice() != null ? new java.math.BigDecimal(customerEntity.getTotalPrice()) : null)
                 .rank(customerEntity.getRank())
                 .joinDate(customerEntity.getJoinDate())
+                .provider(customerEntity.getProvider())
                 .build();
             
             return ResponseEntity.ok(customerDto);
@@ -245,6 +246,7 @@ public class CustomerController {
                 .totalPrice(savedCustomer.getTotalPrice() != null ? new java.math.BigDecimal(savedCustomer.getTotalPrice()) : null)
                 .rank(savedCustomer.getRank())
                 .joinDate(savedCustomer.getJoinDate())
+                .provider(savedCustomer.getProvider())
                 .build();
             
             return ResponseEntity.ok(customerDto);

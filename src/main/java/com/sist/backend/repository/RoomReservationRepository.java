@@ -15,20 +15,28 @@ import com.sist.backend.entity.RoomReservation;
 @Repository
 public interface RoomReservationRepository extends JpaRepository<RoomReservation, Integer> {
 
-    /* 오늘 체크인한 사람의 수 */
+    /* 오늘 체크인한 사람의 수 (특정 호텔) */
     @Query("SELECT COUNT(r) FROM RoomReservation r "
-            + "WHERE r.checkinDate = CURRENT_DATE")
-    Integer findTodayCheckinCount();
+            + "WHERE r.contentid = :contentId "
+            + "AND r.checkinDate = CURRENT_DATE")
+    Integer findTodayCheckinCount(@Param("contentId") String contentId);
 
-    /* 오늘 체크아웃한 사람의 수 */
+    /* 오늘 체크아웃한 사람의 수 (특정 호텔) */
     @Query("SELECT COUNT(r) FROM RoomReservation r "
-            + "WHERE r.checkoutDate = CURRENT_DATE")
-    Integer findTodayCheckoutCount();
+            + "WHERE r.contentid = :contentId "
+            + "AND r.checkoutDate = CURRENT_DATE")
+    Integer findTodayCheckoutCount(@Param("contentId") String contentId);
 
-    /* 오늘 예약한 사람의 수 */
+    /* 오늘 예약한 사람의 수 (특정 호텔) */
+    @Query("SELECT COUNT(r) FROM RoomReservation r "
+            + "WHERE r.contentid = :contentId "
+            + "AND r.createdAt = CURRENT_DATE")
+    Integer findByTodayCount(@Param("contentId") String contentId);
+
+    /* 오늘 예약한 사람의 수 (전체 호텔 - 마스터용) */
     @Query("SELECT COUNT(r) FROM RoomReservation r "
             + "WHERE r.createdAt = CURRENT_DATE")
-    Integer findByTodayCount();
+    Integer findByTodayCountAll();
 
     @Query("SELECT r FROM RoomReservation r "
             + "WHERE r.contentid = :contentid "

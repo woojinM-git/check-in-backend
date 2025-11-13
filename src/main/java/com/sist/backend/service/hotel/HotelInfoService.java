@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,9 +84,36 @@ public class HotelInfoService {
         
         return hotelInfoPage.map(HotelInfoDto::hotelInfoDto);
     }
+    
+    /**
+     * 호텔 통계 조회 (운영중, 정지, 총 호텔 수)
+     */
+    public Map<String, Long> getHotelStatistics() {
+        Long operatingCount = hotelInfoRepository.countOperatingHotels();
+        Long suspendedCount = hotelInfoRepository.countSuspendedHotels();
+        Long totalCount = operatingCount + suspendedCount;
+        
+        Map<String, Long> statistics = new HashMap<>();
+        statistics.put("operatingCount", operatingCount != null ? operatingCount : 0L);
+        statistics.put("suspendedCount", suspendedCount != null ? suspendedCount : 0L);
+        statistics.put("totalCount", totalCount);
+        
+        return statistics;
+    }
 
     public Optional<String> findContentIdByAdminIdx(Integer adminIdx) {
         return hotelInfoRepository.findContentIdByAdminIdx(adminIdx);
+    }
+
+    /**
+     * contentId로 호텔 정보 조회
+     * @param contentId 호텔 ID
+     * @return HotelInfo
+     * @throws IllegalArgumentException 호텔을 찾을 수 없을 때
+     */
+    public HotelInfo findById(String contentId) {
+        return hotelInfoRepository.findById(contentId)
+            .orElseThrow(() -> new IllegalArgumentException("호텔을 찾을 수 없습니다."));
     }
 
     /**
@@ -726,7 +754,21 @@ public class HotelInfoService {
             hotelInfo.setContentId(contentId);
             hotelInfo.setAdminIdx(adminIdx); // 직접 adminIdx 설정 (성능 최적화)
             hotelInfo.setTitle(dto.getHotelInfo().getTitle());
-            hotelInfo.setAdress(dto.getHotelInfo().getAdress());
+            
+            // 주소 처리: baseAddress와 detailAddress가 있으면 합쳐서 저장, 없으면 기존 adress 사용
+            String finalAddress;
+            if (dto.getHotelInfo().getBaseAddress() != null && !dto.getHotelInfo().getBaseAddress().isEmpty()) {
+                // baseAddress와 detailAddress를 합쳐서 저장
+                String baseAddr = dto.getHotelInfo().getBaseAddress();
+                String detailAddr = (dto.getHotelInfo().getDetailAddress() != null && !dto.getHotelInfo().getDetailAddress().isEmpty()) 
+                    ? " " + dto.getHotelInfo().getDetailAddress() 
+                    : "";
+                finalAddress = baseAddr + detailAddr;
+            } else {
+                // 하위 호환성: 기존 adress 필드 사용
+                finalAddress = dto.getHotelInfo().getAdress() != null ? dto.getHotelInfo().getAdress() : "";
+            }
+            hotelInfo.setAdress(finalAddress);
             hotelInfo.setTel(dto.getHotelInfo().getTel());
             hotelInfo.setImageUrl(dto.getHotelInfo().getImageUrl()); // 대표 이미지 URL 설정
             // areaCode 설정 (area가 null이면 null 또는 빈 문자열로 설정)

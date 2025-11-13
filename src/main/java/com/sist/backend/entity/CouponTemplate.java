@@ -35,6 +35,9 @@ public class CouponTemplate {
     @Column(name = "status")
     private Integer status;
     
+    @Column(name = "type", nullable = false)
+    private Integer type; // 0: 지정발급형식, 1: 단체 발급형식
+    
     @Column(name = "adminIdx", nullable = false)
     private Integer adminIdx;
     
