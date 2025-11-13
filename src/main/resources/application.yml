@@ -10,6 +10,12 @@ spring:
     active: dev
   application:
     name: checkin-backend
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB  # 개별 파일 최대 크기
+      max-request-size: 50MB  # 전체 요청 최대 크기 (여러 파일 업로드 시)
+      file-size-threshold: 2MB  # 메모리에 저장할 임계값
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

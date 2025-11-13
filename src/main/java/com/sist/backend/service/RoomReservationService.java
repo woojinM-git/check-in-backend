@@ -26,19 +26,19 @@ public class RoomReservationService {
     private final RoomReservationRepository roomReservationRepository;
     private final ReviewRepository reviewRepository;
 
-    /* 오늘 체크인한 사람의 수 조회 */
-    public Integer getTodayCheckinCount() {
-        return roomReservationRepository.findTodayCheckinCount();
+    /* 오늘 체크인한 사람의 수 조회 (특정 호텔) */
+    public Integer getTodayCheckinCount(String contentId) {
+        return roomReservationRepository.findTodayCheckinCount(contentId);
     }
 
-    /* 오늘 체크아웃한 사람의 수 조회 */
-    public Integer getTodayCheckoutCount() {
-        return roomReservationRepository.findTodayCheckoutCount();
+    /* 오늘 체크아웃한 사람의 수 조회 (특정 호텔) */
+    public Integer getTodayCheckoutCount(String contentId) {
+        return roomReservationRepository.findTodayCheckoutCount(contentId);
     }
 
-    /* 예약 확정인 사람의 수 조회 */
-    public Integer findByStatus() {
-        return roomReservationRepository.findByTodayCount();
+    /* 오늘 예약한 사람의 수 조회 (특정 호텔) */
+    public Integer findTodayReservationCount(String contentId) {
+        return roomReservationRepository.findByTodayCount(contentId);
     }
 
     /* 가장 최근 예약한 사람의 목록 (5개만) */
@@ -71,9 +71,9 @@ public class RoomReservationService {
         return roomReservationPage.map(RoomReservationDto::fromEntity);
     }
 
-    /* 오늘 예약한 사람의 수 조회 */
+    /* 오늘 예약한 사람의 수 조회 (전체 호텔 - 마스터용) */
     public Integer findByTodayCount() {
-        return roomReservationRepository.findByTodayCount();
+        return roomReservationRepository.findByTodayCountAll();
     }
 
     /* 특정 예약의 customerIdx 값을 변경하는 메서드 */

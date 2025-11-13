@@ -125,6 +125,53 @@ public class MasterManagementController {
         return null;
     }
 
+    /**
+     * 마스터 관리자 ID 조회
+     * @param request HTTP 요청
+     * @return 마스터의 adminIdx
+     */
+    @GetMapping("/adminId")
+    @Operation(summary = "마스터 관리자 ID 조회", description = "로그인한 마스터 관리자의 ID를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "성공적으로 조회됨"),
+        @ApiResponse(responseCode = "403", description = "마스터 권한 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    public ResponseEntity<Map<String, Object>> getMasterAdminId(
+            @Parameter(description = "HTTP 요청", hidden = true)
+            HttpServletRequest request) {
+        
+        Map<String, Object> map = new HashMap<>();
+        
+        // 마스터 권한 확인
+        ResponseEntity<Map<String, Object>> authCheck = checkMasterAuthorization(request);
+        if (authCheck != null) {
+            return authCheck;
+        }
+        
+        try {
+            // JWT에서 adminIdx 추출
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            CustomerAdminSignupDTO principal = (CustomerAdminSignupDTO) authentication.getPrincipal();
+            Integer adminIdx = principal.getAdminIdx();
+            
+            if (adminIdx == null) {
+                map.put("success", false);
+                map.put("message", "관리자 인덱스를 찾을 수 없습니다.");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(map);
+            }
+            
+            map.put("success", true);
+            map.put("adminIdx", adminIdx);
+            
+            return ResponseEntity.ok(map);
+        } catch (Exception e) {
+            map.put("success", false);
+            map.put("message", "마스터 ID 조회 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(map);
+        }
+    }
+
    
     /* 등록되어 있는 회원의 목록 */
     @GetMapping("/customers")

@@ -16,8 +16,13 @@ import com.sist.backend.entity.RoomPayment;
 @Repository
 public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Integer> {
 
-    @Query("SELECT SUM(price) FROM RoomPayment WHERE status = 1")
-    Long findByPrice();
+    /* 특정 호텔의 오늘 매출 조회 (결제 승인일 기준) */
+    @Query("SELECT COALESCE(SUM(rp.price), 0) FROM RoomPayment rp "
+           + "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx "
+           + "WHERE rr.contentid = :contentId "
+           + "AND rp.status = 1 "
+           + "AND FUNCTION('DATE', rp.approvedAt) = CURRENT_DATE")
+    Long findByPrice(@Param("contentId") String contentId);
     
     @Query("SELECT rp FROM RoomPayment rp WHERE rp.paymentKey = :paymentKey AND rp.status = 1")
     Optional<RoomPayment> findByPaymentKeyAndStatus(String paymentKey);
