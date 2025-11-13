@@ -11,6 +11,7 @@ import com.sist.backend.dto.PaymentRequestDto;
 import com.sist.backend.entity.Room;
 import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.RoomReservationRepository;
+import com.sist.backend.repository.hotel.HotelInfoRepository;
 import com.sist.backend.repository.hotel.RoomRepository;
 import com.sist.backend.util.QRCodeGenerator;
 
@@ -75,7 +76,7 @@ public class ReservationService {
                 .checkoutDate(request.getCheckOut() != null ? LocalDate.parse(request.getCheckOut()) : null)
                 .guest(request.getGuests())
                 .totalPrice(realPrice)
-                .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                .qrUrl(null) // 보안 QR 코드는 저장 후 생성하므로 초기값은 null
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .orderNum(request.getOrderId())
@@ -84,6 +85,24 @@ public class ReservationService {
 
         //DB저장및 반환
         RoomReservation savedReservation = roomReservationRepository.save(reservation);
+
+        // 보안 QR 코드 생성 및 업데이트 (reservationId 필요하므로 저장 후 생성)
+        try {
+            String secureQrUrl = qrCodeGenerator.generateSecureQRCodeUrl(
+                    savedReservation.getReservIdx(),
+                    request.getCustomerIdx(),
+                    savedReservation.getCheckinDate()
+            );
+            if (secureQrUrl != null) {
+                savedReservation.setQrUrl(secureQrUrl);
+                roomReservationRepository.save(savedReservation);
+                log.info("보안 QR 코드 생성 완료: reservationId={}, qrUrl={}", savedReservation.getReservIdx(), secureQrUrl);
+            }
+        } catch (Exception e) {
+            log.error("보안 QR 코드 생성 실패: reservationId={}", savedReservation.getReservIdx(), e);
+            // QR 코드 생성 실패해도 예약은 성공한 것으로 처리
+        }
+
         // 호텔 예약 수 증가
         hotelInfoRepository.increaseReservationCount(request.getContentId());
 

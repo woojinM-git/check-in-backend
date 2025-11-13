@@ -229,8 +229,16 @@ public class PaymentService {
                 RoomPayment savedPayment = saveRoomPayment(request);
 
                 log.info("호텔 예약 저장 시작: contentId={}, roomId={}, specialRequestsLen={}", request.getContentId(), request.getRoomId(), request.getSpecialRequests() != null ? request.getSpecialRequests().length() : 0);
-                reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
-                log.info("호텔 예약 저장 완료");
+                com.sist.backend.entity.RoomReservation savedReservation = reservationService.insertRoomReservation(request, savedPayment.getOrderIdx());
+                log.info("호텔 예약 저장 완료: reservationId={}", savedReservation.getReservIdx());
+
+                // 저장된 예약에서 보안 QR 코드 URL 가져오기
+                String qrUrl = savedReservation.getQrUrl();
+                if (qrUrl == null || qrUrl.isEmpty()) {
+                    // 보안 QR 코드가 없으면 기존 방식으로 폴백
+                    log.warn("보안 QR 코드가 없어 기존 방식으로 생성: reservationId={}", savedReservation.getReservIdx());
+                    qrUrl = qrCodeGenerator.generateQRCodeUrl(request.getOrderId());
+                }
 
                 // 5단계: 쿠폰 처리 (사용 완료 상태 업데이트)
                 if (request.getCouponIdx() != null && request.getCouponIdx() > 0) {
@@ -261,7 +269,7 @@ public class PaymentService {
                     // 락 해제 실패는 무시 (TTL로 자동 만료됨)
                 }
 
-                log.info("호텔 결제 및 예약 저장 완료: orderIdx={}", savedPayment.getOrderIdx());
+                log.info("호텔 결제 및 예약 저장 완료: orderIdx={}, qrUrl={}", savedPayment.getOrderIdx(), qrUrl);
 
                 return PaymentResponseDto.builder()
                         .success(true)
@@ -272,7 +280,7 @@ public class PaymentService {
                         .status("DONE")
                         .approvedAt(savedPayment.getApprovedAt())
                         .receiptUrl(savedPayment.getReceiptUrl())
-                        .qrUrl(qrCodeGenerator.generateQRCodeUrl(request.getOrderId()))
+                        .qrUrl(qrUrl) // 보안 QR 코드 URL 사용
                         .emailSent(true) // 신규 처리됨: 컨트롤러에서 이메일 발송 허용
                         .build();
             } else if ("dining_reservation".equals(request.getType())) {
