@@ -228,7 +228,21 @@ public class MasterManagementController {
         }
         
         Pageable pageable = Pageable.ofSize(size).withPage(page);
-        return ResponseEntity.ok(hotelInfoService.findAllHotelWithDetailsAsDto(search, pageable));
+        Page<com.sist.backend.dto.master.HotelInfoDto> hotelPage = hotelInfoService.findAllHotelWithDetailsAsDto(search, pageable);
+        
+        // 통계 정보 조회
+        Map<String, Long> statistics = hotelInfoService.getHotelStatistics();
+        
+        // 응답에 통계 정보 추가
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", hotelPage.getContent());
+        response.put("totalElements", hotelPage.getTotalElements());
+        response.put("totalPages", hotelPage.getTotalPages());
+        response.put("number", hotelPage.getNumber());
+        response.put("size", hotelPage.getSize());
+        response.put("statistics", statistics);
+        
+        return ResponseEntity.ok(response);
     }
 
     /* 승인요청을 한 호텔들 */
