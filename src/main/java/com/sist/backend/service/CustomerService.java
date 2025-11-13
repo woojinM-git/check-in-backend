@@ -223,7 +223,7 @@ public class CustomerService {
         );
     }
 
-    /* 특정 호텔을 이용한 고객 목록 조회 (예약 통계 포함) */
+    /* 특정 호텔을 이용한 고객 목록 조회 (예약 통계 포함) - 페이징 미지원 (하위 호환성) */
     public List<CustomerListDto> findCustomersByContentId(String contentId) {
         // 특정 호텔을 이용한 고객들의 customerIdx 목록 조회
         List<Integer> customerIdxList = roomReservationRepository.findByStatus(contentId)
@@ -277,5 +277,77 @@ public class CustomerService {
             })
             .filter(dto -> dto != null)
             .collect(Collectors.toList());
+    }
+
+    /* 특정 호텔을 이용한 고객 목록 조회 (예약 통계 포함) - 페이징 지원, customerIdx 내림차순 정렬 */
+    public Page<CustomerListDto> findCustomersByContentIdWithPagination(String contentId, Pageable pageable) {
+        // 특정 호텔을 이용한 고객들의 customerIdx 목록 조회 (customerIdx 내림차순 정렬)
+        List<Integer> customerIdxList = roomReservationRepository.findByStatus(contentId)
+            .stream()
+            .map(r -> r.getCustomerIdx())
+            .distinct()
+            .sorted((a, b) -> b.compareTo(a)) // customerIdx 내림차순 정렬
+            .collect(Collectors.toList());
+
+        // 전체 개수
+        long total = customerIdxList.size();
+
+        // 페이징 적용
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), customerIdxList.size());
+        List<Integer> pagedCustomerIdxList = customerIdxList.subList(start, end);
+
+        // DTO 변환
+        List<CustomerListDto> customerListDtoList = pagedCustomerIdxList.stream()
+            .map(customerIdx -> {
+                Optional<Customer> customerOpt = customerRepository.findByCustomerIdx(customerIdx);
+                if (customerOpt.isEmpty()) {
+                    return null;
+                }
+                Customer customer = customerOpt.get();
+
+                // 예약 횟수
+                long reservationCount = roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 1)
+                    .stream()
+                    .filter(r -> r.getContentid().equals(contentId))
+                    .count();
+
+                // 총 결제 금액 (RoomPayment에서 가져오기)
+                Long totalPaymentAmount = roomPaymentRepository.findAllByContentIdWithReservations(contentId)
+                    .stream()
+                    .filter(rp -> rp.getCustomerIdx().equals(customerIdx) && rp.getStatus() == 1)
+                    .mapToLong(rp -> rp.getPrice() != null ? rp.getPrice() : 0L)
+                    .sum();
+
+                // 최근 방문 날짜
+                java.time.LocalDate lastVisitDate = roomReservationRepository
+                    .findLastVisitDateByCustomerAndContentId(customerIdx, contentId);
+
+                // 체크인 날짜 목록
+                List<java.time.LocalDate> visitedDates = roomReservationRepository
+                    .findCheckinDatesByCustomerAndContentId(customerIdx, contentId);
+
+                CustomerListDto dto = new CustomerListDto();
+                dto.setCustomerIdx(customer.getCustomerIdx());
+                dto.setId(customer.getId());
+                dto.setName(customer.getName());
+                dto.setEmail(customer.getEmail());
+                dto.setPhone(customer.getPhone());
+                dto.setReservationCount(reservationCount);
+                dto.setTotalPaymentAmount(totalPaymentAmount);
+                dto.setLastVisitDate(lastVisitDate);
+                dto.setRank(customer.getRank());
+                dto.setVisitedDates(visitedDates);
+
+                return dto;
+            })
+            .filter(dto -> dto != null)
+            .collect(Collectors.toList());
+
+        return new org.springframework.data.domain.PageImpl<>(
+            customerListDtoList,
+            pageable,
+            total
+        );
     }
 }

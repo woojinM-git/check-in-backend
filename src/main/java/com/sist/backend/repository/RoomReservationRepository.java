@@ -52,6 +52,15 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
             + "ORDER BY r.createdAt DESC")
     List<RoomReservation> findByStatusWithDetails(@Param("contentid") String contentid);
 
+    /* Room과 Customer 정보를 함께 조회하는 메서드 (최근 5개만) */
+    @Query("SELECT r FROM RoomReservation r "
+            + "LEFT JOIN FETCH r.room "
+            + "LEFT JOIN FETCH r.customer "
+            + "WHERE r.contentid = :contentid "
+            + "AND r.status = 1 "
+            + "ORDER BY r.createdAt DESC")
+    List<RoomReservation> findTop5ByStatusWithDetails(@Param("contentid") String contentid);
+
     /* 현재 로그인 한 관리자의 소유한업소(인자)를 조건으로 예약status가 1인 사람들의 목록 */
     @Query("SELECT r FROM RoomReservation r "
             + "WHERE r.contentid = :contentid "
@@ -218,6 +227,19 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     List<RoomReservation> findCustomerHistoryByContentId(
             @Param("contentid") String contentid,
             @Param("customerId") String customerId);
+
+    /* 고객 이용 이력 조회 (페이징 지원) */
+    @Query("SELECT r FROM RoomReservation r "
+            + "LEFT JOIN FETCH r.customer c "
+            + "LEFT JOIN FETCH r.room rm "
+            + "WHERE r.contentid = :contentid "
+            + "AND r.status IN (1, 4) "
+            + "AND (:customerId IS NULL OR c.id LIKE CONCAT('%', :customerId, '%')) "
+            + "ORDER BY r.checkinDate DESC")
+    Page<RoomReservation> findCustomerHistoryByContentIdWithPagination(
+            @Param("contentid") String contentid,
+            @Param("customerId") String customerId,
+            Pageable pageable);
 
     /* 특정 호텔의 전체 이용 이력 개수 (모든 예약 수) */
     @Query("SELECT COUNT(r) FROM RoomReservation r "
