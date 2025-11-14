@@ -466,8 +466,8 @@ public class MasterManagementController {
         int HotelCount = hotelInfoService.findRegistrationHotelCount();
         int pendingCount = roomReservationService.findByTodayCount();
         int CustomerCount = customerService.findRegistrationCustomerCount();
-        // 총 매출은 hotelSettlement의 totalRevenue 합계로 변경
-        Long totalRevenue = statisticsService.getTotalRevenueAll();
+        // 총 매출은 이번달 총 매출로 조회
+        Long totalRevenue = statisticsService.getThisMonthRevenue();
         /* 승인요청 호텔, 고객 목록 */
         List<RegistrationRequestDto> pendingRequests = registrationRequestService.findTop5ByStatusInDashboard();
         int pendingRequestCount = registrationRequestService.findByStatusCount();

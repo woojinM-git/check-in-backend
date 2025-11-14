@@ -25,6 +25,7 @@ import static com.sist.backend.entity.QHotelInfo.hotelInfo;
 import static com.sist.backend.entity.QHotelSettlement.hotelSettlement;
 import static com.sist.backend.entity.QRegistrationRequest.registrationRequest;
 import static com.sist.backend.entity.QRoomReservation.roomReservation;
+import static com.sist.backend.entity.QRoomPayment.roomPayment;
 
 @Slf4j
 @Service
@@ -49,7 +50,7 @@ public class StatisticsService {
 
         // 병렬 처리로 모든 통계 데이터 조회
         CompletableFuture<Long> totalRevenueFuture = CompletableFuture.supplyAsync(
-            () -> getTotalRevenue(startDate, endDate)
+            () -> getTotalRevenue(dateRange, startDate, endDate)
         );
         CompletableFuture<Long> totalReservationCountFuture = CompletableFuture.supplyAsync(
             () -> getTotalReservationCount(startDate, endDate)
@@ -119,12 +120,91 @@ public class StatisticsService {
     }
 
     /**
-     * 총 매출액 조회 (날짜 범위 적용)
-     * hotelSettlement 테이블의 totalRevenue 합계를 조회
-     * 플랫폼을 통한 모든 호텔의 총 거래액을 집계
-     * settlementMonth가 날짜 범위에 포함되는 정산 데이터를 합산
+     * 이번달 총 매출액 조회
+     * RoomReservation 테이블에서 status = 4 (이용완료)인 이번달 예약건의 totalPrice 합계
+     * 
+     * @return 이번달 총 매출액 (totalPrice 합계)
      */
-    private Long getTotalRevenue(LocalDate startDate, LocalDate endDate) {
+    public Long getThisMonthRevenue() {
+        LocalDate now = LocalDate.now();
+        int currentYear = now.getYear();
+        int currentMonth = now.getMonthValue();
+
+        Long result = queryFactory
+            .select(roomReservation.totalPrice.sum().longValue())
+            .from(roomReservation)
+            .where(
+                roomReservation.status.eq(4) // 이용완료
+                    .and(roomReservation.checkoutDate.isNotNull())
+                    .and(roomReservation.checkoutDate.year().eq(currentYear))
+                    .and(roomReservation.checkoutDate.month().eq(currentMonth))
+            )
+            .fetchOne();
+
+        return result != null ? result : 0L;
+    }
+
+    /**
+     * 총 매출액 조회 (날짜 범위 적용 - 하이브리드 방식)
+     * - 단기 기간(week, month): RoomPayment 테이블의 실제 결제 데이터 기반 (정확한 기간 매출)
+     * - 장기 기간(quarter, year): hotelSettlement 테이블의 월별 정산 데이터 기반 (성능 최적화)
+     * 
+     * @param dateRange 날짜 범위 ("week", "month", "quarter", "year")
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @return 총 매출액
+     */
+    private Long getTotalRevenue(String dateRange, LocalDate startDate, LocalDate endDate) {
+        // 단기 기간: RoomPayment 기반 계산 (정확한 기간 매출)
+        if ("week".equals(dateRange) || "month".equals(dateRange)) {
+            return getTotalRevenueFromRoomPayment(startDate, endDate);
+        }
+        
+        // 장기 기간: hotelSettlement 기반 계산 (성능 최적화)
+        return getTotalRevenueFromSettlement(startDate, endDate);
+    }
+
+    /**
+     * RoomPayment 테이블에서 총 매출액 조회 (단기 기간용)
+     * 실제 결제 완료된 금액을 기간별로 집계
+     * 
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @return 총 매출액 (price + pointsUsed + cashUsed)
+     */
+    private Long getTotalRevenueFromRoomPayment(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
+
+        Long result = queryFactory
+            .select(
+                roomPayment.price.sum().longValue()
+                    .add(roomPayment.pointsUsed.sum().coalesce(0).longValue())
+                    .add(roomPayment.cashUsed.sum().coalesce(0).longValue())
+            )
+            .from(roomPayment)
+            .innerJoin(roomReservation)
+                .on(roomPayment.orderIdx.eq(roomReservation.orderIdx))
+            .where(
+                roomPayment.status.eq(1) // 결제 완료
+                    .and(roomPayment.approvedAt.isNotNull())
+                    .and(roomPayment.approvedAt.goe(startDateTime))
+                    .and(roomPayment.approvedAt.loe(endDateTime))
+            )
+            .fetchOne();
+
+        return result != null ? result : 0L;
+    }
+
+    /**
+     * hotelSettlement 테이블에서 총 매출액 조회 (장기 기간용)
+     * 월별 정산 데이터를 합산하여 성능 최적화
+     * 
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @return 총 매출액
+     */
+    private Long getTotalRevenueFromSettlement(LocalDate startDate, LocalDate endDate) {
         // 날짜 범위에 포함되는 모든 월의 settlementMonth 리스트 생성
         // 예: startDate=2024-10-15, endDate=2024-12-01 -> ["2024-10", "2024-11", "2024-12"]
         List<String> settlementMonths = generateSettlementMonths(startDate, endDate);
