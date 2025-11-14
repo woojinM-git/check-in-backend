@@ -205,8 +205,8 @@ public class JwtFilter extends OncePerRequestFilter {
                                 String domainAttribute = getDomainAttribute();
                                 String sameSiteAttribute = getSameSiteAttribute();
                                 String secureAttribute = getSecureAttribute();
-                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly%s%s%s", newAccessToken, sameSiteAttribute, secureAttribute, domainAttribute);
-                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, 604800, sameSiteAttribute, secureAttribute, domainAttribute);
+                                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newAccessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
+                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                                 response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
@@ -239,8 +239,8 @@ public class JwtFilter extends OncePerRequestFilter {
                                         String domainAttribute = getDomainAttribute();
                                         String sameSiteAttribute = getSameSiteAttribute();
                                         String secureAttribute = getSecureAttribute();
-                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly%s%s%s", newAccessToken, sameSiteAttribute, secureAttribute, domainAttribute);
-                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, 604800, sameSiteAttribute, secureAttribute, domainAttribute);
+                                        String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newAccessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
+                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
 
@@ -306,8 +306,8 @@ public class JwtFilter extends OncePerRequestFilter {
                                 String domainAttribute = getDomainAttribute();
                                 String sameSiteAttribute = getSameSiteAttribute();
                                 String secureAttribute = getSecureAttribute();
-                                String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly%s%s%s", newAccessToken, sameSiteAttribute, secureAttribute, domainAttribute);
-                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, 604800, sameSiteAttribute, secureAttribute, domainAttribute);
+                                String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newAccessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
+                                String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                                 response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                 response.addHeader("Set-Cookie", refreshTokenCookieHeader);
         
@@ -333,8 +333,8 @@ public class JwtFilter extends OncePerRequestFilter {
                                         String domainAttribute = getDomainAttribute();
                                         String sameSiteAttribute = getSameSiteAttribute();
                                         String secureAttribute = getSecureAttribute();
-                                        String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly%s%s%s", newAccessToken, sameSiteAttribute, secureAttribute, domainAttribute);
-                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, 604800, sameSiteAttribute, secureAttribute, domainAttribute);
+                                        String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newAccessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
+                                        String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", newRefreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
                 

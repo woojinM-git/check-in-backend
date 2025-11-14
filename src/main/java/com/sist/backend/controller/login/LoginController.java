@@ -192,7 +192,7 @@ public class LoginController {
                     String domainAttribute = getDomainAttribute();
                     String sameSiteAttribute = getSameSiteAttribute();
                     String secureAttribute = getSecureAttribute();
-                    String accessTokenCookieHeader = String.format("accessToken=%s;  Path=/; HttpOnly%s%s%s", accessToken, sameSiteAttribute, secureAttribute, domainAttribute);
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", accessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", refreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
@@ -240,7 +240,7 @@ public class LoginController {
                     String domainAttribute = getDomainAttribute();
                     String sameSiteAttribute = getSameSiteAttribute();
                     String secureAttribute = getSecureAttribute();
-                    String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly%s%s%s", accessToken, sameSiteAttribute, secureAttribute, domainAttribute);
+                    String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", accessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                     String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", refreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
 
                     response.setHeader("Set-Cookie", accessTokenCookieHeader);
