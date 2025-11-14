@@ -102,18 +102,18 @@ public class RevenueService {
                 // 선택된 연도가 서비스 시작 연도인 경우
                 if (year == serviceStartYear) {
                     start = YearMonth.of(year, serviceStartMonth);
-                    // 현재 연도이면 현재 월까지만, 아니면 12월까지
+                    // 현재 연도이면 전 달까지만 (정산은 다음 달 1일에 이루어지므로), 아니면 12월까지
                     if (year == currentYear) {
-                        monthCount = currentMonth - serviceStartMonth + 1;
+                        monthCount = currentMonth - serviceStartMonth;
                     } else {
                         monthCount = 13 - serviceStartMonth;
                     }
                 } else {
                     // 이후 연도는 1월부터 표시
                     start = YearMonth.of(year, 1);
-                    // 현재 연도이면 현재 월까지만, 아니면 12월까지
+                    // 현재 연도이면 전 달까지만 (정산은 다음 달 1일에 이루어지므로), 아니면 12월까지
                     if (year == currentYear) {
-                        monthCount = currentMonth;
+                        monthCount = currentMonth - 1;
                     } else {
                         monthCount = 12;
                     }
@@ -121,23 +121,27 @@ public class RevenueService {
             } else {
                 // serviceStartDate가 없으면 1월부터 표시
                 start = YearMonth.of(year, 1);
-                // 현재 연도이면 현재 월까지만, 아니면 12월까지
+                // 현재 연도이면 전 달까지만 (정산은 다음 달 1일에 이루어지므로), 아니면 12월까지
                 if (year == currentYear) {
-                    monthCount = currentMonth;
+                    monthCount = currentMonth - 1;
                 } else {
                     monthCount = 12;
                 }
             }
         } else {
-            // year가 없으면 최근 12개월
-            start = YearMonth.now().minusMonths(11);
+            // year가 없으면 최근 12개월 (현재 월 제외)
+            YearMonth lastMonthForStart = YearMonth.now().minusMonths(1);
+            start = lastMonthForStart.minusMonths(11);
             monthCount = 12;
         }
         
+        // 현재 월을 제외하고 전 달까지만 표시 (정산은 다음 달 1일에 이루어지므로)
+        YearMonth lastMonth = currentYearMonth.minusMonths(1);
+        
         for (int i = 0; i < monthCount; i++) {
             YearMonth ym = start.plusMonths(i);
-            // 현재 월을 초과하지 않도록 체크
-            if (ym.isAfter(currentYearMonth)) {
+            // 전 달을 초과하지 않도록 체크 (현재 월 제외)
+            if (ym.isAfter(lastMonth)) {
                 break;
             }
             Long revenue = monthToRevenue.getOrDefault(ym, 0L);

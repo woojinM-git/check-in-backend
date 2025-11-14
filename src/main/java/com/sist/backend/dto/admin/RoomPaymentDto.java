@@ -40,6 +40,7 @@ public class RoomPaymentDto {
         private LocalDate checkinDate;
         private LocalDate checkoutDate;
         private Integer guest;
+        private String orderNum;
     }
 
     @Data
@@ -76,6 +77,7 @@ public class RoomPaymentDto {
             roomReservation.setCheckinDate(first.getCheckinDate());
             roomReservation.setCheckoutDate(first.getCheckoutDate());
             roomReservation.setGuest(first.getGuest());
+            roomReservation.setOrderNum(first.getOrderNum());
             dto.setRoomReservation(roomReservation);
 
             // 객실명 추출

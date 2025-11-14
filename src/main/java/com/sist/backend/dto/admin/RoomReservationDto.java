@@ -54,6 +54,7 @@ public class RoomReservationDto {
         private String nickname;
         private String name;
         private String phone;
+        private String rank;
     }
 
     public static RoomReservationDto fromEntity(RoomReservation roomReservation) {
@@ -87,7 +88,9 @@ public class RoomReservationDto {
             Customer customer = new Customer();
             customer.setCustomerIdx(roomReservation.getCustomer().getCustomerIdx());
             customer.setName(roomReservation.getCustomer().getName());
+            customer.setNickname(roomReservation.getCustomer().getNickname());
             customer.setPhone(roomReservation.getCustomer().getPhone());
+            customer.setRank(roomReservation.getCustomer().getRank());
             dto.setCustomer(customer);
         }
         return dto;

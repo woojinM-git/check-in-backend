@@ -325,8 +325,10 @@ public class MyPageService {
                         : "")
                 .updatedAt(reservation.getUpdatedAt() != null
                         ? reservation.getUpdatedAt().format(DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss"))
-                        : "");
-        
+                        : "")
+                // QR 코드 URL
+                .qrUrl(reservation.getQrUrl());
+
         // UsedItem 정보 추가
         if (usedItem != null) {
             builder.usedItemIdx(usedItem.getUsedItemIdx())
