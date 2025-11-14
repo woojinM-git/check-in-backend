@@ -109,7 +109,7 @@ public class oAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         String secureAttribute = buildSecureAttribute();
 
                         // 쿠키에 토큰 설정
-                        String accessTokenCookieHeader = String.format("accessToken=%s; Path=/; HttpOnly%s%s%s", accessToken, sameSiteAttribute, secureAttribute, domainAttribute);
+                        String accessTokenCookieHeader = String.format("accessToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", accessToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                         String refreshTokenCookieHeader = String.format("refreshToken=%s; Max-Age=%d; Path=/; HttpOnly%s%s%s", refreshToken, refreshTokenExpireTime, sameSiteAttribute, secureAttribute, domainAttribute);
                         response.setHeader("Set-Cookie", accessTokenCookieHeader);
                         response.addHeader("Set-Cookie", refreshTokenCookieHeader);
