@@ -96,7 +96,7 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expire-time: 60
+  access-token-expire-time: 10
   refresh-token-expire-time: 604800
   reissue-time: 1
 
