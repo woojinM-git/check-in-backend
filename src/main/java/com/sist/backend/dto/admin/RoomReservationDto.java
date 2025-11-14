@@ -26,6 +26,7 @@ public class RoomReservationDto {
     private Integer totalPrice;
     private String specialRequest;
     private String qrUrl;
+    private String orderNum;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -71,6 +72,7 @@ public class RoomReservationDto {
         dto.setTotalPrice(roomReservation.getTotalPrice());
         dto.setSpecialRequest(roomReservation.getSpecialRequest());
         dto.setQrUrl(roomReservation.getQrUrl());
+        dto.setOrderNum(roomReservation.getOrderNum());
         dto.setCreatedAt(roomReservation.getCreatedAt());
         dto.setUpdatedAt(roomReservation.getUpdatedAt());
 

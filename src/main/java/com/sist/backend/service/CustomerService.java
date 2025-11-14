@@ -240,11 +240,19 @@ public class CustomerService {
                 }
                 Customer customer = customerOpt.get();
 
-                // 예약 횟수
+                // 예약 횟수 (status = 1: 확정, status = 4: 이용완료 모두 포함)
                 long reservationCount = roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 1)
                     .stream()
                     .filter(r -> r.getContentid().equals(contentId))
                     .count();
+                
+                // status = 4 (이용완료)인 예약도 추가 집계
+                long completedCount = roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 4)
+                    .stream()
+                    .filter(r -> r.getContentid().equals(contentId))
+                    .count();
+                
+                reservationCount += completedCount;
 
                 // 총 결제 금액 (RoomPayment에서 가져오기)
                 Long totalPaymentAmount = roomPaymentRepository.findAllByContentIdWithReservations(contentId)
@@ -306,11 +314,19 @@ public class CustomerService {
                 }
                 Customer customer = customerOpt.get();
 
-                // 예약 횟수
+                // 예약 횟수 (status = 1: 확정, status = 4: 이용완료 모두 포함)
                 long reservationCount = roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 1)
                     .stream()
                     .filter(r -> r.getContentid().equals(contentId))
                     .count();
+                
+                // status = 4 (이용완료)인 예약도 추가 집계
+                long completedCount = roomReservationRepository.findByCustomerIdxAndStatus(customerIdx, 4)
+                    .stream()
+                    .filter(r -> r.getContentid().equals(contentId))
+                    .count();
+                
+                reservationCount += completedCount;
 
                 // 총 결제 금액 (RoomPayment에서 가져오기)
                 Long totalPaymentAmount = roomPaymentRepository.findAllByContentIdWithReservations(contentId)
