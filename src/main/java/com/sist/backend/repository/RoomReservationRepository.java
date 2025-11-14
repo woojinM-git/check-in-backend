@@ -71,18 +71,27 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     @Query("SELECT r FROM RoomReservation r "
             + "LEFT JOIN FETCH r.room "
             + "LEFT JOIN FETCH r.customer "
+            + "LEFT JOIN ReservationTime rt ON r.orderIdx = rt.orderIdx "
             + "WHERE r.contentid = :contentid "
-            + "AND r.status = 1 "
-            + "ORDER BY r.checkinDate ASC")
+            + "AND r.status != 4 "
+            + "AND rt.inTime IS NULL "
+            + "ORDER BY "
+            + "CASE WHEN r.checkinDate = CURRENT_DATE THEN 0 ELSE 1 END ASC, "
+            + "r.checkinDate DESC")
     Page<RoomReservation> findCheckinPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
     /* 체크아웃 대기 목록 조회 (outTime 컬럼이 NULL인 경우) */
     @Query("SELECT r FROM RoomReservation r "
             + "LEFT JOIN FETCH r.room "
             + "LEFT JOIN FETCH r.customer "
+            + "LEFT JOIN ReservationTime rt ON r.orderIdx = rt.orderIdx "
             + "WHERE r.contentid = :contentid "
-            + "AND r.status = 1 "
-            + "ORDER BY r.checkoutDate ASC")
+            + "AND r.status != 4 "
+            + "AND rt.inTime IS NOT NULL "
+            + "AND rt.outTime IS NULL "
+            + "ORDER BY "
+            + "CASE WHEN r.checkoutDate = CURRENT_DATE THEN 0 ELSE 1 END ASC, "
+            + "r.checkoutDate DESC")
     Page<RoomReservation> findCheckoutPendingWithDetails(@Param("contentid") String contentid, Pageable pageable);
 
     /* room 목록 */

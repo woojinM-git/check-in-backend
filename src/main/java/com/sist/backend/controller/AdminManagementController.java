@@ -301,7 +301,7 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
 
-        return ResponseEntity.ok(roomPaymentService.findByOrderIdxAndInTime(contentid, pageable));
+        return ResponseEntity.ok(roomReservationService.findCheckinPendingWithDetails(contentid, pageable));
     }
 
     @PostMapping("/checkin")
@@ -368,7 +368,7 @@ public class AdminManagementController {
             return createRedirectResponse();
         }
 
-        return ResponseEntity.ok(roomPaymentService.findByOrderIdxAndOutTime(contentid, pageable));
+        return ResponseEntity.ok(roomReservationService.findCheckoutPendingWithDetails(contentid, pageable));
     }
 
     @PostMapping("/checkout")

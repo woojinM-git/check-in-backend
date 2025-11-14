@@ -32,7 +32,10 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
         "LEFT JOIN FETCH rp.reservationTime rt " +
         "WHERE rr.contentid = :contentId " +
         "AND rt.inTime IS NULL " +
-        "AND rr.status != 4")
+        "AND rr.status != 4 " +
+        "ORDER BY " +
+        "CASE WHEN rr.checkinDate = CURRENT_DATE THEN 0 ELSE 1 END ASC, " +
+        "rr.checkinDate DESC")
     Page<RoomPayment> findByOrderIdxAndInTime(@Param("contentId") String contentId, Pageable pageable);
 
     @Query("SELECT rp FROM RoomPayment rp " +
@@ -41,7 +44,10 @@ public interface RoomPaymentRepository extends JpaRepository<RoomPayment, Intege
         "WHERE rr.contentid = :contentId " +
         "AND rt.inTime IS NOT NULL " +
         "AND rt.outTime IS NULL " +
-        "AND rr.status != 4")
+        "AND rr.status != 4 " +
+        "ORDER BY " +
+        "CASE WHEN rr.checkoutDate = CURRENT_DATE THEN 0 ELSE 1 END ASC, " +
+        "rr.checkoutDate DESC")
     Page<RoomPayment> findByOrderIdxAndOutTime(@Param("contentId") String contentId, Pageable pageable);
 
     @Query("SELECT DISTINCT rp FROM RoomPayment rp " +
