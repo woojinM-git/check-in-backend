@@ -40,7 +40,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
 
     @Query("SELECT r FROM RoomReservation r "
             + "WHERE r.contentid = :contentid "
-            + "AND r.status = 1 OR r.status = 4")
+            + "AND r.status IN (1, 4)")
     List<RoomReservation> findByStatus(@Param("contentid") String contentid);
 
     /* Room과 Customer 정보를 함께 조회하는 메서드 */
@@ -131,6 +131,9 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     /* customerIdx와 status로 예약 목록 조회 */
     List<RoomReservation> findByCustomerIdxAndStatus(Integer customerIdx, Integer status);
 
+    /* orderIdx로 예약 목록 조회 */
+    List<RoomReservation> findByOrderIdx(Integer orderIdx);
+
     /* customerIdx와 status로 예약 개수 조회 */
     @Query("SELECT COUNT(r) FROM RoomReservation r "
             + "WHERE r.customerIdx = :customerIdx AND r.status = :status")
@@ -149,21 +152,23 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
             @Param("checkInDate") java.time.LocalDate checkInDate,
             @Param("checkOutDate") java.time.LocalDate checkOutDate);
 
-    /* 특정 호텔을 이용한 기록이 있는 고객 수 */
+    /* 특정 호텔을 이용한 기록이 있는 고객 수 (status = 1: 확정, status = 4: 이용완료 모두 포함) */
     @Query("SELECT COUNT(DISTINCT r.customerIdx) FROM RoomReservation r "
-            + "WHERE r.contentid = :contentid AND r.status = 1")
+            + "WHERE r.contentid = :contentid AND r.status IN (1, 4)")
     Long countDistinctCustomersByContentId(@Param("contentid") String contentid);
 
-    /* 이번 달 새로 이용을 시작한 고객 수 */
-    @Query("SELECT COUNT(DISTINCT r.customerIdx) FROM RoomReservation r "
-            + "WHERE r.contentid = :contentid "
-            + "AND r.status = 1 "
-            + "AND YEAR(r.checkinDate) = YEAR(CURRENT_DATE) "
-            + "AND MONTH(r.checkinDate) = MONTH(CURRENT_DATE) "
-            + "AND r.checkinDate = (SELECT MIN(r2.checkinDate) FROM RoomReservation r2 "
-            + "                      WHERE r2.customerIdx = r.customerIdx "
-            + "                      AND r2.contentid = :contentid "
-            + "                      AND r2.status = 1)")
+    /* 이번 달 새로 이용을 시작한 고객 수 (결제 완료 시점 기준) */
+    @Query("SELECT COUNT(DISTINCT rp.customerIdx) FROM RoomPayment rp "
+            + "INNER JOIN RoomReservation rr ON rp.orderIdx = rr.orderIdx "
+            + "WHERE rr.contentid = :contentid "
+            + "AND rp.status = 1 "
+            + "AND YEAR(rp.approvedAt) = YEAR(CURRENT_DATE) "
+            + "AND MONTH(rp.approvedAt) = MONTH(CURRENT_DATE) "
+            + "AND rp.approvedAt = (SELECT MIN(rp2.approvedAt) FROM RoomPayment rp2 "
+            + "                      INNER JOIN RoomReservation rr2 ON rp2.orderIdx = rr2.orderIdx "
+            + "                      WHERE rp2.customerIdx = rp.customerIdx "
+            + "                      AND rr2.contentid = :contentid "
+            + "                      AND rp2.status = 1)")
     Long countNewCustomersThisMonth(@Param("contentid") String contentid);
 
     /* 특정 호텔을 이용한 고객별 체크인 날짜 목록 */
@@ -210,7 +215,7 @@ public interface RoomReservationRepository extends JpaRepository<RoomReservation
     @Query("SELECT MAX(r.checkinDate) FROM RoomReservation r "
             + "WHERE r.customerIdx = :customerIdx "
             + "AND r.contentid = :contentid "
-            + "AND r.status = 1 "
+            + "AND r.status IN (1, 4) "
             + "AND r.checkinDate <= CURRENT_DATE")
     java.time.LocalDate findLastVisitDateByCustomerAndContentId(
             @Param("customerIdx") Integer customerIdx,

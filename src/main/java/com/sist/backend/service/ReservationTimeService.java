@@ -1,13 +1,16 @@
 package com.sist.backend.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sist.backend.dto.admin.CheckTimeUpdateDto;
 import com.sist.backend.entity.ReservationTime;
+import com.sist.backend.entity.RoomReservation;
 import com.sist.backend.repository.ReservationTimeRepository;
+import com.sist.backend.repository.RoomReservationRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class ReservationTimeService {
 
     private final ReservationTimeRepository reservationTimeRepository;
+    private final RoomReservationRepository roomReservationRepository;
 
     @Transactional
     public void checkin(CheckTimeUpdateDto dto) {
@@ -41,6 +45,15 @@ public class ReservationTimeService {
         
         // 영속화된 엔티티 수정 → 변경 감지로 자동 저장됨
         reservationTime.setOutTime(dto.getOutTime() != null ? dto.getOutTime() : LocalDateTime.now());
+        
+        // 체크아웃 완료 시 RoomReservation의 status를 1에서 4로 변경
+        List<RoomReservation> reservations = roomReservationRepository.findByOrderIdx(dto.getOrderIdx());
+        for (RoomReservation reservation : reservations) {
+            if (reservation.getStatus() != null && reservation.getStatus() == 1) {
+                reservation.setStatus(4); // 이용완료로 변경
+                reservation.setUpdatedAt(LocalDateTime.now());
+            }
+        }
         
         // save() 호출 불필요 - 변경 감지로 자동 저장
     }
