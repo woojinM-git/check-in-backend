@@ -43,7 +43,9 @@ public class RegistrationRequestDto {
     public static class HotelInfo {
         private String contentId;
         private String title;
-        private String adress;
+        private String adress; // 하위 호환성 유지
+        private String baseAddress; // 도로명 주소
+        private String detailAddress; // 상세 주소
         private Integer rooms;
         private Integer count;
     }
@@ -81,7 +83,9 @@ public class RegistrationRequestDto {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> hotelInfoMap = (Map<String, Object>) parsedData.get("hotelInfo");
                         hotelInfo.setTitle((String) hotelInfoMap.get("title"));
-                        hotelInfo.setAdress((String) hotelInfoMap.get("adress"));
+                        hotelInfo.setAdress((String) hotelInfoMap.get("adress")); // 하위 호환성 유지
+                        hotelInfo.setBaseAddress((String) hotelInfoMap.get("baseAddress")); // 도로명 주소
+                        hotelInfo.setDetailAddress((String) hotelInfoMap.get("detailAddress")); // 상세 주소
                     }
                     
                     // 객실 개수 파싱
