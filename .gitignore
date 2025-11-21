@@ -43,6 +43,8 @@ out/
 .env.local
 .env.*.local
 /etc
+# .env.example은 예시 파일이므로 커밋 가능
+!.env.example
 
 # Node modules
 node_modules/

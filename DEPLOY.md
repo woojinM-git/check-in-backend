@@ -57,7 +57,7 @@ docker-compose up --build
 - Container에서: `mysql80:3306`
 - Database: `checkin`
 - User: `admin`
-- Password: `1111`
+- Password: `${DB_PASSWORD}` (환경 변수에서 설정)
 
 ### Redis
 - Host: `localhost:6379` (외부 접속)
