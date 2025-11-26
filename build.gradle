@@ -14,6 +14,8 @@ java {
 	}
 }
 
+def querydslDir = file("build/generated/querydsl")
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -103,6 +105,14 @@ dependencies {
 
 }
 
+sourceSets {
+	main {
+		java {
+			srcDir querydslDir
+		}
+	}
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	// 테스트 실패해도 빌드는 계속 진행 (개발 환경에서만)
@@ -111,4 +121,9 @@ tasks.named('test') {
 
 tasks.withType(JavaCompile) {
     options.compilerArgs << "-parameters"
+	options.annotationProcessorGeneratedSourcesDirectory = querydslDir
+}
+
+clean.doFirst {
+	delete querydslDir
 }
